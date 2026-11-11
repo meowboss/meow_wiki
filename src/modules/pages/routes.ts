@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { HttpContext } from '../../http/context.ts';
 import type { PagesService } from './service.ts';
+import { PageTransfer } from './transfer.ts';
 
 const pageInput = z.object({
   title: z.string().trim().min(1).max(160),
@@ -10,9 +11,18 @@ const pageInput = z.object({
 
 export function registerPageRoutes(
   app: FastifyInstance,
-  { caller, scope }: HttpContext,
+  { caller, scope, store }: HttpContext,
   pages: PagesService,
 ) {
+  const transfer = new PageTransfer(store);
+  app.get('/api/pages/export', async (request, reply) =>
+    reply
+      .header('Content-Disposition', 'attachment; filename="meow-pages.json"')
+      .send(transfer.export(caller(request), scope(request).id)),
+  );
+  app.post('/api/pages/import', { bodyLimit: 5 * 1024 * 1024 }, async (request, reply) =>
+    reply.code(201).send(transfer.import(caller(request), scope(request).id, request.body)),
+  );
   app.post('/api/pages', async (request, reply) => {
     const owner = caller(request);
     const w = scope(request);

@@ -36,6 +36,7 @@ import {
 } from '../shared/api';
 import Modal from '../shared/ui/Modal';
 import PageHistory from '../features/wiki/PageHistory';
+import PageTransfer from '../features/wiki/PageTransfer';
 import WikiEditor, { type WikiEditorMode } from '../features/wiki/WikiEditor';
 import WikiWorkspaceView from '../features/wiki/WikiWorkspaceView';
 import WorkspacePicker from '../features/workspaces/WorkspacePicker';
@@ -103,6 +104,7 @@ export default function App({
   });
   const [conflict, setConflict] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [mode, setMode] = useState<WikiEditorMode>('split');
   const [html, setHtml] = useState('');
   const [rendering, setRendering] = useState(false);
@@ -140,7 +142,7 @@ export default function App({
     if (!signal?.aborted) setData(next);
     return next;
   }, []);
-  const guardWorkspaceExit = () =>
+  const guardWorkspaceExit = (preserveDraft = false) =>
     !busy &&
     !logoutBusy &&
     (!(
@@ -154,9 +156,11 @@ export default function App({
       workshopDirty
     ) ||
       window.confirm(
-        mcpDirty
-          ? '离开后将清除仅展示一次的令牌明文，且无法再次查看。请确认已安全保存，继续吗？'
-          : '页面、资料或首页布局有未保存的更改，切换工作空间或退出将放弃这些更改。确定继续吗？',
+        preserveDraft
+          ? '当前有未保存的更改。打开页面包弹窗会保留这些草稿；导出仅包含服务器已保存内容，导入仅追加新页面。确定打开吗？'
+          : mcpDirty
+            ? '离开后将清除仅展示一次的令牌明文，且无法再次查看。请确认已安全保存，继续吗？'
+            : '页面、资料或首页布局有未保存的更改，切换工作空间或退出将放弃这些更改。确定继续吗？',
       ));
   const selectPage = (p: WikiPage, force = false) => {
     if (!force && busy) return;
@@ -346,7 +350,7 @@ export default function App({
     return () => window.clearTimeout(timer);
   }, [notice]);
   useEffect(() => {
-    if (!searchOpen && !askOpen && !historyOpen) return;
+    if (!searchOpen && !askOpen && !historyOpen && !transferOpen) return;
     const previous = document.activeElement as HTMLElement | null;
     const oldOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -377,7 +381,7 @@ export default function App({
       document.removeEventListener('keydown', trap);
       previous?.focus();
     };
-  }, [searchOpen, askOpen, historyOpen]);
+  }, [searchOpen, askOpen, historyOpen, transferOpen]);
   async function action(key: string, task: () => Promise<void>, success: string) {
     if (busy) return;
     setBusy(key);
@@ -816,6 +820,21 @@ export default function App({
             </strong>
           </div>
           <div className="topbar-actions">
+            {view === 'wiki' && (
+              <button
+                className="secondary-btn"
+                disabled={!!busy || logoutBusy || loading || !data || !workspace || transferOpen}
+                onClick={() => {
+                  if (!guardWorkspaceExit(true)) return;
+                  setSearchOpen(false);
+                  setAskOpen(false);
+                  setHistoryOpen(false);
+                  setTransferOpen(true);
+                }}
+              >
+                页面包
+              </button>
+            )}
             <span className="private-label">
               <ShieldCheck size={13} />
               {view === 'mcp' ? '个人只读凭据' : view === 'domains' ? '仅域成员可见' : '仅自己可见'}
@@ -1009,6 +1028,15 @@ export default function App({
           </>
         )}
       </main>
+      {transferOpen && workspace && (
+        <PageTransfer
+          key={workspace.id}
+          workspace={workspace}
+          onClose={() => setTransferOpen(false)}
+          onBusyChange={childBusy}
+          onRefresh={load}
+        />
+      )}
       {historyOpen && page && (
         <PageHistory
           pageId={page.id}
