@@ -45,9 +45,18 @@ import ReviewView from '../features/reviews/ReviewView';
 import KnowledgeView from '../features/knowledge/KnowledgeView';
 import ProposalView from '../features/proposals/ProposalView';
 import DomainsView from '../features/domains/DomainsView';
+import McpCredentialsView from '../features/mcp/McpCredentialsView';
 
 type View =
-  'home' | 'wiki' | 'market' | 'components' | 'reviews' | 'knowledge' | 'proposals' | 'domains';
+  | 'home'
+  | 'wiki'
+  | 'market'
+  | 'components'
+  | 'reviews'
+  | 'knowledge'
+  | 'proposals'
+  | 'domains'
+  | 'mcp';
 const message = (error: unknown) =>
   error instanceof Error ? error.message : '发生未知错误，请重试。';
 
@@ -113,6 +122,8 @@ export default function App({
   const [proposalDirty, setProposalDirty] = useState(false);
   const [componentDirty, setComponentDirty] = useState(false);
   const [domainDirty, setDomainDirty] = useState(false);
+  const [mcpDirty, setMcpDirty] = useState(false);
+  const independentView = view === 'domains' || view === 'mcp';
   const childBusy = useCallback((value: boolean) => setBusy(value ? 'component-view' : ''), []);
   const selectedRef = useRef('');
   const dirty = title !== saved.title || markdown !== saved.markdown || parentId !== saved.parentId;
@@ -126,15 +137,31 @@ export default function App({
   const guardWorkspaceExit = () =>
     !busy &&
     !logoutBusy &&
-    (!(dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty || domainDirty) ||
+    (!(
+      dirty ||
+      homeDirty ||
+      knowledgeDirty ||
+      proposalDirty ||
+      componentDirty ||
+      domainDirty ||
+      mcpDirty
+    ) ||
       window.confirm(
-        '页面、资料或首页布局有未保存的更改，切换工作空间或退出将放弃这些更改。确定继续吗？',
+        mcpDirty
+          ? '离开后将清除仅展示一次的令牌明文，且无法再次查看。请确认已安全保存，继续吗？'
+          : '页面、资料或首页布局有未保存的更改，切换工作空间或退出将放弃这些更改。确定继续吗？',
       ));
   const selectPage = (p: WikiPage, force = false) => {
     if (!force && busy) return;
     if (
       !force &&
-      (dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty || domainDirty) &&
+      (dirty ||
+        homeDirty ||
+        knowledgeDirty ||
+        proposalDirty ||
+        componentDirty ||
+        domainDirty ||
+        mcpDirty) &&
       !window.confirm('当前页面有未保存的更改，确定放弃吗？')
     )
       return;
@@ -200,7 +227,8 @@ export default function App({
         knowledgeDirty ||
         proposalDirty ||
         componentDirty ||
-        domainDirty
+        domainDirty ||
+        mcpDirty
       ) {
         e.preventDefault();
         e.returnValue = '';
@@ -208,7 +236,16 @@ export default function App({
     };
     window.addEventListener('beforeunload', fn);
     return () => window.removeEventListener('beforeunload', fn);
-  }, [busy, dirty, homeDirty, knowledgeDirty, proposalDirty, componentDirty, domainDirty]);
+  }, [
+    busy,
+    dirty,
+    homeDirty,
+    knowledgeDirty,
+    proposalDirty,
+    componentDirty,
+    domainDirty,
+    mcpDirty,
+  ]);
   useEffect(() => {
     if (!selected || !enabled('official.markdown')) {
       setHtml('');
@@ -276,7 +313,7 @@ export default function App({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        if (view === 'domains') {
+        if (view === 'domains' || view === 'mcp') {
           e.preventDefault();
           return;
         }
@@ -487,7 +524,13 @@ export default function App({
   }
   function createPage() {
     if (
-      (dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty || domainDirty) &&
+      (dirty ||
+        homeDirty ||
+        knowledgeDirty ||
+        proposalDirty ||
+        componentDirty ||
+        domainDirty ||
+        mcpDirty) &&
       !window.confirm('新建页面将离开当前未保存的内容，确定继续吗？')
     )
       return;
@@ -525,8 +568,18 @@ export default function App({
     if (
       busy ||
       (view !== next &&
-        (dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty || domainDirty) &&
-        !window.confirm('页面、资料或首页布局有未保存的更改，确定离开吗？'))
+        (dirty ||
+          homeDirty ||
+          knowledgeDirty ||
+          proposalDirty ||
+          componentDirty ||
+          domainDirty ||
+          mcpDirty) &&
+        !window.confirm(
+          mcpDirty
+            ? '离开后将清除仅展示一次的令牌明文，且无法再次查看。请确认已安全保存，继续吗？'
+            : '页面、资料或首页布局有未保存的更改，确定离开吗？',
+        ))
     )
       return;
     setView(next);
@@ -564,7 +617,7 @@ export default function App({
           disabled={!!busy || logoutBusy}
           onBusyChange={(value) => setBusy(value ? 'workspace' : '')}
         />
-        {view !== 'domains' && (
+        {!independentView && (
           <button className="search-trigger" onClick={() => setSearchOpen(true)}>
             <Search size={16} />
             <span>搜索你的知识</span>
@@ -575,6 +628,10 @@ export default function App({
           <button className={view === 'domains' ? 'active' : ''} onClick={() => nav('domains')}>
             <Layers3 size={18} />
             知识域
+          </button>
+          <button className={view === 'mcp' ? 'active' : ''} onClick={() => nav('mcp')}>
+            <ShieldCheck size={18} />
+            Agent 连接
           </button>
           <button className={view === 'proposals' ? 'active' : ''} onClick={() => nav('proposals')}>
             <PencilLine size={18} />
@@ -611,7 +668,7 @@ export default function App({
             </button>
           )}
         </nav>
-        {view !== 'domains' && (
+        {!independentView && (
           <>
             <div className="sidebar-label">
               <span>我的页面</span>
@@ -668,7 +725,7 @@ export default function App({
           </>
         )}
         <div className="sidebar-bottom">
-          {view !== 'domains' && (
+          {!independentView && (
             <div className="garden-card">
               <Sprout size={24} />
               <strong>每一条记录，都有回响</strong>
@@ -709,35 +766,37 @@ export default function App({
             >
               <Menu size={20} />
             </button>
-            <span>{view === 'domains' ? '跨空间协作' : '我的工作空间'}</span>
+            <span>{independentView ? '跨空间协作' : '我的工作空间'}</span>
             <ChevronRight size={13} />
             <strong>
-              {view === 'domains'
-                ? '知识域'
-                : view === 'home'
-                  ? '首页'
-                  : view === 'wiki'
-                    ? '知识空间'
-                    : view === 'market'
-                      ? '插件市场'
-                      : view === 'knowledge'
-                        ? '资料工作台'
-                        : view === 'reviews'
-                          ? '组件审核'
-                          : view === 'proposals'
-                            ? '写入提议'
-                            : '我的组件'}
+              {view === 'mcp'
+                ? 'Agent 连接'
+                : view === 'domains'
+                  ? '知识域'
+                  : view === 'home'
+                    ? '首页'
+                    : view === 'wiki'
+                      ? '知识空间'
+                      : view === 'market'
+                        ? '插件市场'
+                        : view === 'knowledge'
+                          ? '资料工作台'
+                          : view === 'reviews'
+                            ? '组件审核'
+                            : view === 'proposals'
+                              ? '写入提议'
+                              : '我的组件'}
             </strong>
           </div>
           <div className="topbar-actions">
             <span className="private-label">
               <ShieldCheck size={13} />
-              {view === 'domains' ? '仅域成员可见' : '仅自己可见'}
+              {view === 'mcp' ? '个人只读凭据' : view === 'domains' ? '仅域成员可见' : '仅自己可见'}
             </span>
             <button
               className="icon-btn"
               title="刷新工作空间"
-              disabled={!!busy || loading || view === 'domains'}
+              disabled={!!busy || loading || independentView}
               onClick={() => {
                 void load().catch((e) => setError(message(e)));
               }}
@@ -778,7 +837,13 @@ export default function App({
             {notice}
           </div>
         )}
-        {view === 'domains' ? (
+        {view === 'mcp' ? (
+          <McpCredentialsView
+            key={workspace?.id ?? 'no-workspace'}
+            onDirtyChange={setMcpDirty}
+            onBusyChange={childBusy}
+          />
+        ) : view === 'domains' ? (
           <DomainsView
             key={workspace?.id ?? 'no-workspace'}
             workspace={workspace}

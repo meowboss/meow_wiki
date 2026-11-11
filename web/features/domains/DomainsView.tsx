@@ -203,7 +203,9 @@ export default function DomainsView({
       <p className="domains-boundary">
         加入知识域不授予其所属工作空间的页面或资料访问权。这里仅展示独立提交的域快照，不自动共享私人内容。
       </p>
-      <p className="domains-muted">构建方案目前为分类配置；MCP 与专用 Harness 尚未实现。</p>
+      <p className="domains-muted">
+        构建方案目前为分类配置；Agent连接提供域范围只读MCP，专用开发Harness尚未实现。
+      </p>
       {!workspace && <p>当前没有工作空间；仍可访问已加入的域。创建域前请先创建自己的工作空间。</p>}
       {error && (
         <p role="alert" className="form-error">

@@ -1,0 +1,110 @@
+.mcp-view {
+  padding: 32px;
+  max-width: 1080px;
+  width: 100%;
+  margin: 0 auto;
+  overflow-y: auto;
+}
+.mcp-view h1 {
+  margin: 0 0 8px;
+}
+.mcp-view h2 {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+.mcp-view p,
+.mcp-view li {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.mcp-boundary,
+.mcp-panel {
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid var(--border, #e3e8e4);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+}
+.mcp-boundary {
+  background: #f3f8f4;
+}
+.mcp-boundary ul {
+  padding-left: 20px;
+  margin-bottom: 0;
+}
+.mcp-panel fieldset {
+  border: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.mcp-panel label {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+.mcp-panel input,
+.mcp-panel select,
+.mcp-panel textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #dce3dd);
+  border-radius: 8px;
+  font: inherit;
+  background: #fff;
+  color: inherit;
+}
+.mcp-panel textarea {
+  font-family: monospace;
+  resize: vertical;
+}
+.mcp-panel fieldset > button {
+  justify-self: start;
+}
+.mcp-secret {
+  border-color: #c38d35;
+  background: #fffcf4;
+}
+.mcp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+.mcp-credentials {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 0;
+}
+.mcp-credentials li {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: start;
+  padding: 16px 0;
+  border-top: 1px solid var(--border, #e3e8e4);
+}
+.mcp-credentials li > div {
+  min-width: 0;
+}
+.mcp-credentials p {
+  margin: 4px 0;
+  font-size: 13px;
+}
+.mcp-credentials button {
+  flex-shrink: 0;
+}
+@media (max-width: 720px) {
+  .mcp-view {
+    padding: 20px 16px;
+  }
+  .mcp-boundary,
+  .mcp-panel {
+    padding: 16px;
+  }
+  .mcp-credentials li {
+    flex-direction: column;
+  }
+}
