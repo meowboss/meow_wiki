@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.data/
+coverage/
+.dsh-local-memory/
+.env
+.env.*
+!.env.example
+*.log
