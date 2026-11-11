@@ -16,6 +16,9 @@ export function registerDomainRoutes(
 ) {
   const { caller, scope } = context;
   const builder = new DomainBuildService(domains);
+  app.post<{ Params: { id: string } }>('/api/domains/:id/prune-rejected', async (request) =>
+    domains.pruneRejected(caller(request), request.params.id),
+  );
   app.post<{ Params: { id: string } }>('/api/domains/:id/build', async (request, reply) =>
     reply.code(201).send(builder.build(caller(request), request.params.id, request.body)),
   );

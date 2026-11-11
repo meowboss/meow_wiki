@@ -140,6 +140,8 @@ export class DomainsService {
     return this.repository.transaction(() => {
       const { role } = this.access(caller, id);
       this.require(canContribute(role));
+      if (this.repository.pendingByAuthor(caller, id) >= 100)
+        throw new DomainError(409, '每位作者每域最多100条待审贡献');
       if (this.repository.contributionCount(caller, id) >= 500)
         throw new DomainError(409, 'Contribution limit reached');
       const contribution: Contribution = {
@@ -179,6 +181,21 @@ export class DomainsService {
       if (!this.repository.review(reviewed)) conflict();
       return reviewed;
     });
+  }
+  pruneRejected(caller: string, id: string) {
+    const { role } = this.access(caller, id);
+    this.require(canMaintain(role));
+    return { removed: this.repository.pruneRejected(caller, id) };
+  }
+  published(caller: string, id: string, after = '', limit = 20): Contribution[] {
+    this.access(caller, id);
+    if (after.length > 100 || !Number.isInteger(limit) || limit < 1 || limit > 20)
+      throw new DomainError(400, 'Invalid publication cursor');
+    return this.repository.published(caller, id, after, limit);
+  }
+  publishedById(caller: string, id: string, contributionId: string) {
+    this.access(caller, id);
+    return this.repository.publishedById(caller, id, contributionId);
   }
   search(caller: string, id: string, query: string): Contribution[] {
     this.access(caller, id);

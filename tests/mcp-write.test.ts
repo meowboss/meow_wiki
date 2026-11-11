@@ -72,6 +72,7 @@ test('SDK HTTP client can only submit pending contributions with a live contribu
     const tools = (await client.listTools()).tools;
     assert.deepEqual(tools.map((tool) => tool.name).sort(), [
       'domain_info',
+      'list_publications',
       'read_contribution',
       'search_knowledge',
       'submit_contribution',
@@ -122,7 +123,7 @@ test('SDK HTTP client can only submit pending contributions with a live contribu
       assert.equal(readIssued.json().record.scope, 'domain.read');
       const readClient = await connect(readIssued.json().token);
       const readTools = (await readClient.listTools()).tools;
-      assert.equal(readTools.length, 3);
+      assert.equal(readTools.length, 4);
       assert.ok(readTools.every((tool) => tool.annotations?.readOnlyHint === true));
       const denied = await readClient.callTool({ name: 'submit_contribution', arguments: input });
       assert.equal(denied.isError, true);

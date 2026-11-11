@@ -53,7 +53,8 @@ test('stateless MCP HTTP authenticates each request with domain token and revoca
     assert.ok(initialize.json().result.serverInfo);
     const list = await rpc({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} });
     assert.equal(list.statusCode, 200, list.body);
-    assert.equal(list.json().result.tools.length, 3);
+    assert.equal(list.json().result.tools.length, 4);
+    assert.equal((await rpc([{ jsonrpc: '2.0', id: 5, method: 'tools/list' }])).statusCode, 400);
     const revoke = await app.inject({
       method: 'DELETE',
       url: `/api/mcp/credentials/${record.id}`,

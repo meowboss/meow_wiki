@@ -14,7 +14,8 @@
     "start": "tsx src/server.ts",
     "test": "tsx --test tests/*.test.ts web/features/plugin-lab/host.test.ts",
     "check": "tsc --noEmit",
-    "test:e2e": "playwright test",
+    "test:e2e": "node scripts/system-tests.mjs",
+    "test:e2e:shared": "playwright test",
     "format": "prettier --write src web packages tests e2e",
     "format:check": "prettier --check src web packages tests e2e",
     "test:architecture": "tsx --test tests/architecture.test.ts"

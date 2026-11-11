@@ -146,6 +146,24 @@ export class DomainRepository {
       };
     });
   }
+  pendingByAuthor(caller: string, id: string): number {
+    return Number(
+      this.db
+        .prepare(
+          "SELECT count(*) AS n FROM domain_contributions WHERE domainId=? AND authorId=? AND status='pending'",
+        )
+        .get(id, caller)!.n,
+    );
+  }
+  pruneRejected(caller: string, id: string) {
+    const role = this.role(caller, id);
+    if (role !== 'owner' && role !== 'maintainer') return 0;
+    return Number(
+      this.db
+        .prepare("DELETE FROM domain_contributions WHERE domainId=? AND status='rejected'")
+        .run(id).changes,
+    );
+  }
   contributionCount(caller: string, id: string): number {
     if (!this.get(caller, id)) return 0;
     return Number(
@@ -176,6 +194,23 @@ export class DomainRepository {
       OR c.status='published' OR (c.authorId=? AND c.status='pending')) ORDER BY c.rowid`,
       )
       .all(caller, id, caller, caller, caller) as unknown as Contribution[];
+  }
+  published(caller: string, id: string, after = '', limit = 20): Contribution[] {
+    return this.db
+      .prepare(
+        `SELECT c.* FROM domain_contributions c JOIN domains d ON d.id=c.domainId
+      WHERE d.id=? AND (d.ownerId=? OR EXISTS(SELECT 1 FROM domain_members m WHERE m.domainId=d.id AND m.userId=?))
+      AND c.status='published' AND c.id>? ORDER BY c.id LIMIT ?`,
+      )
+      .all(id, caller, caller, after, limit) as unknown as Contribution[];
+  }
+  publishedById(caller: string, id: string, contributionId: string): Contribution | undefined {
+    return this.db
+      .prepare(
+        `SELECT c.* FROM domain_contributions c JOIN domains d ON d.id=c.domainId
+      WHERE d.id=? AND c.id=? AND c.status='published' AND (d.ownerId=? OR EXISTS(SELECT 1 FROM domain_members m WHERE m.domainId=d.id AND m.userId=?))`,
+      )
+      .get(id, contributionId, caller, caller) as Contribution | undefined;
   }
   review(c: Contribution): boolean {
     return (

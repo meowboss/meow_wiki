@@ -29,7 +29,12 @@ test('official MCP client interoperates with readonly domain tools and never ret
     await server.connect(serverTransport);
     await client.connect(clientTransport);
     const tools = await client.listTools();
-    assert.equal(tools.tools.length, 3);
+    assert.deepEqual(tools.tools.map((t) => t.name).sort(), [
+      'domain_info',
+      'list_publications',
+      'read_contribution',
+      'search_knowledge',
+    ]);
     assert.ok(tools.tools.every((t) => t.annotations?.readOnlyHint));
     const result = await client.callTool({
       name: 'read_contribution',

@@ -774,6 +774,26 @@ function DomainDetail({
                 ? '只读成员仅能查看已发布快照。'
                 : '作者可查看自己的待审贡献；所有者和维护者可审核其他人的待审贡献。'}
             </p>
+            {(domain.role === 'owner' || domain.role === 'maintainer') && (
+              <button
+                className="text-btn"
+                disabled={busy}
+                onClick={() => {
+                  if (
+                    !window.confirm(
+                      '永久清理此域所有已拒绝贡献以回收额度？已发布和待审内容不会删除。',
+                    )
+                  )
+                    return;
+                  void run(async () => {
+                    await api(`${base}/prune-rejected`, {});
+                    await refreshContributions();
+                  });
+                }}
+              >
+                清理已拒绝贡献（永久）
+              </button>
+            )}
             {!visible.length && <p>暂无可见贡献。</p>}
             {visible.map((item) => (
               <article className="domains-contribution" key={item.id}>

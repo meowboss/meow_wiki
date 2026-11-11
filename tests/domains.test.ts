@@ -210,9 +210,17 @@ test('bounded domains, contributions, validated content and literal bounded publ
     assert.deepEqual(service.search('reader', domain.id, '%'), []);
     assert.deepEqual(service.search('reader', domain.id, "' OR 1=1 --"), []);
     assert.throws(() => service.search('reader', domain.id, ' '), status(400));
-    for (let i = 25; i < 500; i++) service.submit('writer', domain.id, proposal);
+    for (let i = 0; i < 100; i++) service.submit('writer', domain.id, proposal);
     assert.throws(() => service.submit('writer', domain.id, proposal), status(409));
-    assert.equal(service.contributions('owner', domain.id).length, 500);
+    assert.equal(service.contributions('owner', domain.id).length, 125);
+    for (const contribution of service
+      .contributions('owner', domain.id)
+      .filter((c) => c.status === 'pending'))
+      service.review('owner', domain.id, contribution.id, { decision: 'rejected' });
+    assert.throws(() => service.pruneRejected('writer', domain.id), status(403));
+    assert.equal(service.pruneRejected('owner', domain.id).removed, 100);
+    assert.equal(service.contributions('owner', domain.id).length, 25);
+    assert.ok(service.submit('writer', domain.id, proposal).id);
   } finally {
     store.close();
   }
