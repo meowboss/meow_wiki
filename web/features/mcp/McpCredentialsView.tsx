@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { api } from '../../shared/api';
+import { api, type DomainRole } from '../../shared/api';
 import './mcp.css';
 
-type MemberDomain = { id: string; name: string };
+type MemberDomain = { id: string; name: string; role: DomainRole };
+type McpScope = 'domain.read' | 'domain.contribute';
+const canContribute = (role?: DomainRole) =>
+  role === 'contributor' || role === 'maintainer' || role === 'owner';
+const scopes: Record<McpScope, string> = {
+  'domain.read': '只读（domain.read）',
+  'domain.contribute': '提交待审贡献（domain.contribute）',
+};
 type Credential = {
+  scope: McpScope;
   id: string;
   domainId: string;
   label: string;
@@ -28,10 +36,12 @@ function credential(value: unknown): Credential {
     !['id', 'domainId', 'label', 'expiresAt', 'createdAt'].every(
       (key) => typeof item[key] === 'string',
     ) ||
-    !(item.revokedAt === null || typeof item.revokedAt === 'string')
+    !(item.revokedAt === null || typeof item.revokedAt === 'string') ||
+    !(item.scope === 'domain.read' || item.scope === 'domain.contribute')
   )
     throw new Error('凭据记录格式无效。');
   return {
+    scope: item.scope,
     id: item.id as string,
     domainId: item.domainId as string,
     label: item.label as string,
@@ -45,6 +55,7 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
   const [domains, setDomains] = useState<MemberDomain[]>([]);
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [domainId, setDomainId] = useState('');
+  const [scope, setScope] = useState<McpScope>('domain.read');
   const [label, setLabel] = useState('');
   const [days, setDays] = useState('7');
   const [token, setToken] = useState('');
@@ -57,6 +68,7 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
   const lifecycle = useRef<AbortController | null>(null);
   const lock = useRef(false);
   const working = loading || !!busy;
+  const contributionAllowed = canContribute(domains.find((domain) => domain.id === domainId)?.role);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -70,13 +82,16 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
         if (
           !Array.isArray(domainResult?.domains) ||
           !domainResult.domains.every(
-            (item) => typeof item.id === 'string' && typeof item.name === 'string',
+            (item) =>
+              typeof item.id === 'string' &&
+              typeof item.name === 'string' &&
+              ['reader', 'contributor', 'maintainer', 'owner'].includes(item.role),
           ) ||
           !Array.isArray(credentialResult?.credentials)
         )
           throw new Error('域或凭据列表格式无效。');
         const records = credentialResult.credentials.map(credential);
-        setDomains(domainResult.domains.map(({ id, name }) => ({ id, name })));
+        setDomains(domainResult.domains.map(({ id, name, role }) => ({ id, name, role })));
         setDomainId(domainResult.domains[0]?.id ?? '');
         setCredentials(records);
       })
@@ -110,6 +125,10 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
       setError('请选择成员域并填写凭据名称。');
       return;
     }
+    if (scope === 'domain.contribute' && !contributionAllowed) {
+      setError('仅贡献者、维护者或所有者可签发提交待审贡献的凭据。');
+      return;
+    }
     if (!Number.isInteger(expiresInDays) || expiresInDays < 1 || expiresInDays > 30) {
       setError('有效期必须为 1 至 30 天的整数。');
       return;
@@ -123,7 +142,7 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
     try {
       const result = await api<{ token: string; record: unknown }>(
         '/mcp/credentials',
-        { domainId, label: label.trim(), expiresInDays },
+        { domainId, label: label.trim(), expiresInDays, scope },
         'POST',
         signal,
       );
@@ -194,7 +213,7 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
     <section className="mcp-view" aria-label="Agent 连接">
       <header>
         <h1>Agent 连接</h1>
-        <p>为 Agent 签发单个知识域的只读 MCP 凭据。</p>
+        <p>为 Agent 签发单个知识域的只读或提交待审贡献 MCP 凭据；默认只读。</p>
       </header>
       <aside className="mcp-boundary">
         <h2>连接与访问边界</h2>
@@ -205,7 +224,11 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
           <li>
             在支持自定义请求头的 MCP 客户端中配置 <code>Authorization: Bearer &lt;token&gt;</code>。
           </li>
-          <li>仅可读取所选知识域中已发布的内容；不读取原工作空间的私人页面或资料。</li>
+          <li>读取范围仅限所选知识域中已发布的内容；不读取原工作空间的私人页面或资料。</li>
+          <li>
+            domain.contribute 在只读能力外仅可提交
+            pending（待审核）贡献，绝不能发布或审核；即使签发者是维护者或所有者也不例外。
+          </li>
           <li>服务器仍仅监听 localhost，只能在本机连接；签发凭据不会开启远程访问。</li>
           <li>当前接口不支持 OAuth；没有 OAuth 登录或授权流程。</li>
         </ul>
@@ -221,7 +244,14 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
         <fieldset disabled={working || !!token}>
           <label>
             成员域
-            <select required value={domainId} onChange={(event) => setDomainId(event.target.value)}>
+            <select
+              required
+              value={domainId}
+              onChange={(event) => {
+                setDomainId(event.target.value);
+                setScope('domain.read');
+              }}
+            >
               <option value="">请选择知识域</option>
               {domains.map((domain) => (
                 <option key={domain.id} value={domain.id}>
@@ -230,6 +260,19 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
               ))}
             </select>
           </label>
+          <label>
+            权限范围（scope）
+            <select value={scope} onChange={(event) => setScope(event.target.value as McpScope)}>
+              <option value="domain.read">{scopes['domain.read']}</option>
+              <option value="domain.contribute" disabled={!contributionAllowed}>
+                {scopes['domain.contribute']}
+              </option>
+            </select>
+          </label>
+          <p>
+            仅贡献者、维护者或所有者可签发 contribute；只读成员不可签发。contribute
+            只能提交待审，不能发布或审核。
+          </p>
           <label>
             凭据名称
             <input
@@ -252,7 +295,11 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
             />
           </label>
           <button className="primary-btn" disabled={!domainId || !label.trim()}>
-            {busy === 'issue' ? '签发中…' : '签发只读凭据'}
+            {busy === 'issue'
+              ? '签发中…'
+              : scope === 'domain.contribute'
+                ? '签发待审贡献凭据'
+                : '签发只读凭据'}
           </button>
         </fieldset>
         {!loading && !domains.length && <p>尚无可用成员域，请先加入或创建知识域。</p>}
@@ -280,7 +327,7 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
       )}
       <section className="mcp-panel" aria-label="已签发凭据">
         <h2>已签发凭据</h2>
-        <p>仅展示名称、域和生命周期信息，不展示令牌或其哈希。关闭明文不会撤销凭据。</p>
+        <p>仅展示名称、域、权限范围和生命周期信息，不展示令牌或其哈希。关闭明文不会撤销凭据。</p>
         {!loading && !credentials.length && <p>暂无凭据。</p>}
         <ul className="mcp-credentials">
           {credentials.map((record) => {
@@ -289,6 +336,7 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
               <li key={record.id}>
                 <div>
                   <strong>{record.label}</strong>
+                  <p>权限范围：{scopes[record.scope]}</p>
                   <p>
                     域：
                     {domains.find((domain) => domain.id === record.domainId)?.name ??

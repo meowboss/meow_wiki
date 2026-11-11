@@ -3,7 +3,7 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 import { z } from 'zod';
 import type { HttpContext } from '../../http/context.ts';
 import type { DomainsService } from '../domains/service.ts';
-import { McpCredentials } from './credentials.ts';
+import { McpCredentials, mcpScopeSchema } from './credentials.ts';
 import { createDomainMcp } from './server.ts';
 
 export function registerMcpRoutes(
@@ -21,6 +21,7 @@ export function registerMcpRoutes(
         domainId: z.string().uuid(),
         label: z.string().trim().min(1).max(100),
         expiresInDays: z.number().int().min(1).max(30).default(7),
+        scope: mcpScopeSchema.optional(),
       })
       .strict()
       .parse(request.body);

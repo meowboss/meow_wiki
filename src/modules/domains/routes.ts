@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { HttpContext } from '../../http/context.ts';
 import type { DomainsService } from './service.ts';
+import { DomainBuildService } from './build-service.ts';
 
 const input = z.object({
   name: z.string().trim().min(1).max(160),
@@ -14,6 +15,10 @@ export function registerDomainRoutes(
   domains: DomainsService,
 ) {
   const { caller, scope } = context;
+  const builder = new DomainBuildService(domains);
+  app.post<{ Params: { id: string } }>('/api/domains/:id/build', async (request, reply) =>
+    reply.code(201).send(builder.build(caller(request), request.params.id, request.body)),
+  );
   function describe(userId: string, id: string) {
     return domains.describe(userId, id);
   }

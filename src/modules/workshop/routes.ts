@@ -16,6 +16,7 @@ export function registerWorkshop(
 ) {
   const vault = new ProviderVault(context.store.db, options.masterSecret, options.allowedEndpoints);
   const projects = new WorkshopProjects(context.store.db, context.components);
+  projects.recoverInterruptedRuns(); // Single-instance startup reconciliation, not a multi-replica lease.
   const engine = new WorkshopEngine(projects, vault, options.fetcher);
   app.get('/api/workshop/config', async () => ({
     endpoints: Object.keys(options.allowedEndpoints).map((id) => ({ id, label: id })),

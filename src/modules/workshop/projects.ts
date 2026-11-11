@@ -94,6 +94,16 @@ export class WorkshopProjects {
     );
   }
 
+  recoverInterruptedRuns(): number {
+    return Number(
+      this.db
+        .prepare(
+          "UPDATE mw_workshop_projects SET state='failed',error='服务重启中断了运行；请检查产物后重新运行' WHERE state='running'",
+        )
+        .run().changes,
+    );
+  }
+
   create(owner: string, workspaceId: string, input: unknown): WorkshopProject {
     this.ids(owner, workspaceId);
     const parsed = projectInput.safeParse(input);

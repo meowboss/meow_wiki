@@ -35,7 +35,6 @@ export class WorkshopEngine {
     const project = this.projects.get(owner, projectId);
     const profile = this.providers.resolve(owner, providerId);
     this.running.add(projectId);
-    this.projects.setRunState(owner, projectId, 'running', 0, null);
     const messages: { role: string; content: string }[] = [
       {
         role: 'system',
@@ -46,6 +45,7 @@ export class WorkshopEngine {
     ];
     let iteration = 0;
     try {
+      this.projects.setRunState(owner, projectId, 'running', 0, null);
       for (iteration = 1; iteration <= 8; iteration++) {
         const response = await this.fetcher(
           profile.endpoint.replace(/\/$/, '') + '/chat/completions',
@@ -65,7 +65,10 @@ export class WorkshopEngine {
             }),
           },
         );
-        if (!response.ok) throw new WorkshopError('Provider拒绝请求，请检查配置或额度', 502);
+        if (!response.ok) {
+          await response.body?.cancel().catch(() => {});
+          throw new WorkshopError('Provider拒绝请求，请检查配置或额度', 502);
+        }
         const text = await readBounded(response);
         const raw = z
           .object({
@@ -78,6 +81,12 @@ export class WorkshopEngine {
         if (raw.includes(profile.apiKey))
           throw new WorkshopError('Provider响应包含敏感凭据，已丢弃', 502);
         const action = command.parse(JSON.parse(raw));
+        const normalized = JSON.stringify(action);
+        if (
+          normalized.includes(profile.apiKey) ||
+          (action.tool === 'write_file' && containsSecret(action.content, profile.apiKey))
+        )
+          throw new WorkshopError('Provider响应包含敏感凭据，已丢弃', 502);
         messages.push({ role: 'assistant', content: raw });
         let result: unknown;
         if (action.tool === 'read_file')
@@ -113,6 +122,14 @@ export class WorkshopEngine {
     } finally {
       this.running.delete(projectId);
     }
+  }
+}
+function containsSecret(content: string, secret: string): boolean {
+  if (content.includes(secret)) return true;
+  try {
+    return JSON.stringify(JSON.parse(content)).includes(secret);
+  } catch {
+    return false;
   }
 }
 async function readBounded(response: Response) {

@@ -2,10 +2,14 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
 import { DomainError, type DomainsService } from '../domains/service.ts';
+import { canContribute } from '../domains/domain.ts';
+
+export type McpScope = 'domain.read' | 'domain.contribute';
+export const mcpScopeSchema = z.enum(['domain.read', 'domain.contribute']);
 
 export class McpCredentialError extends Error {
   constructor(
-    readonly statusCode: 400 | 401 | 404 | 409,
+    readonly statusCode: 400 | 401 | 403 | 404 | 409,
     message: string,
   ) {
     super(message);
@@ -19,6 +23,7 @@ export type McpCredentialRecord = {
   expiresAt: string;
   createdAt: string;
   revokedAt: string | null;
+  scope: McpScope;
 };
 
 const issueSchema = z
@@ -26,11 +31,13 @@ const issueSchema = z
     domainId: z.string().min(1),
     label: z.string().trim().min(1).max(200),
     expiresInDays: z.number().int().min(1).max(30),
+    scope: mcpScopeSchema.default('domain.read'),
   })
   .strict();
 export type IssueMcpCredentialInput = z.input<typeof issueSchema>;
 const publicColumns = `id, domain_id AS domainId, label, expires_at AS expiresAt,
-  created_at AS createdAt, revoked_at AS revokedAt`;
+  created_at AS createdAt, revoked_at AS revokedAt,
+  COALESCE((SELECT scope FROM mcp_credential_grants WHERE credentialId=mcp_credentials.id), 'domain.read') AS scope`;
 const digest = (token: string) => createHash('sha256').update(token).digest('hex');
 
 /** Credentials represent a real user, never the domain/workspace owner on their behalf. */
@@ -53,6 +60,11 @@ export class McpCredentials {
         revoked_at TEXT
       );
       CREATE INDEX IF NOT EXISTS mcp_credentials_user ON mcp_credentials(user_id, revoked_at, expires_at);
+      -- Keep the legacy read-only CHECK intact; absent grants remain read-only.
+      CREATE TABLE IF NOT EXISTS mcp_credential_grants (
+        credentialId TEXT PRIMARY KEY REFERENCES mcp_credentials(id) ON DELETE CASCADE,
+        scope TEXT NOT NULL CHECK(scope IN ('domain.read', 'domain.contribute'))
+      );
     `);
   }
 
@@ -67,7 +79,9 @@ export class McpCredentials {
     // Savepoints also compose with an outer transaction; count and insertion commit together.
     this.db.exec('SAVEPOINT mcp_credential_issue');
     try {
-      this.domains.get(caller, values.domainId);
+      const { role } = this.domains.describe(caller, values.domainId);
+      if (values.scope === 'domain.contribute' && !canContribute(role))
+        throw new McpCredentialError(403, 'Domain contribution permission required');
       if (!this.userExists(caller)) throw new McpCredentialError(404, 'User not found');
       const now = new Date(this.clock());
       const createdAt = now.toISOString();
@@ -86,6 +100,7 @@ export class McpCredentials {
         expiresAt: new Date(now.getTime() + values.expiresInDays * 86_400_000).toISOString(),
         createdAt,
         revokedAt: null,
+        scope: values.scope,
       };
       this.db
         .prepare(
@@ -102,6 +117,9 @@ export class McpCredentials {
           record.expiresAt,
           record.createdAt,
         );
+      this.db
+        .prepare('INSERT INTO mcp_credential_grants(credentialId,scope) VALUES (?,?)')
+        .run(record.id, record.scope);
       this.db.exec('RELEASE mcp_credential_issue');
       return { token, record };
     } catch (error) {
@@ -129,13 +147,18 @@ export class McpCredentials {
     return { ...record, revokedAt };
   }
 
-  authenticate(token: string): { userId: string; domainId: string; credentialId: string } {
+  authenticate(token: string): {
+    userId: string;
+    domainId: string;
+    credentialId: string;
+    scope: McpScope;
+  } {
     const unauthorized = () => new McpCredentialError(401, 'Invalid MCP credential');
     if (typeof token !== 'string' || !/^meow_mcp_[A-Za-z0-9_-]{43}$/.test(token))
       throw unauthorized();
     const row = this.db
       .prepare(
-        `SELECT id, user_id AS userId, domain_id AS domainId FROM mcp_credentials
+        `SELECT ${publicColumns}, user_id AS userId FROM mcp_credentials
          WHERE hash=? AND scope='domain.read' AND revoked_at IS NULL AND expires_at>?`,
       )
       .get(digest(token), new Date(this.clock()).toISOString());
@@ -143,12 +166,13 @@ export class McpCredentials {
     const userId = String(row.userId);
     const domainId = String(row.domainId);
     try {
-      this.domains.get(userId, domainId);
+      const { role } = this.domains.describe(userId, domainId);
+      if (row.scope === 'domain.contribute' && !canContribute(role)) throw unauthorized();
     } catch (error) {
       if (error instanceof DomainError && (error.statusCode === 404 || error.statusCode === 403))
         throw unauthorized();
       throw error;
     }
-    return { userId, domainId, credentialId: String(row.id) };
+    return { userId, domainId, credentialId: String(row.id), scope: row.scope as McpScope };
   }
 }

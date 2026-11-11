@@ -204,7 +204,8 @@ export default function DomainsView({
         加入知识域不授予其所属工作空间的页面或资料访问权。这里仅展示独立提交的域快照，不自动共享私人内容。
       </p>
       <p className="domains-muted">
-        构建方案目前为分类配置；Agent连接提供域范围只读MCP，专用开发Harness尚未实现。
+        构建方案用于确定性资料汇编（非 LLM）；Agent
+        连接支持域范围只读或提交待审贡献，绝不授予审核或发布权限。
       </p>
       {!workspace && <p>当前没有工作空间；仍可访问已加入的域。创建域前请先创建自己的工作空间。</p>}
       {error && (
@@ -299,6 +300,9 @@ function DomainDetail({
   const [content, setContent] = useState('');
   // Capture the baseline when the draft starts; never silently rebase after another action.
   const [contributionRevision, setContributionRevision] = useState<number | null>(null);
+  const [buildTitle, setBuildTitle] = useState('');
+  const [buildIds, setBuildIds] = useState<string[]>([]);
+  const [buildRevision, setBuildRevision] = useState<number | null>(null);
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const lock = useRef(false);
   const mounted = useRef(true);
@@ -310,6 +314,8 @@ function DomainDetail({
     role !== 'reader' ||
     !!title ||
     !!content ||
+    !!buildTitle ||
+    buildIds.length > 0 ||
     Object.values(reasons).some(Boolean);
   const working = loading || busy;
   const owner = domain?.role === 'owner';
@@ -410,7 +416,7 @@ function DomainDetail({
     if (
       dirty &&
       !window.confirm(
-        '加载最新域将放弃域配置、邀请、贡献和审核草稿，请先复制要保留的内容。确定继续吗？',
+        '加载最新域将放弃域配置、邀请、贡献、构建标题与来源选择和审核草稿，请先复制要保留的内容。确定继续吗？',
       )
     )
       return;
@@ -423,6 +429,9 @@ function DomainDetail({
       setEmail('');
       setRole('reader');
       setReasons({});
+      setBuildTitle('');
+      setBuildIds([]);
+      setBuildRevision(null);
       setNotice('已加载最新域。');
     });
   }
@@ -469,6 +478,62 @@ function DomainDetail({
       await afterMutation(refreshContributions, '贡献已提交，等待其他维护者审核；尚未发布。');
     });
   }
+  async function refreshDomainAndContributions() {
+    // Advance the displayed domain, but never rebase unsaved config, contribution or build drafts.
+    const next = await api<Domain>(base);
+    if (mounted.current) {
+      if (domain && changed(draft, fields(domain))) setConflict(true);
+      else {
+        setDomain(next);
+        setDraft(fields(next));
+      }
+      callbacks.current.onUpdated(next);
+    }
+    await refreshContributions();
+  }
+  function build(event: FormEvent) {
+    event.preventDefault();
+    if (
+      !writable ||
+      !domain ||
+      conflict ||
+      !buildTitle.trim() ||
+      !buildIds.length ||
+      buildIds.length > 10
+    )
+      return;
+    if (
+      !buildIds.every((sourceId) =>
+        contributions.some(
+          (item) => item.id === sourceId && item.domainId === id && item.status === 'published',
+        ),
+      )
+    ) {
+      setError('构建来源必须全部为当前域已发布的贡献，请核对选择。');
+      return;
+    }
+    void run(async () => {
+      const result = await api<{
+        mode: 'deterministic-compilation';
+        contribution: DomainContribution;
+        provenance: { domainRevision: number; profile: BuildProfile; contributionIds: string[] };
+      }>(`${base}/build`, {
+        title: buildTitle.trim(),
+        contributionIds: buildIds,
+        expectedRevision: buildRevision ?? domain.revision,
+      });
+      if (!mounted.current) return;
+      if (result?.mode !== 'deterministic-compilation' || result.contribution?.status !== 'pending')
+        throw new Error('构建返回格式异常，请加载最新域核对结果；不会自动重试或发布。');
+      setBuildTitle('');
+      setBuildIds([]);
+      setBuildRevision(null);
+      await afterMutation(
+        refreshDomainAndContributions,
+        `确定性汇编已生成待审核贡献“${result.contribution.title}”（非 LLM），尚未发布，须由其他维护者审核。`,
+      );
+    });
+  }
   function review(contribution: DomainContribution, decision: 'published' | 'rejected') {
     if (
       !reviewer ||
@@ -491,19 +556,7 @@ function DomainDetail({
       if (!mounted.current) return;
       setReasons((current) => ({ ...current, [contribution.id]: '' }));
       await afterMutation(
-        async () => {
-          // Refresh revision without replacing unsaved metadata or a contribution's CAS baseline.
-          const next = await api<Domain>(base);
-          if (mounted.current) {
-            if (domain && changed(draft, fields(domain))) setConflict(true);
-            else {
-              setDomain(next);
-              setDraft(fields(next));
-            }
-            callbacks.current.onUpdated(next);
-          }
-          await refreshContributions();
-        },
+        refreshDomainAndContributions,
         decision === 'published' ? '贡献已发布，域版本已推进。' : '贡献已拒绝。',
       );
     });
@@ -651,6 +704,65 @@ function DomainDetail({
                   disabled={conflict || !title.trim() || !content.trim()}
                 >
                   提交审核
+                </button>
+              </fieldset>
+            </form>
+          )}
+          {writable && (
+            <form onSubmit={build} aria-label="确定性资料汇编">
+              <h3>确定性资料汇编（非 LLM）</h3>
+              <p>
+                按“{profiles[domain.buildProfile]}”方案汇编 1–10 条已发布快照，未调用语言模型。
+                基于域版本 {buildRevision ?? domain.revision}；仅生成
+                pending（待审核）贡献，不会自动发布，作者不能审核自己的贡献。
+              </p>
+              <fieldset disabled={working}>
+                <label>
+                  构建标题
+                  <input
+                    required
+                    maxLength={160}
+                    value={buildTitle}
+                    onChange={(event) => {
+                      if (buildRevision === null) setBuildRevision(domain.revision);
+                      setBuildTitle(event.target.value);
+                    }}
+                  />
+                </label>
+                <fieldset>
+                  <legend>选择已发布来源（已选 {buildIds.length}/10）</legend>
+                  {!contributions.some(
+                    (item) => item.domainId === id && item.status === 'published',
+                  ) && <p>暂无已发布来源，请先完成独立贡献审核。</p>}
+                  {contributions
+                    .filter((item) => item.domainId === id && item.status === 'published')
+                    .map((item) => (
+                      <label key={item.id} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <input
+                          type="checkbox"
+                          style={{ width: 'auto' }}
+                          checked={buildIds.includes(item.id)}
+                          disabled={!buildIds.includes(item.id) && buildIds.length >= 10}
+                          onChange={(event) => {
+                            if (buildRevision === null) setBuildRevision(domain.revision);
+                            setBuildIds((current) =>
+                              event.target.checked
+                                ? [...current, item.id]
+                                : current.filter((sourceId) => sourceId !== item.id),
+                            );
+                          }}
+                        />
+                        {item.title}（已发布）
+                      </label>
+                    ))}
+                </fieldset>
+                <button
+                  className="primary-btn"
+                  disabled={
+                    conflict || !buildTitle.trim() || buildIds.length < 1 || buildIds.length > 10
+                  }
+                >
+                  {busy ? '处理中…' : '确定性汇编并提交待审（非 LLM）'}
                 </button>
               </fieldset>
             </form>

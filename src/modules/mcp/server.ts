@@ -2,8 +2,16 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import type { DomainsService } from '../domains/service.ts';
 
-export type McpPrincipal = { userId: string; domainId: string; credentialId: string };
-/** Read-only adapter: always acts as the original credential user, never as domain owner. */
+import { submitSchema } from '../domains/domain.ts';
+import type { McpScope } from './credentials.ts';
+
+export type McpPrincipal = {
+  userId: string;
+  domainId: string;
+  credentialId: string;
+  scope?: McpScope;
+};
+/** Always acts as the original credential user; omitted scope remains read-only. */
 export function createDomainMcp(domains: DomainsService, principal: McpPrincipal) {
   const server = new McpServer({ name: 'meow-wiki-domains', version: '0.1.0' });
   const published = () =>
@@ -63,5 +71,23 @@ export function createDomainMcp(domains: DomainsService, principal: McpPrincipal
       ],
     }),
   );
+  if (principal.scope === 'domain.contribute') {
+    server.registerTool(
+      'submit_contribution',
+      {
+        description: '以凭据原用户提交待审核贡献，不审核或发布',
+        inputSchema: submitSchema,
+        annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+      },
+      async (input) => ({
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(domains.submit(principal.userId, principal.domainId, input)),
+          },
+        ],
+      }),
+    );
+  }
   return server;
 }

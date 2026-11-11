@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Store } from '../src/store.ts';
 import { DomainError, DomainsService } from '../src/modules/domains/service.ts';
 import {
@@ -38,8 +41,127 @@ function status(code: number) {
     (error instanceof McpCredentialError || error instanceof DomainError) &&
     error.statusCode === code;
 }
-const recordKeys = ['createdAt', 'domainId', 'expiresAt', 'id', 'label', 'revokedAt'];
+const recordKeys = ['createdAt', 'domainId', 'expiresAt', 'id', 'label', 'revokedAt', 'scope'];
 const day = 86_400_000;
+
+test('contribution grants require current contribution authority and downgrade immediately rejects authentication', () => {
+  const { store, domains, domain, credentials, input } = fixture();
+  try {
+    assert.throws(
+      () => credentials.issue('reader', { ...input, scope: 'domain.contribute' }),
+      status(403),
+    );
+    assert.deepEqual(credentials.list('reader'), []);
+    for (const role of ['contributor', 'maintainer', 'owner'] as const) {
+      const caller = role === 'owner' ? 'owner' : 'reader';
+      if (role !== 'owner') domains.setMember('owner', domain.id, { userId: caller, role });
+      const issued = credentials.issue(caller, { ...input, scope: 'domain.contribute' });
+      assert.equal(issued.record.scope, 'domain.contribute');
+      assert.equal(credentials.authenticate(issued.token).scope, 'domain.contribute');
+      assert.equal(
+        store.db.prepare('SELECT scope FROM mcp_credentials WHERE id=?').get(issued.record.id)!
+          .scope,
+        'domain.read',
+      );
+      assert.equal(
+        store.db
+          .prepare('SELECT scope FROM mcp_credential_grants WHERE credentialId=?')
+          .get(issued.record.id)!.scope,
+        'domain.contribute',
+      );
+      if (caller === 'reader') {
+        domains.setMember('owner', domain.id, { userId: caller, role: 'reader' });
+        assert.throws(() => credentials.authenticate(issued.token), status(401));
+      }
+    }
+    const read = credentials.issue('reader', { ...input, scope: 'domain.read' });
+    assert.equal(credentials.authenticate(read.token).scope, 'domain.read');
+    store.db.exec(`CREATE TRIGGER fail_grant BEFORE INSERT ON mcp_credential_grants
+      BEGIN SELECT RAISE(ABORT, 'injected grant failure'); END`);
+    const before = credentials.list('owner');
+    assert.throws(
+      () => credentials.issue('owner', { ...input, scope: 'domain.contribute' }),
+      /injected grant failure/,
+    );
+    assert.deepEqual(credentials.list('owner'), before);
+  } finally {
+    store.close();
+  }
+});
+
+test('persistent legacy read credentials survive additive migration and absent grants stay read-only', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'meow-mcp-legacy-'));
+  const path = join(directory, 'legacy.db');
+  let store = new Store(path);
+  try {
+    store.db.exec('CREATE TABLE user(id TEXT PRIMARY KEY,email TEXT,name TEXT)');
+    store.db.prepare('INSERT INTO user VALUES(?,?,?)').run('owner', 'owner@example.test', 'Owner');
+    let domains = new DomainsService(store.db);
+    const domain = domains.create('owner', store.ensure('owner'), { name: 'Legacy' });
+    store.db.exec(`CREATE TABLE mcp_credentials (
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+      domain_id TEXT NOT NULL REFERENCES domains(id) ON DELETE CASCADE, hash TEXT NOT NULL UNIQUE,
+      label TEXT NOT NULL, scope TEXT NOT NULL DEFAULT 'domain.read' CHECK(scope = 'domain.read'),
+      expires_at TEXT NOT NULL, created_at TEXT NOT NULL, revoked_at TEXT
+    )`);
+    const token = 'meow_mcp_' + 'A'.repeat(43);
+    store.db
+      .prepare(`INSERT INTO mcp_credentials VALUES (?,?,?,?,?,'domain.read',?,?,NULL)`)
+      .run(
+        'legacy',
+        'owner',
+        domain.id,
+        createHash('sha256').update(token).digest('hex'),
+        'Legacy',
+        '2099-01-01T00:00:00.000Z',
+        '2026-01-01T00:00:00.000Z',
+      );
+    store.close();
+    store = new Store(path);
+    domains = new DomainsService(store.db);
+    const credentials = new McpCredentials(store.db, domains);
+    assert.equal(credentials.authenticate(token).scope, 'domain.read');
+    assert.equal(credentials.list('owner')[0].scope, 'domain.read');
+    assert.equal(store.db.prepare('SELECT count(*) AS n FROM mcp_credential_grants').get()!.n, 0);
+    const write = credentials.issue('owner', {
+      domainId: domain.id,
+      label: 'New',
+      expiresInDays: 1,
+      scope: 'domain.contribute',
+    });
+    assert.equal(credentials.authenticate(write.token).scope, 'domain.contribute');
+    assert.throws(
+      () =>
+        store.db
+          .prepare('UPDATE mcp_credentials SET scope=? WHERE id=?')
+          .run('domain.contribute', write.record.id),
+      /CHECK constraint failed/,
+    );
+    assert.throws(
+      () =>
+        store.db
+          .prepare('UPDATE mcp_credential_grants SET scope=? WHERE credentialId=?')
+          .run('domain.write', write.record.id),
+      /CHECK constraint failed/,
+    );
+    assert.throws(
+      () =>
+        store.db
+          .prepare('INSERT INTO mcp_credential_grants VALUES (?,?)')
+          .run('missing', 'domain.read'),
+      /FOREIGN KEY constraint failed/,
+    );
+    store.db.prepare('DELETE FROM mcp_credentials WHERE id=?').run(write.record.id);
+    assert.equal(store.db.prepare('SELECT count(*) AS n FROM mcp_credential_grants').get()!.n, 0);
+    store.close();
+    store = new Store(path);
+    const reopened = new McpCredentials(store.db, new DomainsService(store.db));
+    assert.equal(reopened.authenticate(token).scope, 'domain.read');
+  } finally {
+    store.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 test('MCP credentials disclose random 256-bit tokens once and persist only SHA-256 digests', () => {
   const { store, domains, domain, credentials, input } = fixture();
@@ -64,6 +186,7 @@ test('MCP credentials disclose random 256-bit tokens once and persist only SHA-2
         userId: 'reader',
         domainId: domain.id,
         credentialId: record.id,
+        scope: 'domain.read',
       });
     }
     const reopened = new McpCredentials(store.db, domains, () => new Date('2026-05-01'));
