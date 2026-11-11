@@ -13,9 +13,12 @@ function fixture(path = ':memory:') {
     INSERT OR IGNORE INTO workspaces VALUES ('a','alice'),('a2','alice'),('b','bob');`);
   return { db, service: new KnowledgeService(db), close: () => db.close() };
 }
-const status = (code: number) => (error: unknown) => error instanceof KnowledgeError && error.statusCode === code;
-const snapshot = (db: DatabaseSync) => ['knowledge_sources', 'knowledge_revisions', 'knowledge_jobs', 'knowledge_chunks']
-  .map(table => db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all());
+const status = (code: number) => (error: unknown) =>
+  error instanceof KnowledgeError && error.statusCode === code;
+const snapshot = (db: DatabaseSync) =>
+  ['knowledge_sources', 'knowledge_revisions', 'knowledge_jobs', 'knowledge_chunks'].map((table) =>
+    db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),
+  );
 
 test('create queues without processing, detail alone includes content; chunk overlap and run idempotency', () => {
   const f = fixture();
@@ -31,20 +34,38 @@ test('create queues without processing, detail alone includes content; chunk ove
     assert.deepEqual(f.service.search('alice', 'a', '重叠关键词'), []);
     assert.equal(f.db.prepare('SELECT count(*) AS n FROM knowledge_chunks').get()!.n, 0);
     assert.equal(f.service.listJobs('alice', 'a')[0].attempt, 1);
-    assert.equal(f.service.prepare('alice', 'a', source.id).id, f.service.prepare('alice', 'a', source.id).id);
+    assert.equal(
+      f.service.prepare('alice', 'a', source.id).id,
+      f.service.prepare('alice', 'a', source.id).id,
+    );
     assert.equal(f.service.run('alice', 'a', source.id).status, 'ready');
-    const chunks = f.db.prepare('SELECT id,content FROM knowledge_chunks WHERE workspace_id=? ORDER BY ordinal').all('a');
+    const chunks = f.db
+      .prepare('SELECT id,content FROM knowledge_chunks WHERE workspace_id=? ORDER BY ordinal')
+      .all('a');
     assert.equal(chunks.length, 3);
     assert.equal(String(chunks[0].content).length, 1000);
     assert.equal(String(chunks[0].content).slice(-100), String(chunks[1].content).slice(0, 100));
     const hits = f.service.search('alice', 'a', '重叠关键词');
     assert.ok(hits.length > 0);
-    assert.deepEqual(Object.keys(hits[0]).sort(), ['chunkId', 'excerpt', 'revision', 'sourceId', 'title']);
+    assert.deepEqual(Object.keys(hits[0]).sort(), [
+      'chunkId',
+      'excerpt',
+      'revision',
+      'sourceId',
+      'title',
+    ]);
     assert.equal(hits[0].sourceId, source.id);
     f.service.run('alice', 'a', source.id);
-    assert.deepEqual(f.db.prepare('SELECT id,content FROM knowledge_chunks WHERE workspace_id=? ORDER BY ordinal').all('a'), chunks);
+    assert.deepEqual(
+      f.db
+        .prepare('SELECT id,content FROM knowledge_chunks WHERE workspace_id=? ORDER BY ordinal')
+        .all('a'),
+      chunks,
+    );
     assert.equal(f.service.listJobs('alice', 'a').length, 1);
-  } finally { f.close(); }
+  } finally {
+    f.close();
+  }
 });
 
 test('CAS update invalidates old revision immediately and never searches retained obsolete chunks', () => {
@@ -53,22 +74,38 @@ test('CAS update invalidates old revision immediately and never searches retaine
     const s = f.service.create('alice', 'a', { title: '旧标题', content: '旧版本独有词' });
     f.service.run('alice', 'a', s.id);
     assert.equal(f.service.search('alice', 'a', '旧版本独有词').length, 1);
-    const updated = f.service.update('alice', 'a', s.id, { title: '新标题', content: '新版本独有词', expectedRevision: 1 });
+    const updated = f.service.update('alice', 'a', s.id, {
+      title: '新标题',
+      content: '新版本独有词',
+      expectedRevision: 1,
+    });
     assert.equal(updated.revision, 2);
     assert.equal(updated.status, 'queued');
-    assert.throws(() => f.service.update('alice', 'a', s.id, { title: '冲突', content: '错误', expectedRevision: 1 }), status(409));
+    assert.throws(
+      () =>
+        f.service.update('alice', 'a', s.id, {
+          title: '冲突',
+          content: '错误',
+          expectedRevision: 1,
+        }),
+      status(409),
+    );
     assert.equal(f.service.detail('alice', 'a', s.id).content, '新版本独有词');
     assert.deepEqual(f.service.search('alice', 'a', '旧版本独有词'), []);
     // Defense in depth: even an obsolete chunk left on disk must not be returned.
-    f.db.prepare('INSERT INTO knowledge_chunks VALUES (?,?,?,?,?,?)').run('stale', 'a', s.id, 1, 0, '旧版本独有词');
+    f.db
+      .prepare('INSERT INTO knowledge_chunks VALUES (?,?,?,?,?,?)')
+      .run('stale', 'a', s.id, 1, 0, '旧版本独有词');
     assert.deepEqual(f.service.search('alice', 'a', '旧版本独有词'), []);
     f.service.run('alice', 'a', s.id);
     assert.deepEqual(f.service.search('alice', 'a', '旧版本独有词'), []);
     assert.equal(f.service.search('alice', 'a', '新版本独有词')[0].revision, 2);
     const jobs = f.service.listJobs('alice', 'a');
-    assert.equal(jobs.find(j => j.revision === 1)!.status, 'cancelled');
-    assert.equal(jobs.find(j => j.revision === 2)!.status, 'ready');
-  } finally { f.close(); }
+    assert.equal(jobs.find((j) => j.revision === 1)!.status, 'cancelled');
+    assert.equal(jobs.find((j) => j.revision === 2)!.status, 'ready');
+  } finally {
+    f.close();
+  }
 });
 
 test('delete is a durable tombstone, cancels jobs/chunks and cannot be resurrected by run', () => {
@@ -78,17 +115,39 @@ test('delete is a durable tombstone, cancels jobs/chunks and cannot be resurrect
       const s = f.service.create('alice', 'a', { title: '删除', content: '被删除的秘密' });
       if (ready) f.service.run('alice', 'a', s.id);
       assert.ok(f.service.remove('alice', 'a', s.id).deletedAt);
-      assert.equal(f.db.prepare('SELECT status FROM knowledge_sources WHERE workspace_id=? AND id=?').get('a', s.id)!.status, 'cancelled');
-      assert.equal(f.db.prepare('SELECT count(*) AS n FROM knowledge_chunks WHERE workspace_id=? AND source_id=?').get('a', s.id)!.n, 0);
+      assert.equal(
+        f.db
+          .prepare('SELECT status FROM knowledge_sources WHERE workspace_id=? AND id=?')
+          .get('a', s.id)!.status,
+        'cancelled',
+      );
+      assert.equal(
+        f.db
+          .prepare(
+            'SELECT count(*) AS n FROM knowledge_chunks WHERE workspace_id=? AND source_id=?',
+          )
+          .get('a', s.id)!.n,
+        0,
+      );
       assert.throws(() => f.service.run('alice', 'a', s.id), status(404));
       assert.throws(() => f.service.prepare('alice', 'a', s.id), status(404));
       assert.throws(() => f.service.detail('alice', 'a', s.id), status(404));
-      assert.throws(() => f.service.update('alice', 'a', s.id, { title: '复活', content: '否', expectedRevision: 1 }), status(404));
+      assert.throws(
+        () =>
+          f.service.update('alice', 'a', s.id, {
+            title: '复活',
+            content: '否',
+            expectedRevision: 1,
+          }),
+        status(404),
+      );
     }
     assert.deepEqual(f.service.list('alice', 'a'), []);
     assert.deepEqual(f.service.search('alice', 'a', '秘密'), []);
-    assert.ok(f.service.listJobs('alice', 'a').every(j => j.status === 'cancelled'));
-  } finally { f.close(); }
+    assert.ok(f.service.listJobs('alice', 'a').every((j) => j.status === 'cancelled'));
+  } finally {
+    f.close();
+  }
 });
 
 test('every API scopes workspace ownership; source identifiers cannot cross even same-owner workspaces', () => {
@@ -96,60 +155,110 @@ test('every API scopes workspace ownership; source identifiers cannot cross even
   try {
     const s = f.service.create('alice', 'a', { title: '私有', content: '不可越界' });
     f.service.run('alice', 'a', s.id);
-    for (const [owner, wid] of [['bob', 'a'], ['alice', 'b'], ['alice', 'missing']]) {
+    for (const [owner, wid] of [
+      ['bob', 'a'],
+      ['alice', 'b'],
+      ['alice', 'missing'],
+    ]) {
       for (const call of [
         () => f.service.create(owner, wid, { title: '入侵', content: '入侵' }),
-        () => f.service.list(owner, wid), () => f.service.listJobs(owner, wid),
-        () => f.service.search(owner, wid, '不可越界'), () => f.service.detail(owner, wid, s.id),
-        () => f.service.prepare(owner, wid, s.id), () => f.service.run(owner, wid, s.id),
+        () => f.service.list(owner, wid),
+        () => f.service.listJobs(owner, wid),
+        () => f.service.search(owner, wid, '不可越界'),
+        () => f.service.detail(owner, wid, s.id),
+        () => f.service.prepare(owner, wid, s.id),
+        () => f.service.run(owner, wid, s.id),
         () => f.service.remove(owner, wid, s.id),
-        () => f.service.update(owner, wid, s.id, { title: '入侵', content: '入侵', expectedRevision: 1 }),
-      ]) assert.throws(call, status(404));
+        () =>
+          f.service.update(owner, wid, s.id, {
+            title: '入侵',
+            content: '入侵',
+            expectedRevision: 1,
+          }),
+      ])
+        assert.throws(call, status(404));
     }
     for (const call of [
-      () => f.service.detail('alice', 'a2', s.id), () => f.service.run('alice', 'a2', s.id),
-      () => f.service.prepare('alice', 'a2', s.id), () => f.service.remove('alice', 'a2', s.id),
-      () => f.service.update('alice', 'a2', s.id, { title: '入侵', content: '入侵', expectedRevision: 1 }),
-    ]) assert.throws(call, status(404));
+      () => f.service.detail('alice', 'a2', s.id),
+      () => f.service.run('alice', 'a2', s.id),
+      () => f.service.prepare('alice', 'a2', s.id),
+      () => f.service.remove('alice', 'a2', s.id),
+      () =>
+        f.service.update('alice', 'a2', s.id, {
+          title: '入侵',
+          content: '入侵',
+          expectedRevision: 1,
+        }),
+    ])
+      assert.throws(call, status(404));
     assert.deepEqual(f.service.search('alice', 'a2', '不可越界'), []);
     assert.deepEqual(f.service.listJobs('alice', 'a2'), []);
     assert.equal(f.service.search('alice', 'a', '不可越界').length, 1);
-  } finally { f.close(); }
+  } finally {
+    f.close();
+  }
 });
 
 test('input limits, SQL literals, top-eight search, markdown and Unicode chunking', () => {
   const f = fixture();
   try {
-    for (const input of [null, {}, { title: '', content: 'a' }, { title: '  ', content: 'a' },
-      { title: 'x'.repeat(201), content: 'a' }, { title: 'ok', content: '' },
-      { title: 'ok', content: 7 }, { title: 'ok', content: 'x'.repeat(200001) }]) {
+    for (const input of [
+      null,
+      {},
+      { title: '', content: 'a' },
+      { title: '  ', content: 'a' },
+      { title: 'x'.repeat(201), content: 'a' },
+      { title: 'ok', content: '' },
+      { title: 'ok', content: 7 },
+      { title: 'ok', content: 'x'.repeat(200001) },
+    ]) {
       assert.throws(() => f.service.create('alice', 'a', input as never), status(400));
     }
-    const s = f.service.create('alice', 'a', { title: 'x'.repeat(200), content: 'x'.repeat(200000) });
+    const s = f.service.create('alice', 'a', {
+      title: 'x'.repeat(200),
+      content: 'x'.repeat(200000),
+    });
     assert.equal(f.service.detail('alice', 'a', s.id).content.length, 200000);
     for (const expectedRevision of [0, -1, 1.2, NaN, '1', undefined]) {
-      assert.throws(() => f.service.update('alice', 'a', s.id, { title: 'ok', content: 'ok', expectedRevision } as never), status(400));
+      assert.throws(
+        () =>
+          f.service.update('alice', 'a', s.id, {
+            title: 'ok',
+            content: 'ok',
+            expectedRevision,
+          } as never),
+        status(400),
+      );
     }
     assert.throws(() => f.service.search('alice', 'a', 'x'.repeat(1001)), status(400));
     assert.throws(() => f.service.search('alice', 'a', null as never), status(400));
     assert.deepEqual(f.service.search('alice', 'a', '  '), []);
     assert.deepEqual(f.service.search('alice', 'a', "%' OR 1=1 --"), []);
     for (let i = 0; i < 10; i++) {
-      const item = f.service.create('alice', 'a', { title: `Markdown ${i}`, content: '# LOCAL\n\n**匹配** ' + '🐱'.repeat(1100) });
+      const item = f.service.create('alice', 'a', {
+        title: `Markdown ${i}`,
+        content: '# LOCAL\n\n**匹配** ' + '🐱'.repeat(1100),
+      });
       f.service.run('alice', 'a', item.id);
     }
     assert.equal(f.service.search('alice', 'a', 'local').length, 8);
-    const chunk = f.db.prepare('SELECT content FROM knowledge_chunks WHERE workspace_id=? ORDER BY rowid LIMIT 1').get('a')!;
+    const chunk = f.db
+      .prepare('SELECT content FROM knowledge_chunks WHERE workspace_id=? ORDER BY rowid LIMIT 1')
+      .get('a')!;
     assert.equal(Array.from(String(chunk.content)).length, 1000);
     assert.ok(!String(chunk.content).includes('\ufffd'));
-  } finally { f.close(); }
+  } finally {
+    f.close();
+  }
 });
 
 test('failed attempts persist and retry atomically without duplicate chunks', () => {
   const f = fixture();
   try {
     const s = f.service.create('alice', 'a', { title: '重试', content: '重试内容'.repeat(500) });
-    f.db.exec("CREATE TRIGGER fail_chunks BEFORE INSERT ON knowledge_chunks BEGIN SELECT RAISE(ABORT,'injected failure'); END;");
+    f.db.exec(
+      "CREATE TRIGGER fail_chunks BEFORE INSERT ON knowledge_chunks BEGIN SELECT RAISE(ABORT,'injected failure'); END;",
+    );
     assert.throws(() => f.service.run('alice', 'a', s.id), status(500));
     assert.equal(f.service.list('alice', 'a')[0].status, 'failed');
     assert.equal(f.service.listJobs('alice', 'a')[0].status, 'failed');
@@ -163,7 +272,9 @@ test('failed attempts persist and retry atomically without duplicate chunks', ()
     assert.equal(jobs[1].status, 'failed');
     f.service.run('alice', 'a', s.id);
     assert.equal(f.service.listJobs('alice', 'a').length, 2);
-  } finally { f.close(); }
+  } finally {
+    f.close();
+  }
 });
 
 test('owner source quota spans workspaces and tombstones, but is isolated from other owners', () => {
@@ -175,12 +286,25 @@ test('owner source quota spans workspaces and tombstones, but is isolated from o
       if (i % 3 === 0) f.service.remove('alice', wid, s.id);
     }
     const before = snapshot(f.db);
-    for (const wid of ['a', 'a2']) assert.throws(() => f.service.create('alice', wid, { title: 't', content: 'c' }), status(409));
+    for (const wid of ['a', 'a2'])
+      assert.throws(
+        () => f.service.create('alice', wid, { title: 't', content: 'c' }),
+        status(409),
+      );
     assert.deepEqual(snapshot(f.db), before);
     assert.equal(f.service.create('bob', 'b', { title: 'independent', content: 'ok' }).revision, 1);
     const existing = f.service.list('alice', 'a')[0];
-    assert.equal(f.service.update('alice', 'a', existing.id, { title: 't', content: 'updated', expectedRevision: 1 }).revision, 2);
-  } finally { f.close(); }
+    assert.equal(
+      f.service.update('alice', 'a', existing.id, {
+        title: 't',
+        content: 'updated',
+        expectedRevision: 1,
+      }).revision,
+      2,
+    );
+  } finally {
+    f.close();
+  }
 });
 
 test('100 revisions are allowed; rejected updates preserve current source, jobs and searchable chunks', () => {
@@ -188,15 +312,29 @@ test('100 revisions are allowed; rejected updates preserve current source, jobs 
   try {
     const s = f.service.create('alice', 'a', { title: 't', content: 'original' });
     for (let revision = 1; revision < 100; revision++) {
-      f.service.update('alice', 'a', s.id, { title: 't', content: 'retained', expectedRevision: revision });
+      f.service.update('alice', 'a', s.id, {
+        title: 't',
+        content: 'retained',
+        expectedRevision: revision,
+      });
     }
     f.service.run('alice', 'a', s.id);
     const before = snapshot(f.db);
-    assert.throws(() => f.service.update('alice', 'a', s.id, { title: 'changed', content: 'lost', expectedRevision: 100 }), status(409));
+    assert.throws(
+      () =>
+        f.service.update('alice', 'a', s.id, {
+          title: 'changed',
+          content: 'lost',
+          expectedRevision: 100,
+        }),
+      status(409),
+    );
     assert.deepEqual(snapshot(f.db), before);
     assert.equal(f.service.search('alice', 'a', 'retained').length, 1);
     assert.equal(f.service.create('alice', 'a2', { title: 'new', content: 'ok' }).revision, 1);
-  } finally { f.close(); }
+  } finally {
+    f.close();
+  }
 });
 
 test('20MiB quota counts UTF8 revision titles and content across workspaces, including deleted history', () => {
@@ -208,22 +346,41 @@ test('20MiB quota counts UTF8 revision titles and content across workspaces, inc
     f.service.run('alice', 'a', anchor.id);
     let remaining = 20 * 1024 * 1024 - Buffer.byteLength('猫保留内容');
     while (remaining > 0) {
-      const bytes = Math.min(600001, remaining), contentBytes = bytes - 1;
+      const bytes = Math.min(600001, remaining),
+        contentBytes = bytes - 1;
       const content = '猫'.repeat(Math.floor(contentBytes / 3)) + 'x'.repeat(contentBytes % 3);
       const filler = f.service.create('alice', 'a2', { title: 't', content });
       f.service.remove('alice', 'a2', filler.id);
       remaining -= bytes;
     }
-    const usage = f.db.prepare(`SELECT sum(length(CAST(r.title AS BLOB))+length(CAST(r.content AS BLOB))) AS bytes
-      FROM knowledge_revisions r JOIN workspaces w ON w.id=r.workspace_id WHERE w.owner='alice'`).get()!;
+    const usage = f.db
+      .prepare(
+        `SELECT sum(length(CAST(r.title AS BLOB))+length(CAST(r.content AS BLOB))) AS bytes
+      FROM knowledge_revisions r JOIN workspaces w ON w.id=r.workspace_id WHERE w.owner='alice'`,
+      )
+      .get()!;
     assert.equal(usage.bytes, 20 * 1024 * 1024);
     const before = snapshot(f.db);
     assert.throws(() => f.service.create('alice', 'a', { title: 't', content: 'x' }), status(409));
-    assert.throws(() => f.service.update('alice', 'a', anchor.id, { title: 't', content: 'x', expectedRevision: 1 }), status(409));
+    assert.throws(
+      () =>
+        f.service.update('alice', 'a', anchor.id, {
+          title: 't',
+          content: 'x',
+          expectedRevision: 1,
+        }),
+      status(409),
+    );
     assert.deepEqual(snapshot(f.db), before);
     assert.equal(f.service.search('alice', 'a', '保留内容').length, 1);
-    assert.equal(f.service.update('bob', 'b', bob.id, { title: 't', content: 'ok', expectedRevision: 1 }).revision, 2);
-  } finally { f.close(); }
+    assert.equal(
+      f.service.update('bob', 'b', bob.id, { title: 't', content: 'ok', expectedRevision: 1 })
+        .revision,
+      2,
+    );
+  } finally {
+    f.close();
+  }
 });
 
 test('failed create/update transactions do not consume quota or invalidate prior state', () => {
@@ -232,13 +389,28 @@ test('failed create/update transactions do not consume quota or invalidate prior
     const s = f.service.create('alice', 'a', { title: 't', content: 'original' });
     f.service.run('alice', 'a', s.id);
     const before = snapshot(f.db);
-    f.db.exec("CREATE TRIGGER fail_revision BEFORE INSERT ON knowledge_revisions BEGIN SELECT RAISE(ABORT,'injected failure'); END;");
-    assert.throws(() => f.service.create('alice', 'a2', { title: 't', content: 'new' }), /injected failure/);
-    assert.throws(() => f.service.update('alice', 'a', s.id, { title: 't', content: 'new', expectedRevision: 1 }), /injected failure/);
+    f.db.exec(
+      "CREATE TRIGGER fail_revision BEFORE INSERT ON knowledge_revisions BEGIN SELECT RAISE(ABORT,'injected failure'); END;",
+    );
+    assert.throws(
+      () => f.service.create('alice', 'a2', { title: 't', content: 'new' }),
+      /injected failure/,
+    );
+    assert.throws(
+      () =>
+        f.service.update('alice', 'a', s.id, { title: 't', content: 'new', expectedRevision: 1 }),
+      /injected failure/,
+    );
     assert.deepEqual(snapshot(f.db), before);
     f.db.exec('DROP TRIGGER fail_revision');
-    assert.equal(f.service.update('alice', 'a', s.id, { title: 't', content: 'new', expectedRevision: 1 }).revision, 2);
-  } finally { f.close(); }
+    assert.equal(
+      f.service.update('alice', 'a', s.id, { title: 't', content: 'new', expectedRevision: 1 })
+        .revision,
+      2,
+    );
+  } finally {
+    f.close();
+  }
 });
 
 test('search selects a stable page of at most 100 matching candidates before ranking top eight', () => {
@@ -249,28 +421,57 @@ test('search selects a stable page of at most 100 matching candidates before ran
     f.db.prepare('DELETE FROM knowledge_chunks WHERE source_id=?').run(s.id);
     const insert = f.db.prepare('INSERT INTO knowledge_chunks VALUES (?,?,?,?,?,?)');
     for (let i = 0; i < 250; i++) {
-      insert.run(`page-${i}`, 'a', s.id, 1, i, i < 140 ? 'unrelated' : 'needle '.repeat(i === 240 ? 50 : i === 239 ? 10 : 1));
+      insert.run(
+        `page-${i}`,
+        'a',
+        s.id,
+        1,
+        i,
+        i < 140 ? 'unrelated' : 'needle '.repeat(i === 240 ? 50 : i === 239 ? 10 : 1),
+      );
     }
     const hits = f.service.search('alice', 'a', 'NEEDLE');
     assert.equal(hits.length, 8);
     assert.equal(hits[0].chunkId, 'page-239');
-    assert.deepEqual(hits.slice(1).map(h => h.chunkId), Array.from({ length: 7 }, (_, i) => `page-${140 + i}`));
-    assert.ok(hits.every(h => Number(h.chunkId.slice(5)) < 240));
-  } finally { f.close(); }
+    assert.deepEqual(
+      hits.slice(1).map((h) => h.chunkId),
+      Array.from({ length: 7 }, (_, i) => `page-${140 + i}`),
+    );
+    assert.ok(hits.every((h) => Number(h.chunkId.slice(5)) < 240));
+  } finally {
+    f.close();
+  }
 });
 
 test('search escapes LIKE wildcards and preserves literal Unicode case-insensitive matches', () => {
   const f = fixture();
   try {
-    for (const [title, content] of [['percent', 'literal 100%'], ['under', 'literal a_b'], ['slash', 'literal a\\b'], ['ÄPFEL', 'title-only'], ['content-case', 'ÉCOLE']]) {
+    for (const [title, content] of [
+      ['percent', 'literal 100%'],
+      ['under', 'literal a_b'],
+      ['slash', 'literal a\\b'],
+      ['ÄPFEL', 'title-only'],
+      ['content-case', 'ÉCOLE'],
+    ]) {
       const s = f.service.create('alice', 'a', { title, content });
       f.service.run('alice', 'a', s.id);
     }
-    for (const [query, title] of [['%', 'percent'], ['_', 'under'], ['\\', 'slash'], ['äpfel', 'ÄPFEL'], ['école', 'content-case']]) {
-      assert.deepEqual(f.service.search('alice', 'a', query).map(hit => hit.title), [title]);
+    for (const [query, title] of [
+      ['%', 'percent'],
+      ['_', 'under'],
+      ['\\', 'slash'],
+      ['äpfel', 'ÄPFEL'],
+      ['école', 'content-case'],
+    ]) {
+      assert.deepEqual(
+        f.service.search('alice', 'a', query).map((hit) => hit.title),
+        [title],
+      );
     }
     assert.deepEqual(f.service.search('alice', 'a', '%_'), []);
-  } finally { f.close(); }
+  } finally {
+    f.close();
+  }
 });
 
 test('restart retains sources, revisions, chunks, jobs and queued work', () => {
@@ -293,8 +494,19 @@ test('restart retains sources, revisions, chunks, jobs and queued work', () => {
     assert.throws(() => f.service.run('alice', 'a', removed.id), status(404));
     assert.equal(f.service.run('alice', 'a', s.id).status, 'ready');
     assert.equal(f.service.listJobs('alice', 'a').length, 3);
-    assert.equal(f.db.prepare('SELECT count(*) AS n FROM knowledge_revisions WHERE workspace_id=?').get('a')!.n, 3);
-    const plans = f.db.prepare('EXPLAIN QUERY PLAN SELECT * FROM knowledge_chunks WHERE workspace_id=? AND source_id=? AND revision=?').all('a', s.id, 1);
+    assert.equal(
+      f.db.prepare('SELECT count(*) AS n FROM knowledge_revisions WHERE workspace_id=?').get('a')!
+        .n,
+      3,
+    );
+    const plans = f.db
+      .prepare(
+        'EXPLAIN QUERY PLAN SELECT * FROM knowledge_chunks WHERE workspace_id=? AND source_id=? AND revision=?',
+      )
+      .all('a', s.id, 1);
     assert.match(JSON.stringify(plans), /INDEX/);
-  } finally { f.close(); rmSync(directory, { recursive: true, force: true }); }
+  } finally {
+    f.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

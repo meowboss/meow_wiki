@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('register, versioned editing, history, deletion recovery and logout', async ({ page }) => {
   const errors: string[] = [];
-  page.on('pageerror', error => errors.push(error.message));
+  page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
   await page.screenshot({ path: 'artifacts/visual/login-desktop.png', fullPage: true });
   await page.getByRole('button', { name: '注册', exact: true }).click();
@@ -22,18 +22,22 @@ test('register, versioned editing, history, deletion recovery and logout', async
   await page.reload();
   await page.getByRole('button', { name: '浏览器版本页面', exact: true }).click();
   await expect(page.getByLabel('Markdown 内容')).toHaveValue(/第二版内容/);
-  await expect(page.locator('.markdown-body').getByRole('heading', { name: '浏览器验证' })).toBeVisible();
+  await expect(
+    page.locator('.markdown-body').getByRole('heading', { name: '浏览器验证' }),
+  ).toBeVisible();
   await page.screenshot({ path: 'artifacts/visual/editor-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('.sidebar')).not.toBeInViewport();
-  await expect(page.locator('.markdown-body').getByRole('heading', { name: '浏览器验证' })).toBeVisible();
+  await expect(
+    page.locator('.markdown-body').getByRole('heading', { name: '浏览器验证' }),
+  ).toBeVisible();
   await page.screenshot({ path: 'artifacts/visual/editor-mobile.png', fullPage: true });
   await expect(page.getByLabel('页面标题')).toBeVisible();
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.getByRole('button', { name: /历史/ }).first().click();
   await expect(page.getByRole('heading', { name: '页面版本历史' })).toBeVisible();
   await page.getByLabel('关闭页面历史').click();
-  page.on('dialog', dialog => dialog.accept());
+  page.on('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: /删除/ }).first().click();
   await page.getByText(/回收站 · 1/).click();
   await page.getByRole('button', { name: '恢复', exact: true }).click();

@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
-test('private declarative component can compose and persist its own workspace home', async ({ page }) => {
+test('private declarative component can compose and persist its own workspace home', async ({
+  page,
+}) => {
   await page.goto('/');
   await page.getByRole('button', { name: '注册', exact: true }).click();
   await page.getByLabel('你的名字').fill('组件作者');
