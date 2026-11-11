@@ -53,7 +53,7 @@ export class PageTransfer {
 
   export(owner: string, workspaceId: string): PageBundle {
     const workspace = this.store.get(owner, workspaceId);
-    return {
+    const bundle: PageBundle = {
       format: 'meow.pages.v1',
       version: 1,
       workspace: { name: workspace.name, description: workspace.description },
@@ -61,6 +61,14 @@ export class PageTransfer {
         .filter((page) => !page.deletedAt)
         .map(({ id, title, markdown, parentId }) => ({ id, title, markdown, parentId })),
     };
+    if (
+      bundle.pages.length > 100 ||
+      Buffer.byteLength(JSON.stringify(bundle), 'utf8') > 5 * 1024 * 1024
+    )
+      throw new ConflictError(
+        '当前空间超过单包100页/5MiB可恢复边界，未生成不可回导页面包；请使用数据库备份，分批页面包支持尚未实现',
+      );
+    return bundle;
   }
 
   import(owner: string, workspaceId: string, input: unknown) {

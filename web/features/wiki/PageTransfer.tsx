@@ -33,6 +33,7 @@ function parsePackage(value: unknown): PagePackage {
     !Array.isArray(value.pages)
   )
     throw new Error('页面包格式无效：需要 meow.pages.v1、version: 1、工作空间信息和 pages 数组。');
+  if (value.pages.length > 100) throw new Error('当前版本每包最多100页，不会自动拆分或截断。');
   const pages = value.pages.map((page: unknown) => {
     if (
       !isObject(page) ||
@@ -261,9 +262,7 @@ export default function PageTransfer({ workspace, onClose, onBusyChange, onRefre
             ))}
           </ul>
           {preview.pages.length > 100 && (
-            <p className="form-hint">
-              仅展示前 100 个标题；导入包含全部 {preview.pages.length} 个页面。不渲染正文。
-            </p>
+            <p className="form-hint">每包最多100页，超过上限会拒绝，不会静默截断。不渲染正文。</p>
           )}
           <label className="field">
             输入目标工作空间名称“{workspace.name}”以确认

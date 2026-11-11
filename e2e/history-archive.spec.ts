@@ -34,4 +34,6 @@ test('history cleanup requires exported snapshot acknowledgement and preserves c
   expect(history.revisions).toHaveLength(10);
   expect(history.revisions[0].revision).toBe(12);
   await page.screenshot({ path: 'artifacts/visual/history-archive-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'artifacts/visual/history-archive-mobile.png', fullPage: true });
 });

@@ -18,6 +18,10 @@ test('page package UI exports current pages and imports new identifiers without 
   await page.getByRole('textbox', { name: /或粘贴页面包 JSON/ }).fill(JSON.stringify(bundle));
   await page.getByRole('button', { name: '检查并预览标题 / 数量' }).click();
   await page.getByRole('textbox', { name: /输入目标工作空间名称/ }).fill(bundle.workspace.name);
+  await page.screenshot({ path: 'artifacts/visual/page-transfer-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: 'artifacts/visual/page-transfer-mobile.png', fullPage: true });
+  await expect(page.getByRole('button', { name: '以新 ID 追加导入' })).toBeVisible();
   page.once('dialog', (d) => d.accept());
   await page.getByRole('button', { name: '以新 ID 追加导入' }).click();
   await expect(page.getByRole('status')).toContainText(/导入/);
