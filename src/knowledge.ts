@@ -20,6 +20,11 @@ export class KnowledgeError extends Error {
   }
 }
 
+const MAX_OWNER_SOURCES = 200;
+const MAX_OWNER_REVISION_BYTES = 20 * 1024 * 1024;
+const MAX_SOURCE_REVISIONS = 100;
+const MAX_SEARCH_CANDIDATES = 100;
+
 type Row = Record<string, unknown>;
 const sourceFrom = (r: Row): KnowledgeSource => ({
   id: String(r.id), workspaceId: String(r.workspace_id), title: String(r.title), revision: Number(r.revision),
@@ -35,6 +40,8 @@ const jobFrom = (r: Row): KnowledgeJob => ({
 /** Local, synchronous text indexing. Owns its tables, not the injected database. No AI/network calls. */
 export class KnowledgeService {
   constructor(private readonly db: DatabaseSync) {
+    // SQLite's built-in lower() is ASCII-only; keep the original JS Unicode matching semantics.
+    db.function('knowledge_lower', { deterministic: true }, value => String(value).toLowerCase());
     db.exec(`
       CREATE TABLE IF NOT EXISTS knowledge_sources (
         id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL REFERENCES workspaces(id),
@@ -98,6 +105,23 @@ export class KnowledgeService {
       throw error;
     }
   }
+  /** Called inside the write transaction. Tombstones/history still consume quota: deletion cannot reset it. */
+  private quota(owner: string, input: KnowledgeInput, sourceId?: string) {
+    if (sourceId === undefined) {
+      const usage = this.db.prepare(`SELECT count(*) AS n FROM knowledge_sources s
+        JOIN workspaces w ON w.id=s.workspace_id WHERE w.owner=?`).get(owner)!;
+      if (Number(usage.n) >= MAX_OWNER_SOURCES) throw new KnowledgeError('每位用户最多保留200个知识源（含已删除）', 409);
+    } else {
+      const usage = this.db.prepare('SELECT count(*) AS n FROM knowledge_revisions WHERE source_id=?').get(sourceId)!;
+      if (Number(usage.n) >= MAX_SOURCE_REVISIONS) throw new KnowledgeError('每个知识源最多保留100个版本', 409);
+    }
+    const usage = this.db.prepare(`SELECT coalesce(sum(length(CAST(r.title AS BLOB)) + length(CAST(r.content AS BLOB))),0) AS bytes
+      FROM knowledge_revisions r JOIN workspaces w ON w.id=r.workspace_id WHERE w.owner=?`).get(owner)!;
+    const added = Buffer.byteLength(input.title.trim(), 'utf8') + Buffer.byteLength(input.content, 'utf8');
+    if (Number(usage.bytes) + added > MAX_OWNER_REVISION_BYTES) {
+      throw new KnowledgeError('每位用户知识源历史总量最多20MiB（含已删除）', 409);
+    }
+  }
   private queue(workspaceId: string, row: Row): KnowledgeJob {
     const last = this.db.prepare(`SELECT * FROM knowledge_jobs WHERE workspace_id=? AND source_id=? AND revision=? ORDER BY attempt DESC LIMIT 1`)
       .get(workspaceId, String(row.id), Number(row.revision));
@@ -121,6 +145,7 @@ export class KnowledgeService {
     return this.transaction(() => {
       this.scope(owner, workspaceId);
       this.validate(input);
+      this.quota(owner, input);
       const id = randomUUID(), now = new Date().toISOString();
       this.db.prepare(`INSERT INTO knowledge_sources (id,workspace_id,title,content,revision,status,created_at,updated_at,deleted_at)
         VALUES (?,?,?,?,1,'queued',?,?,NULL)`).run(id, workspaceId, input.title.trim(), input.content, now, now);
@@ -146,6 +171,7 @@ export class KnowledgeService {
       this.validate(input);
       if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 1) throw new KnowledgeError('expectedRevision须为正整数', 400);
       if (Number(row.revision) !== input.expectedRevision) throw new KnowledgeError('知识源版本冲突，请重新加载', 409);
+      this.quota(owner, input, id);
       const now = new Date().toISOString(), revision = input.expectedRevision + 1;
       const result = this.db.prepare(`UPDATE knowledge_sources SET title=?,content=?,revision=?,status='queued',updated_at=?
         WHERE workspace_id=? AND id=? AND revision=? AND deleted_at IS NULL`)
@@ -231,10 +257,13 @@ export class KnowledgeService {
     if (typeof query !== 'string' || query.length > 1000) throw new KnowledgeError('检索词须为不超过1000字符的文本', 400);
     const needle = query.trim().toLowerCase();
     if (!needle) return [];
+    const pattern = `%${needle.replace(/[\\%_]/g, '\\$&')}%`;
+    // Bound matching candidates in SQL, not after loading every chunk into JS. Ranking is within this stable page.
     const rows = this.db.prepare(`SELECT c.id,c.source_id,c.revision,c.ordinal,c.content,s.title FROM knowledge_chunks c
       JOIN knowledge_sources s ON s.workspace_id=c.workspace_id AND s.id=c.source_id AND s.revision=c.revision
       WHERE c.workspace_id=? AND s.workspace_id=? AND s.status='ready' AND s.deleted_at IS NULL
-      ORDER BY c.source_id,c.ordinal`).all(workspaceId, workspaceId);
+        AND (knowledge_lower(c.content) LIKE ? ESCAPE '\\' OR knowledge_lower(s.title) LIKE ? ESCAPE '\\')
+      ORDER BY c.source_id,c.ordinal LIMIT ?`).all(workspaceId, workspaceId, pattern, pattern, MAX_SEARCH_CANDIDATES);
     return rows.map(row => {
       const content = String(row.content), lower = content.toLowerCase(), position = lower.indexOf(needle);
       const titleMatch = String(row.title).toLowerCase().includes(needle);

@@ -3,10 +3,12 @@ import { z } from 'zod';
 import { KnowledgeService } from './knowledge.ts';
 import type { Store } from './store.ts';
 import type { ModelBroker } from './models.ts';
+import { Proposals } from './proposals.ts';
 
 /** Called by the host after its authentication hook is registered. */
 export function registerKnowledge(app: FastifyInstance, store: Store, caller: (request: FastifyRequest) => string, broker?: ModelBroker) {
   const knowledge = new KnowledgeService(store.db);
+  const proposals = new Proposals(store.db, store, knowledge);
   const scope = (request: FastifyRequest) => {
     const owner = caller(request);
     const { workspaceId } = z.object({ workspaceId: z.string().uuid().optional() }).parse(request.query);
@@ -27,6 +29,12 @@ export function registerKnowledge(app: FastifyInstance, store: Store, caller: (r
   });
   app.delete<{ Params: { id: string } }>('/api/sources/:id', async request => { const { owner, workspace } = scope(request); return knowledge.remove(owner, workspace.id, request.params.id); });
   app.post<{ Params: { id: string } }>('/api/sources/:id/process', async request => { const { owner, workspace } = scope(request); return knowledge.run(owner, workspace.id, request.params.id); });
+  app.get('/api/proposals', async request => { const { owner, workspace } = scope(request); return { proposals: proposals.list(owner, workspace.id) }; });
+  app.post('/api/proposals', async (request, reply) => { const { owner, workspace } = scope(request); return reply.code(201).send(proposals.create(owner, workspace.id, request.body)); });
+  app.post<{ Params: { id: string } }>('/api/proposals/:id/decide', async request => {
+    const { owner, workspace } = scope(request); const { decision } = z.object({ decision: z.enum(['accept', 'reject']) }).parse(request.body);
+    return proposals.decide(owner, workspace.id, request.params.id, decision);
+  });
   app.get('/api/models/status', async request => { scope(request); return broker?.status() ?? { configured: false, model: null }; });
   app.post('/api/knowledge/ask', async request => {
     const { owner, workspace } = scope(request);
