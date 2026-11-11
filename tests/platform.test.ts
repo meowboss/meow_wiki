@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
 import { createApp } from '../src/app.ts';
 import { Store } from '../src/store.ts';
+import { ComponentService } from '../src/components.ts';
 import { Kernel, type Plugin } from '../src/kernel.ts';
 
 const fixture = () => {
@@ -22,7 +23,7 @@ test('official defaults, page persistence, scoped search and honest cited answer
     const created = await f.app.inject({ method: 'POST', url: '/api/pages', payload: { title: '橘猫笔记', markdown: '橘猫喜欢晒太阳。' } });
     assert.equal(created.statusCode, 201);
     const page = created.json();
-    assert.equal((await f.app.inject({ method: 'PUT', url: `/api/pages/${page.id}`, payload: { title: '橘猫日记', markdown: '橘猫在花园里。' } })).statusCode, 200);
+    assert.equal((await f.app.inject({ method: 'PUT', url: `/api/pages/${page.id}`, payload: { title: '橘猫日记', markdown: '橘猫在花园里。', expectedRevision: page.revision } })).statusCode, 200);
     const result = (await f.app.inject('/api/search?q=' + encodeURIComponent('橘猫'))).json();
     assert.equal(result.results[0].id, page.id);
     const answer = (await f.app.inject({ method: 'POST', url: '/api/ask', payload: { question: '橘猫' } })).json();
@@ -40,7 +41,7 @@ test('cross-workspace reads and writes fail even with forged identity headers', 
       const separator = path.includes('?') ? '&' : '?';
       assert.equal((await f.app.inject({ url: `${path}${separator}workspaceId=${foreignId}`, headers: { 'x-user-id': 'someone-else' } })).statusCode, 404);
     }
-    assert.equal((await f.app.inject({ method: 'PUT', url: `/api/pages/${foreignPage.id}`, payload: { title: 'attack', markdown: '' } })).statusCode, 404);
+    assert.equal((await f.app.inject({ method: 'PUT', url: `/api/pages/${foreignPage.id}`, payload: { title: 'attack', markdown: '', expectedRevision: 1 } })).statusCode, 404);
     assert.throws(() => f.store.get('local-owner', foreignId));
   } finally { await f.close(); }
 });
@@ -70,19 +71,21 @@ test('private -> pending is not publishing; only trusted review publishes, other
   const f = fixture();
   try {
     const created = (await f.app.inject({ method: 'POST', url: '/api/components', payload: { name: '读书卡', description: '我的模板', template: '<script>not executable</script>' } })).json();
-    assert.equal(created.status, 'private');
+    assert.equal(created.version, 1);
     assert.deepEqual(f.store.marketplace(), []);
-    assert.equal((await f.app.inject({ method: 'POST', url: `/api/components/${created.id}/submit` })).json().status, 'pending');
+    const release = (await f.app.inject({ method: 'POST', url: `/api/components/${created.id}/submit` })).json();
+    assert.equal(release.status, 'pending');
     assert.equal((await f.app.inject({ method: 'POST', url: `/api/components/${created.id}/submit` })).statusCode, 409);
     assert.equal((await f.app.inject({ method: 'POST', url: `/api/marketplace/${created.id}/install` })).statusCode, 404);
-    const id = f.store.ensure('local-owner');
-    f.store.review('local-owner', id, created.id, 'published');
-    assert.equal(f.store.marketplace().length, 1);
+    const service = new ComponentService(f.store.db);
+    service.review('host-reviewer', release.id, 'published', 'checked');
+    assert.equal(service.marketplace().length, 1);
     const other = createApp({ store: f.store, userId: 'reader' });
     try {
       assert.equal((await other.inject('/api/workspace')).json().components.length, 0);
-      assert.equal((await other.inject({ method: 'POST', url: `/api/marketplace/${created.id}/install` })).statusCode, 200);
-      assert.equal((await other.inject('/api/workspace')).json().components.length, 1);
+      assert.equal((await other.inject({ method: 'POST', url: `/api/marketplace/${release.id}/install` })).statusCode, 200);
+      assert.equal((await other.inject('/api/workspace')).json().installed.length, 1);
+      assert.equal((await other.inject('/api/workspace')).json().components.length, 0);
       assert.equal((await other.inject({ method: 'POST', url: `/api/components/${created.id}/submit` })).statusCode, 404);
     } finally { await other.close(); }
   } finally { await f.close(); }
@@ -112,7 +115,7 @@ test('absolute-form HTTP cannot bypass token authentication on a real listener',
       const req = httpRequest({ hostname: '127.0.0.1', port: address.port, path: 'http://evil.invalid/api/workspace', headers: { host: `127.0.0.1:${address.port}` } }, res => { res.resume(); res.on('end', () => resolve(res.statusCode)); });
       req.on('error', reject); req.end();
     });
-    assert.equal(status, 401);
+    assert.equal(status, 400); // Explicitly reject absolute-form request targets before routing.
   } finally { await app.close(); store.close(); }
 });
 test('kernel rejects duplicate capabilities, missing dependencies, and rolls back failed setup', () => {

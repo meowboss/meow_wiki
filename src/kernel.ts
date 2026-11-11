@@ -16,7 +16,7 @@ export type SearchPage = { id: string; title: string; markdown: string };
 export type SearchResult = { id: string; title: string; excerpt: string };
 export interface Plugin {
   manifest: Manifest;
-  setup: (register: <K extends keyof Services>(key: K, service: Services[K]) => void) => void;
+  setup: (register: <K extends keyof Services>(key: K, service: Services[K]) => void, effect: (dispose: () => void) => void) => void;
 }
 export class PluginError extends Error { statusCode = 409; }
 
@@ -24,6 +24,7 @@ export class PluginError extends Error { statusCode = 409; }
 export class Kernel {
   private plugins = new Map<string, Plugin>();
   private services = new Map<keyof Services, { owner: string; value: Services[keyof Services] }>();
+  private cleanup = new Map<string, (() => void)[]>();
   register(plugin: Plugin) {
     const manifest = pluginManifest.parse(plugin.manifest);
     if (this.plugins.has(manifest.id)) throw new PluginError('插件 ID 重复');
@@ -31,14 +32,38 @@ export class Kernel {
       if (!this.plugins.has(dependency)) throw new PluginError(`缺少插件依赖：${dependency}`);
     }
     const pending = new Map<keyof Services, Services[keyof Services]>();
-    plugin.setup((key, service) => {
-      if (this.services.has(key) || pending.has(key)) throw new PluginError(`能力重复：${key}`);
-      pending.set(key, service);
-    });
+    const disposers: (() => void)[] = [];
+    try {
+      plugin.setup((key, service) => {
+        if (this.services.has(key) || pending.has(key)) throw new PluginError(`能力重复：${key}`);
+        pending.set(key, service);
+      }, dispose => disposers.push(dispose));
+    } catch (error) {
+      const failures: unknown[] = [];
+      for (const dispose of disposers.reverse()) { try { dispose(); } catch (failure) { failures.push(failure); } }
+      if (failures.length) throw new AggregateError([error, ...failures], '插件初始化与清理失败');
+      throw error;
+    }
+    this.cleanup.set(manifest.id, disposers);
     this.plugins.set(manifest.id, { ...plugin, manifest });
     for (const [key, value] of pending) this.services.set(key, { owner: manifest.id, value });
   }
-  list() { return [...this.plugins.values()].map(p => p.manifest); }
+  unregister(id: string) {
+    if (!this.plugins.has(id)) return;
+    if ([...this.plugins.values()].some(p => p.manifest.requires.includes(id))) throw new PluginError('请先卸载依赖此插件的能力');
+    const disposers = this.cleanup.get(id) ?? [];
+    this.plugins.delete(id); this.cleanup.delete(id);
+    for (const [key, service] of this.services) if (service.owner === id) this.services.delete(key);
+    const failures: unknown[] = [];
+    for (const dispose of [...disposers].reverse()) { try { dispose(); } catch (error) { failures.push(error); } }
+    if (failures.length) throw new AggregateError(failures, '插件清理失败');
+  }
+  dispose() {
+    const failures: unknown[] = [];
+    for (const id of [...this.plugins.keys()].reverse()) { try { this.unregister(id); } catch (error) { failures.push(error); } }
+    if (failures.length) throw new AggregateError(failures, '插件宿主清理失败');
+  }
+  list() { return [...this.plugins.values()].map(p => structuredClone(p.manifest)); }
   validateEnabled(enabled: Set<string>) {
     for (const id of enabled) {
       const plugin = this.plugins.get(id);

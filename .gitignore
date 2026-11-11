@@ -2,6 +2,9 @@ node_modules/
 dist/
 .data/
 coverage/
+playwright-report/
+test-results/
+.idea/
 .dsh-local-memory/
 .env
 .env.*
