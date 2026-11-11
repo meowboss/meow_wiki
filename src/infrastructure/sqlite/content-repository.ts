@@ -135,6 +135,16 @@ export class ContentRepository {
       .all(pageId)
       .map((row) => JSON.parse(String(row.data)));
   }
+  deleteOldRevisions(pageId: string, currentRevision: number, keep: number): number {
+    return Number(
+      this.db
+        .prepare(
+          `DELETE FROM page_revisions WHERE page_id=? AND revision<>? AND revision NOT IN
+          (SELECT revision FROM page_revisions WHERE page_id=? ORDER BY (revision=?) DESC, revision DESC LIMIT ?)`,
+        )
+        .run(pageId, currentRevision, pageId, currentRevision, keep).changes,
+    );
+  }
   catalogData(): string[] {
     return this.db
       .prepare('SELECT data FROM catalog')

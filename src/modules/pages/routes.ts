@@ -35,6 +35,29 @@ export function registerPageRoutes(
     const w = scope(request);
     return { revisions: pages.history(owner, w.id, request.params.id) };
   });
+  app.get<{ Params: { id: string } }>('/api/pages/:id/history/export', async (request, reply) => {
+    const owner = caller(request);
+    const w = scope(request);
+    const result = pages.exportHistory(owner, w.id, request.params.id);
+    const safeId = request.params.id.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100) || 'page';
+    return reply
+      .type('application/json')
+      .header('Content-Disposition', `attachment; filename="${safeId}-history.json"`)
+      .header('Cache-Control', 'no-store')
+      .send(result);
+  });
+  app.post<{ Params: { id: string } }>('/api/pages/:id/history/archive', async (request) => {
+    const owner = caller(request);
+    const w = scope(request);
+    const body = z
+      .object({
+        expectedRevision: z.number().int().positive(),
+        keep: z.number().int().min(10).max(100),
+        exportDigest: z.string().regex(/^[a-f0-9]{64}$/),
+      })
+      .parse(request.body);
+    return pages.archiveHistory(owner, w.id, request.params.id, body);
+  });
   app.post<{ Params: { id: string } }>('/api/pages/:id/restore', async (request) => {
     const owner = caller(request);
     const w = scope(request);

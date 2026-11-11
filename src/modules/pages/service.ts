@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Page, Store, Workspace } from '../../store.ts';
+import type { HistoryArchiveInput, Page, Store, Workspace } from '../../store.ts';
 import type { Kernel } from '../../kernel.ts';
 
 export type PageInput = Pick<Page, 'title' | 'markdown'>;
@@ -61,6 +61,14 @@ export class PagesService {
 
   history(owner: string, workspaceId: string, pageId: string) {
     return this.store.history(owner, workspaceId, pageId);
+  }
+
+  exportHistory(owner: string, workspaceId: string, pageId: string) {
+    return this.store.exportHistory(owner, workspaceId, pageId);
+  }
+
+  archiveHistory(owner: string, workspaceId: string, pageId: string, input: HistoryArchiveInput) {
+    return this.store.archiveHistory(owner, workspaceId, pageId, input);
   }
 
   restore(

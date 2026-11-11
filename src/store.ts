@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { ContentRepository } from './infrastructure/sqlite/content-repository.ts';
 import { PageRuleError, revisionOperation, updatePages } from './modules/pages/domain.ts';
 import type { Page, PageRevision } from './modules/pages/domain.ts';
@@ -25,6 +25,11 @@ export type Workspace = {
 export class AccessError extends Error {
   statusCode = 404;
 }
+export type HistoryArchiveInput = {
+  expectedRevision: number;
+  keep: number;
+  exportDigest: string;
+};
 export class Store {
   private readonly repository: ContentRepository;
   /** Compatibility handle for existing platform/backup integrations. */
@@ -115,7 +120,7 @@ export class Store {
       for (const page of workspace.pages) {
         if (before.get(page.id) === JSON.stringify(page)) continue;
         if (this.repository.revisionCount(page.id) >= 200)
-          throw new ConflictError('页面历史已达200版，请导出归档后联系宿主管理');
+          throw new ConflictError('页面历史已达200版，请先导出归档');
         additionalBytes += Buffer.byteLength(
           JSON.stringify({ ...page, actorId: owner, operation: 'update' }),
           'utf8',
@@ -153,6 +158,69 @@ export class Store {
     if (!this.get(owner, workspaceId).pages.some((p) => p.id === pageId))
       throw new AccessError('未找到页面');
     return this.repository.history(pageId);
+  }
+  private historySnapshot(owner: string, workspaceId: string, pageId: string) {
+    const page = this.get(owner, workspaceId).pages.find((p) => p.id === pageId);
+    if (!page) throw new AccessError('未找到页面');
+    const revisions = this.repository.history(pageId);
+    const digest = createHash('sha256').update(JSON.stringify({ page, revisions })).digest('hex');
+    return { page, revisions, digest };
+  }
+  exportHistory(owner: string, workspaceId: string, pageId: string) {
+    this.repository.begin();
+    try {
+      const snapshot = this.historySnapshot(owner, workspaceId, pageId);
+      const result = {
+        format: 'meow.page-history.v1' as const,
+        page: snapshot.page,
+        revisions: snapshot.revisions,
+        exportedAt: new Date().toISOString(),
+        digest: snapshot.digest,
+      };
+      this.repository.commit();
+      return result;
+    } catch (error) {
+      this.repository.rollback();
+      throw error;
+    }
+  }
+  /** The digest confirms the same snapshot only; it cannot prove the user saved the export. */
+  archiveHistory(owner: string, workspaceId: string, pageId: string, input: HistoryArchiveInput) {
+    this.repository.begin();
+    try {
+      const snapshot = this.historySnapshot(owner, workspaceId, pageId);
+      if (
+        !input ||
+        !Number.isSafeInteger(input.keep) ||
+        input.keep < 10 ||
+        input.keep > 100 ||
+        !Number.isSafeInteger(input.expectedRevision) ||
+        input.expectedRevision < 1 ||
+        typeof input.exportDigest !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(input.exportDigest)
+      ) {
+        throw Object.assign(new Error('归档需要当前版本、10到100的整数keep和完整导出digest'), {
+          statusCode: 400,
+        });
+      }
+      if (
+        snapshot.page.revision !== input.expectedRevision ||
+        snapshot.digest !== input.exportDigest
+      ) {
+        throw new ConflictError('页面或历史已变化，请重新导出后归档');
+      }
+      const removed = this.repository.deleteOldRevisions(
+        pageId,
+        snapshot.page.revision,
+        input.keep,
+      );
+      const remaining = this.repository.revisionCount(pageId);
+      this.repository.commit();
+      return { removed, remaining, currentRevision: snapshot.page.revision };
+    } catch (error) {
+      this.repository.rollback();
+      throw error;
+    }
   }
   updatePage(
     owner: string,
