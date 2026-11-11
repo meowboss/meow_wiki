@@ -44,7 +44,7 @@ export class Identity {
       trustedOrigins: [...this.trustedOrigins],
       emailAndPassword: { enabled: true, minPasswordLength: 12, maxPasswordLength: 128 },
       session: { cookieCache: { enabled: false } },
-      rateLimit: { enabled: true, storage: 'database' as const },
+      rateLimit: { enabled: true, storage: 'database' as const, customRules: { '/sign-up/email': { window: 60, max: 10 } } },
       // Never trust user-supplied forwarding headers. The bridge overwrites this header.
       advanced: { ipAddress: { ipAddressHeaders: ['x-meow-identity-ip'] }, database: { generateId: () => randomUUID() } },
       // Avoid auth library logs accidentally including credentials or session material.

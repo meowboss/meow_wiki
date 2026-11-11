@@ -46,6 +46,13 @@ export default function AccountGate() {
     setBusy(true); setLogoutError('');
     try {
       await api('/auth/sign-out', {});
+      // KnowledgeView stores drafts per user/workspace under this prefix. Leave unrelated storage intact.
+      try {
+        for (let index = sessionStorage.length - 1; index >= 0; index--) {
+          const key = sessionStorage.key(index);
+          if (key?.startsWith('meow-knowledge-draft:')) sessionStorage.removeItem(key);
+        }
+      } catch { /* Storage may be disabled; do not prevent a successful server logout. */ }
       setSessionCsrf(''); setActiveWorkspace(''); setSession(null); setPassword('');
       await refresh();
     } catch (e) { setLogoutError(errorMessage(e)); } finally { setBusy(false); }

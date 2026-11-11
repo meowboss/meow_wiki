@@ -29,6 +29,19 @@ export function registerKnowledge(app: FastifyInstance, store: Store, caller: (r
   });
   app.delete<{ Params: { id: string } }>('/api/sources/:id', async request => { const { owner, workspace } = scope(request); return knowledge.remove(owner, workspace.id, request.params.id); });
   app.post<{ Params: { id: string } }>('/api/sources/:id/process', async request => { const { owner, workspace } = scope(request); return knowledge.run(owner, workspace.id, request.params.id); });
+  app.post('/api/proposals/generate', async (request, reply) => {
+    const { owner, workspace } = scope(request);
+    if (!broker) throw Object.assign(new Error('宿主尚未配置模型，未生成提议'), { statusCode: 409 });
+    if (!workspace.enabled.includes('official.llm-wiki') || !workspace.enabled.includes('official.search')) throw Object.assign(new Error('请启用问答与检索插件'), { statusCode: 409 });
+    const input = z.object({ pageId: z.string().uuid(), expectedRevision: z.number().int().positive(), question: z.string().trim().min(1).max(1000) }).parse(request.body);
+    const page = workspace.pages.find(p => p.id === input.pageId && !p.deletedAt);
+    if (!page) throw Object.assign(new Error('未找到目标页'), { statusCode: 404 });
+    if (page.revision !== input.expectedRevision) throw Object.assign(new Error('目标页版本已变更'), { statusCode: 409 });
+    const sources = knowledge.search(owner, workspace.id, input.question).map((s, i) => ({ ...s, label: `S${i + 1}` }));
+    if (!sources.length) throw Object.assign(new Error('没有可引用资料，未调用模型'), { statusCode: 409 });
+    const markdown = await broker.generate(`为Wiki页面“${page.title}”起草完整替换内容；只根据证据写作并保留来源编号。用户要求：${input.question}`, sources);
+    return reply.code(201).send(proposals.create(owner, workspace.id, { pageId: page.id, expectedRevision: input.expectedRevision, title: page.title, markdown, evidence: sources.map(({ sourceId, revision, chunkId }) => ({ sourceId, revision, chunkId })) }));
+  });
   app.get('/api/proposals', async request => { const { owner, workspace } = scope(request); return { proposals: proposals.list(owner, workspace.id) }; });
   app.post('/api/proposals', async (request, reply) => { const { owner, workspace } = scope(request); return reply.code(201).send(proposals.create(owner, workspace.id, request.body)); });
   app.post<{ Params: { id: string } }>('/api/proposals/:id/decide', async request => {

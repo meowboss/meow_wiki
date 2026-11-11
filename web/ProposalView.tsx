@@ -57,6 +57,8 @@ export default function ProposalView({ pages, onDirtyChange, onBusyChange, onApp
   const [error, setError] = useState('');
   const [listError, setListError] = useState('');
   const [notice, setNotice] = useState('');
+  const [modelReady, setModelReady] = useState(false);
+  const [instruction, setInstruction] = useState('');
   const lock = useRef(false);
   const mounted = useRef(true);
   const callbacks = useRef({ onDirtyChange, onBusyChange, onApplied });
@@ -83,6 +85,7 @@ export default function ProposalView({ pages, onDirtyChange, onBusyChange, onApp
     mounted.current = true;
     const controller = new AbortController();
     void load(controller.signal);
+    void api<{ configured: boolean }>('/models/status', undefined, 'GET', controller.signal).then(r => { if (!controller.signal.aborted) setModelReady(r.configured); }).catch(() => {});
     return () => { mounted.current = false; controller.abort(); callbacks.current.onDirtyChange(false); callbacks.current.onBusyChange(false); };
   }, [load]);
   useEffect(() => { callbacks.current.onDirtyChange(dirty); }, [dirty]);
@@ -152,8 +155,16 @@ export default function ProposalView({ pages, onDirtyChange, onBusyChange, onApp
     } finally { lock.current = false; if (mounted.current) setBusy(false); }
   }
 
+  async function generate() {
+    if (!target || !instruction.trim() || working || lock.current) return;
+    lock.current = true; setBusy(true); setError('');
+    try { await api('/proposals/generate', { pageId: target.id, expectedRevision: target.revision, question: instruction.trim() }); setNotice('模型提议已保存，尚未应用；请核对证据和差异后确认。'); await load(); }
+    catch (e) { setError(message(e)); }
+    finally { lock.current = false; if (mounted.current) setBusy(false); }
+  }
+
   return <div className="catalog-view">
-    <div className="section-heading"><div><div className="eyebrow">MANUAL PROPOSALS</div><h1>页面变更提议<span className="heading-dot">.</span></h1><p>手动整理提议，非假 AI 生成。不调用模型；提交只保存提议，不会修改页面正文。</p></div><button className="secondary-btn" disabled={working} onClick={() => void load()}>刷新提议列表</button></div>
+    <div className="section-heading"><div><div className="eyebrow">MANUAL PROPOSALS</div><h1>页面变更提议<span className="heading-dot">.</span></h1><p>可手动整理证据提议，或在模型已配置时生成草稿。两者都必须人工确认，提交不会修改页面正文。</p></div><button className="secondary-btn" disabled={working} onClick={() => void load()}>刷新提议列表</button></div>
     {error && <p className="form-error" role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
     <section className="home-component" aria-labelledby="proposal-draft-heading">
@@ -162,6 +173,7 @@ export default function ProposalView({ pages, onDirtyChange, onBusyChange, onApp
       <label className="field">目标页面<select value={target?.id ?? ''} disabled={working || !activePages.length} onChange={event => selectTarget(event.target.value)}><option value="">请选择页面</option>{target && !currentPage && <option value={target.id}>原目标页（已删除或不可访问）</option>}{activePages.map(page => <option key={page.id} value={page.id}>{page.title || '无标题页面'} · v{page.revision}</option>)}</select></label>
       {target && <p>草稿基于目标页 v{target.revision}。{currentPage && currentPage.revision !== target.revision ? `当前已为 v${currentPage.revision}，原始版本未自动推进。` : ''}</p>}
       {target && !currentPage && <p className="form-error" role="alert">目标页已删除或不可访问；草稿保留，不能提交。</p>}
+      <section className="local-notice"><label className="field">模型写作要求<input maxLength={1000} value={instruction} disabled={working || !modelReady} onChange={e => setInstruction(e.target.value)}/></label><button className="secondary-btn" disabled={working || !target || !modelReady || !instruction.trim()} onClick={() => void generate()}>从资料生成模型提议</button>{!modelReady && <p>模型未配置，此入口禁用；仍可手动整理提议。</p>}</section>
       <form onSubmit={event => void submit(event)}>
         <label className="field">拟议标题<input required maxLength={160} value={draft.title} disabled={working || !target} onChange={event => setDraft(value => ({ ...value, title: event.target.value }))}/></label>
         <label className="field">拟议正文（Markdown 原文）<textarea required rows={10} maxLength={200_000} value={draft.markdown} disabled={working || !target} onChange={event => setDraft(value => ({ ...value, markdown: event.target.value }))}/></label>

@@ -50,16 +50,17 @@ export default function App({ workspace, workspaces, onWorkspaceChange, user, se
   const [homeDirty, setHomeDirty] = useState(false);
   const [knowledgeDirty, setKnowledgeDirty] = useState(false);
   const [proposalDirty, setProposalDirty] = useState(false);
+  const [componentDirty, setComponentDirty] = useState(false);
   const childBusy = useCallback((value: boolean) => setBusy(value ? 'component-view' : ''), []);
   const selectedRef = useRef('');
   const dirty = title !== saved.title || markdown !== saved.markdown || parentId !== saved.parentId;
   const page = editorPage;
   const enabled = (id: string) => data?.plugins.some(p => p.id === id && p.enabled) ?? false;
   const load = useCallback(async (signal?: AbortSignal) => { const next = await api<WorkspaceData>('/workspace', undefined, 'GET', signal); if (!signal?.aborted) setData(next); return next; }, []);
-  const guardWorkspaceExit = () => !busy && !logoutBusy && (!(dirty || homeDirty || knowledgeDirty || proposalDirty) || window.confirm('页面、资料或首页布局有未保存的更改，切换工作空间或退出将放弃这些更改。确定继续吗？'));
+  const guardWorkspaceExit = () => !busy && !logoutBusy && (!(dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty) || window.confirm('页面、资料或首页布局有未保存的更改，切换工作空间或退出将放弃这些更改。确定继续吗？'));
   const selectPage = (p: WikiPage, force = false) => {
     if (!force && busy) return;
-    if (!force && (dirty || homeDirty || knowledgeDirty || proposalDirty) && !window.confirm('当前页面有未保存的更改，确定放弃吗？')) return;
+    if (!force && (dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty) && !window.confirm('当前页面有未保存的更改，确定放弃吗？')) return;
     selectedRef.current = p.id; setSelected(p.id); setEditorPage(p); setTitle(p.title); setMarkdown(p.markdown); setParentId(p.parentId); setBaseRevision(p.revision); setSaved({ title: p.title, markdown: p.markdown, parentId: p.parentId }); setConflict(false); setHistoryOpen(false); setView('wiki'); setSidebar(false);
   };
   const initialize = useCallback(async (signal?: AbortSignal) => {
@@ -69,7 +70,7 @@ export default function App({ workspace, workspaces, onWorkspaceChange, user, se
   }, [load, workspace?.id]);
   useEffect(() => { const controller = new AbortController(); void initialize(controller.signal); return () => controller.abort(); }, [initialize]);
   useEffect(() => { if (workspace) setData(current => current ? { ...current, workspace } : current); }, [workspace]);
-  useEffect(() => { const fn = (e: BeforeUnloadEvent) => { if (dirty || homeDirty || knowledgeDirty || proposalDirty) { e.preventDefault(); e.returnValue = ''; } }; window.addEventListener('beforeunload', fn); return () => window.removeEventListener('beforeunload', fn); }, [dirty, homeDirty, knowledgeDirty, proposalDirty]);
+  useEffect(() => { const fn = (e: BeforeUnloadEvent) => { if (dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty) { e.preventDefault(); e.returnValue = ''; } }; window.addEventListener('beforeunload', fn); return () => window.removeEventListener('beforeunload', fn); }, [dirty, homeDirty, knowledgeDirty, proposalDirty, componentDirty]);
   useEffect(() => {
     if (!selected || !enabled('official.markdown')) { setHtml(''); setRendering(false); setRenderError(''); return; }
     const controller = new AbortController(); setRendering(true); setHtml(''); setRenderError('');
@@ -84,7 +85,7 @@ export default function App({ workspace, workspaces, onWorkspaceChange, user, se
     const timer = window.setTimeout(() => { api<{ results: SearchResult[] }>(`/search?q=${encodeURIComponent(query.trim())}`, undefined, 'GET', controller.signal).then(r => { if (!controller.signal.aborted) setResults(r.results); }).catch(e => { if (!controller.signal.aborted) setSearchError(message(e)); }).finally(() => { if (!controller.signal.aborted) setSearchLoading(false); }); }, 250);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [query, searchOpen, data?.plugins]);
-  useEffect(() => { const onKey = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setSearchOpen(v => !v); } if (e.key === 'Escape') { setSearchOpen(false); setAskOpen(false); setHistoryOpen(false); } }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, []);
+  useEffect(() => { const onKey = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { if (document.querySelector('[role="dialog"]')) return; e.preventDefault(); setSearchOpen(v => !v); } if (e.key === 'Escape') { setSearchOpen(false); setAskOpen(false); setHistoryOpen(false); } }; window.addEventListener('keydown', onKey); return () => window.removeEventListener('keydown', onKey); }, []);
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), 4200); return () => window.clearTimeout(timer); }, [notice]);
   useEffect(() => {
     if (!searchOpen && !askOpen && !historyOpen) return;
@@ -169,10 +170,10 @@ export default function App({ workspace, workspaces, onWorkspaceChange, user, se
       selectPage(updated, true); setNotice(`已恢复版本 ${revision}`); await refreshAfterMutation();
     } catch (e) { pageError(e); } finally { setBusy(''); }
   }
-  function createPage() { if ((dirty || homeDirty || knowledgeDirty || proposalDirty) && !window.confirm('新建页面将离开当前未保存的内容，确定继续吗？')) return; void action('new', async () => { const p = await api<WikiPage>('/pages', { title: '无标题页面', markdown: '# 新的灵感\n\n从这里开始，记录值得留下的知识。\n' }); selectPage(p, true); }, '新页面已创建'); }
+  function createPage() { if ((dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty) && !window.confirm('新建页面将离开当前未保存的内容，确定继续吗？')) return; void action('new', async () => { const p = await api<WikiPage>('/pages', { title: '无标题页面', markdown: '# 新的灵感\n\n从这里开始，记录值得留下的知识。\n' }); selectPage(p, true); }, '新页面已创建'); }
   function openSource(id: string) { const p = data?.pages.find(p => p.id === id); if (p) { selectPage(p); setSearchOpen(false); } else setError('该引用页面不在当前工作区，请刷新后重试。'); }
   function ask(e: FormEvent) { e.preventDefault(); if (!question.trim() || busy) return; setAskError(''); setAnswer(null); setBusy('ask'); void api<Answer>('/ask', { question: question.trim() }).then(setAnswer).catch(e => setAskError(message(e))).finally(() => setBusy('')); }
-  const nav = (next: View) => { if (busy || (view !== next && (dirty || homeDirty || knowledgeDirty || proposalDirty) && !window.confirm('页面、资料或首页布局有未保存的更改，确定离开吗？'))) return; setView(next); setSidebar(false); };
+  const nav = (next: View) => { if (busy || (view !== next && (dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty) && !window.confirm('页面、资料或首页布局有未保存的更改，确定离开吗？'))) return; setView(next); setSidebar(false); };
 
   return <div className="app-shell">
     {sidebar && <button className="sidebar-scrim" aria-label="收起导航" onClick={() => setSidebar(false)} />}
@@ -187,7 +188,7 @@ export default function App({ workspace, workspaces, onWorkspaceChange, user, se
       <div className="sidebar-bottom"><div className="garden-card"><Sprout size={24}/><strong>每一条记录，都有回响</strong><p>把零散的灵感，种成自己的知识花园。</p><button onClick={createPage} disabled={!!busy || !data}>记录一个灵感 <ArrowRight size={14}/></button></div><div className="profile"><span className="profile-avatar">{user.username.slice(0, 1) || '我'}</span><div><strong>{user.username}</strong><small><span/>{sessionMode === 'local' ? '本地模式' : '安全会话'}</small></div><button className="text-btn" disabled={!!busy || logoutBusy} onClick={() => { if (guardWorkspaceExit()) onLogout(); }}>{logoutBusy ? '退出中…' : '退出'}</button></div></div>
     </aside>
     <main className="main-shell">
-      <header className="topbar"><div className="breadcrumbs"><button className="mobile-menu icon-btn" aria-label="展开导航" onClick={() => setSidebar(true)}><Menu size={20}/></button><span>我的工作空间</span><ChevronRight size={13}/><strong>{view === 'home' ? '首页' : view === 'wiki' ? '知识空间' : view === 'market' ? '插件市场' : view === 'knowledge' ? '资料工作台' : view === 'reviews' ? '组件审核' : '我的组件'}</strong></div><div className="topbar-actions"><span className="private-label"><ShieldCheck size={13}/>仅自己可见</span><button className="icon-btn" title="刷新工作空间" disabled={!!busy || loading} onClick={() => { void load().catch(e => setError(message(e))); }}><RefreshCw size={16}/></button><span className="top-avatar">我</span></div></header>
+      <header className="topbar"><div className="breadcrumbs"><button className="mobile-menu icon-btn" aria-label="展开导航" onClick={() => setSidebar(true)}><Menu size={20}/></button><span>我的工作空间</span><ChevronRight size={13}/><strong>{view === 'home' ? '首页' : view === 'wiki' ? '知识空间' : view === 'market' ? '插件市场' : view === 'knowledge' ? '资料工作台' : view === 'reviews' ? '组件审核' : view === 'proposals' ? '写入提议' : '我的组件'}</strong></div><div className="topbar-actions"><span className="private-label"><ShieldCheck size={13}/>仅自己可见</span><button className="icon-btn" title="刷新工作空间" disabled={!!busy || loading} onClick={() => { void load().catch(e => setError(message(e))); }}><RefreshCw size={16}/></button><span className="top-avatar">我</span></div></header>
       {logoutError && <div className="global-error" role="alert">退出登录失败：{logoutError}</div>}
       {error && <div className="global-error" role="alert"><CircleHelp size={17}/><span>{error}</span><button onClick={() => setError('')} aria-label="关闭错误"><X size={16}/></button></div>}
       {conflict && <div className="global-error" role="alert"><span>本地编辑基于版本 {baseRevision}，已发生冲突。不会自动覆盖；复制本地内容后可明确加载最新页面。</span><button disabled={!!busy} onClick={() => void loadLatest()}>加载最新页面</button></div>}
@@ -201,7 +202,7 @@ export default function App({ workspace, workspaces, onWorkspaceChange, user, se
         {view === 'proposals' && <ProposalView pages={data.pages} onDirtyChange={setProposalDirty} onBusyChange={childBusy} onApplied={load}/>}
         {view === 'knowledge' && <KnowledgeView key={data.workspace.id} draftKey={`${user.id}:${data.workspace.id}`} askEnabled={enabled('official.llm-wiki') && enabled('official.search')} onDirtyChange={setKnowledgeDirty} onBusyChange={childBusy}/>}
         {view === 'home' && <HomeView data={data} onOpen={openSource} onDirtyChange={setHomeDirty} onBusyChange={childBusy}/>}
-        {(view === 'market' || view === 'components') && <ComponentCatalog key={view} view={view} data={data} user={user} refresh={load} onOpen={openSource} onBusyChange={childBusy}/>}
+        {(view === 'market' || view === 'components') && <ComponentCatalog key={view} view={view} data={data} user={user} refresh={load} onOpen={openSource} onBusyChange={childBusy} onDirtyChange={setComponentDirty}/>}
         {view === 'reviews' && user.role === 'admin' && <ReviewView userId={user.id} pages={data.pages} onOpen={openSource} refresh={load} onBusyChange={childBusy}/>}
       </>}
     </main>
