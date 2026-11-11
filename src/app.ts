@@ -9,6 +9,7 @@ import { registerKnowledge } from './knowledge-http.ts';
 import type { ModelBroker } from './models.ts';
 import { createHttpContext } from './http/context.ts';
 import { registerSecurity } from './http/security.ts';
+import { registerHealth } from './http/health.ts';
 import { registerIdentityRoutes } from './http/identity-routes.ts';
 import { PagesService } from './modules/pages/service.ts';
 import { registerPageRoutes } from './modules/pages/routes.ts';
@@ -81,6 +82,7 @@ export function createApp(options: AppOptions = {}) {
     }
   });
   registerSecurity(app, context, options.token);
+  registerHealth(app, store);
   registerIdentityRoutes(app, context);
   registerWorkspaceRoutes(app, context, new WorkspacesService(store, components, kernel));
   registerPageRoutes(app, context, new PagesService(store, kernel));

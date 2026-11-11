@@ -92,6 +92,20 @@ export class ContentRepository {
       .prepare('UPDATE workspaces SET data = ? WHERE id = ? AND owner = ?')
       .run(data, id, owner);
   }
+  ownerHistoryBytes(owner: string): number {
+    return Number(
+      this.db
+        .prepare(
+          `SELECT coalesce(sum(length(CAST(r.data AS BLOB))),0) AS n FROM page_revisions r JOIN pages p ON p.id=r.page_id JOIN workspaces w ON w.id=p.workspace_id WHERE w.owner=?`,
+        )
+        .get(owner)!.n,
+    );
+  }
+  revisionCount(pageId: string): number {
+    return Number(
+      this.db.prepare('SELECT count(*) AS n FROM page_revisions WHERE page_id=?').get(pageId)!.n,
+    );
+  }
   pages(workspaceId: string): Page[] {
     return this.db
       .prepare('SELECT data FROM pages WHERE workspace_id=? ORDER BY rowid')

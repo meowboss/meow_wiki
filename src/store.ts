@@ -111,6 +111,21 @@ export class Store {
       ) {
         throw new ConflictError('不能移除或重复页面，请使用软删除');
       }
+      let additionalBytes = 0;
+      for (const page of workspace.pages) {
+        if (before.get(page.id) === JSON.stringify(page)) continue;
+        if (this.repository.revisionCount(page.id) >= 200)
+          throw new ConflictError('页面历史已达200版，请导出归档后联系宿主管理');
+        additionalBytes += Buffer.byteLength(
+          JSON.stringify({ ...page, actorId: owner, operation: 'update' }),
+          'utf8',
+        );
+      }
+      if (
+        additionalBytes &&
+        this.repository.ownerHistoryBytes(owner) + additionalBytes > 50 * 1024 * 1024
+      )
+        throw new ConflictError('账号页面历史已达50MiB预算，请先导出归档');
       for (const page of workspace.pages) {
         const previous = before.get(page.id);
         if (!previous) {
