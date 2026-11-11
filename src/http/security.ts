@@ -10,7 +10,7 @@ export function registerSecurity(app: FastifyInstance, context: HttpContext, tok
     reply.header('Referrer-Policy', 'no-referrer');
     reply.header(
       'Content-Security-Policy',
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
     );
     // Guard every request, including absolute-form and encoded paths.
     reply.header('Cache-Control', 'no-store');

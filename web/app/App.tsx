@@ -46,6 +46,7 @@ import KnowledgeView from '../features/knowledge/KnowledgeView';
 import ProposalView from '../features/proposals/ProposalView';
 import DomainsView from '../features/domains/DomainsView';
 import McpCredentialsView from '../features/mcp/McpCredentialsView';
+import PluginLabView from '../features/plugin-lab/PluginLabView';
 
 type View =
   | 'home'
@@ -56,7 +57,8 @@ type View =
   | 'knowledge'
   | 'proposals'
   | 'domains'
-  | 'mcp';
+  | 'mcp'
+  | 'plugin-lab';
 const message = (error: unknown) =>
   error instanceof Error ? error.message : '发生未知错误，请重试。';
 
@@ -123,7 +125,7 @@ export default function App({
   const [componentDirty, setComponentDirty] = useState(false);
   const [domainDirty, setDomainDirty] = useState(false);
   const [mcpDirty, setMcpDirty] = useState(false);
-  const independentView = view === 'domains' || view === 'mcp';
+  const independentView = view === 'domains' || view === 'mcp' || view === 'plugin-lab';
   const childBusy = useCallback((value: boolean) => setBusy(value ? 'component-view' : ''), []);
   const selectedRef = useRef('');
   const dirty = title !== saved.title || markdown !== saved.markdown || parentId !== saved.parentId;
@@ -313,7 +315,7 @@ export default function App({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        if (view === 'domains' || view === 'mcp') {
+        if (view === 'domains' || view === 'mcp' || view === 'plugin-lab') {
           e.preventDefault();
           return;
         }
@@ -655,6 +657,13 @@ export default function App({
             <span className="small-dot" />
           </button>
           <button
+            className={view === 'plugin-lab' ? 'active' : ''}
+            onClick={() => nav('plugin-lab')}
+          >
+            <Puzzle size={18} />
+            插件实验室
+          </button>
+          <button
             className={view === 'components' ? 'active' : ''}
             onClick={() => nav('components')}
           >
@@ -769,23 +778,25 @@ export default function App({
             <span>{independentView ? '跨空间协作' : '我的工作空间'}</span>
             <ChevronRight size={13} />
             <strong>
-              {view === 'mcp'
-                ? 'Agent 连接'
-                : view === 'domains'
-                  ? '知识域'
-                  : view === 'home'
-                    ? '首页'
-                    : view === 'wiki'
-                      ? '知识空间'
-                      : view === 'market'
-                        ? '插件市场'
-                        : view === 'knowledge'
-                          ? '资料工作台'
-                          : view === 'reviews'
-                            ? '组件审核'
-                            : view === 'proposals'
-                              ? '写入提议'
-                              : '我的组件'}
+              {view === 'plugin-lab'
+                ? '插件实验室'
+                : view === 'mcp'
+                  ? 'Agent 连接'
+                  : view === 'domains'
+                    ? '知识域'
+                    : view === 'home'
+                      ? '首页'
+                      : view === 'wiki'
+                        ? '知识空间'
+                        : view === 'market'
+                          ? '插件市场'
+                          : view === 'knowledge'
+                            ? '资料工作台'
+                            : view === 'reviews'
+                              ? '组件审核'
+                              : view === 'proposals'
+                                ? '写入提议'
+                                : '我的组件'}
             </strong>
           </div>
           <div className="topbar-actions">
@@ -837,7 +848,18 @@ export default function App({
             {notice}
           </div>
         )}
-        {view === 'mcp' ? (
+        {view === 'plugin-lab' ? (
+          <PluginLabView
+            key={workspace?.id ?? 'no-workspace'}
+            workspaceId={workspace?.id ?? null}
+            ready={!!data && data.workspace.id === workspace?.id && !loading}
+            pages={
+              data && data.workspace.id === workspace?.id && !loading
+                ? data.pages.map(({ id, title }) => ({ id, title }))
+                : []
+            }
+          />
+        ) : view === 'mcp' ? (
           <McpCredentialsView
             key={workspace?.id ?? 'no-workspace'}
             onDirtyChange={setMcpDirty}

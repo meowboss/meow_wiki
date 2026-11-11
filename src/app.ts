@@ -17,6 +17,7 @@ import { ExtensionsService } from './modules/extensions/service.ts';
 import { DomainsService } from './modules/domains/service.ts';
 import { registerDomainRoutes } from './modules/domains/routes.ts';
 import { registerMcpRoutes } from './modules/mcp/routes.ts';
+import { registerPluginRuntime } from './modules/plugin-runtime/routes.ts';
 
 export type AppOptions = IdentityOptions & {
   modelBroker?: ModelBroker;
@@ -85,5 +86,6 @@ export function createApp(options: AppOptions = {}) {
   const domains = new DomainsService(store.db);
   registerDomainRoutes(app, context, domains);
   registerMcpRoutes(app, context, domains);
+  registerPluginRuntime(app);
   return app;
 }

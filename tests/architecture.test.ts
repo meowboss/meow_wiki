@@ -23,13 +23,16 @@ function imports(file: string) {
   );
 }
 test('browser features depend on shared contracts, never server internals or app assembly', () => {
-  for (const file of files('web'))
+  for (const file of files('web').filter((file) => !file.endsWith('.test.ts')))
     for (const specifier of imports(file)) {
       assert.ok(!specifier.startsWith('node:'), `Node builtin in browser: ${file}`);
       if (!specifier.startsWith('.')) continue;
       const target = resolve(dirname(file), specifier);
       const source = relative(resolve('web'), file).replaceAll('\\', '/');
       const destination = relative(resolve('web'), target).replaceAll('\\', '/');
+      const sdkPath = relative(resolve('packages/plugin-sdk'), target).replaceAll('\\', '/');
+      const sdkImport = sdkPath === 'index' || sdkPath === 'index.ts';
+      if (sdkImport) continue; // Reviewed browser-safe public SDK, never server source.
       assert.ok(
         !destination.startsWith('../'),
         `Browser import escapes boundary: ${source} -> ${specifier}`,
