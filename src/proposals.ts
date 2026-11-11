@@ -3,6 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { Store } from './store.ts';
 import { KnowledgeService } from './knowledge.ts';
 import { z } from 'zod';
+import { ProposalRepository } from './infrastructure/proposal-repository.ts';
 const inputSchema = z
   .object({
     pageId: z.string().uuid(),
@@ -32,14 +33,13 @@ export class ProposalError extends Error {
   }
 }
 export class Proposals {
+  private readonly repository: ProposalRepository;
   constructor(
-    private db: DatabaseSync,
+    db: DatabaseSync,
     private store: Store,
     private knowledge: KnowledgeService,
   ) {
-    db.exec(
-      `CREATE TABLE IF NOT EXISTS mw_proposals(id TEXT PRIMARY KEY,workspace_id TEXT NOT NULL,owner TEXT NOT NULL,data TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN ('pending','accepted','rejected')));`,
-    );
+    this.repository = new ProposalRepository(db);
   }
   private validate(owner: string, workspaceId: string, input: z.infer<typeof inputSchema>) {
     const page = this.store
@@ -52,13 +52,7 @@ export class Proposals {
       const source = this.knowledge.detail(owner, workspaceId, ref.sourceId);
       if (source.revision !== ref.revision || source.status !== 'ready')
         throw new ProposalError('证据已变更或尚未就绪', 409);
-      if (
-        !this.db
-          .prepare(
-            'SELECT 1 FROM knowledge_chunks WHERE id=? AND workspace_id=? AND source_id=? AND revision=?',
-          )
-          .get(ref.chunkId, workspaceId, ref.sourceId, ref.revision)
-      )
+      if (!this.repository.evidenceExists(workspaceId, ref.sourceId, ref.revision, ref.chunkId))
         throw new ProposalError('引用片段不可用', 409);
     }
   }
@@ -67,41 +61,35 @@ export class Proposals {
     this.validate(owner, workspaceId, input);
     const id = randomUUID();
     const data = { id, ...input, createdAt: new Date().toISOString() };
-    this.db
-      .prepare('INSERT INTO mw_proposals VALUES(?,?,?,?,?)')
-      .run(id, workspaceId, owner, JSON.stringify(data), 'pending');
+    if (this.repository.count(owner) >= 200)
+      throw new ProposalError('每个账号最多保留200条提议，请联系宿主管理归档', 409);
+    this.repository.insert(owner, workspaceId, id, data);
     return { ...data, status: 'pending' };
   }
   list(owner: string, workspaceId: string) {
     this.store.get(owner, workspaceId);
-    return this.db
-      .prepare(
-        'SELECT data,status FROM mw_proposals WHERE owner=? AND workspace_id=? ORDER BY rowid DESC LIMIT 100',
-      )
-      .all(owner, workspaceId)
+    return this.repository
+      .list(owner, workspaceId)
       .map((row) => ({ ...JSON.parse(String(row.data)), status: String(row.status) }));
   }
   decide(owner: string, workspaceId: string, id: string, decision: 'accept' | 'reject') {
     this.store.get(owner, workspaceId);
-    const row = this.db
-      .prepare('SELECT data,status FROM mw_proposals WHERE id=? AND owner=? AND workspace_id=?')
-      .get(id, owner, workspaceId);
+    const row = this.repository.get(owner, workspaceId, id);
     if (!row) throw new ProposalError('未找到提议', 404);
     if (row.status !== 'pending') throw new ProposalError('提议已经处理', 409);
     const input = inputSchema.parse(
       (({ id: _id, createdAt: _time, ...content }) => content)(JSON.parse(String(row.data))),
     );
     if (decision === 'reject') {
-      this.db
-        .prepare("UPDATE mw_proposals SET status='rejected' WHERE id=? AND status='pending'")
-        .run(id);
+      if (!this.repository.transition(owner, workspaceId, id, 'rejected'))
+        throw new ProposalError('提议已经处理', 409);
       return { status: 'rejected' };
     }
     this.validate(owner, workspaceId, input);
     // Store.change owns the write transaction; page, revision and proposal status commit together.
     return this.store.change(owner, workspaceId, (workspace) => {
       this.validate(owner, workspaceId, input);
-      const current = this.db.prepare('SELECT status FROM mw_proposals WHERE id=?').get(id);
+      const current = this.repository.get(owner, workspaceId, id);
       if (current?.status !== 'pending') throw new ProposalError('提议已经处理', 409);
       const page = workspace.pages.find((p) => p.id === input.pageId)!;
       Object.assign(page, {
@@ -110,7 +98,8 @@ export class Proposals {
         revision: page.revision + 1,
         updatedAt: new Date().toISOString(),
       });
-      this.db.prepare("UPDATE mw_proposals SET status='accepted' WHERE id=?").run(id);
+      if (!this.repository.transition(owner, workspaceId, id, 'accepted'))
+        throw new ProposalError('提议已经处理', 409);
       return { status: 'accepted', page };
     });
   }

@@ -2,21 +2,16 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   ArrowRight,
   BookOpen,
-  Check,
   CheckCheck,
   ChevronRight,
   CircleHelp,
-  Clock3,
-  Code2,
   Compass,
-  Eye,
   FileText,
   FolderClosed,
   Layers3,
   LoaderCircle,
   Menu,
   MessageCircle,
-  PanelLeftClose,
   PencilLine,
   Plus,
   Puzzle,
@@ -41,6 +36,8 @@ import {
 } from '../shared/api';
 import Modal from '../shared/ui/Modal';
 import PageHistory from '../features/wiki/PageHistory';
+import WikiEditor, { type WikiEditorMode } from '../features/wiki/WikiEditor';
+import WikiWorkspaceView from '../features/wiki/WikiWorkspaceView';
 import WorkspacePicker from '../features/workspaces/WorkspacePicker';
 import HomeView from '../features/home/HomeView';
 import ComponentCatalog from '../features/extensions/ComponentCatalog';
@@ -49,20 +46,8 @@ import KnowledgeView from '../features/knowledge/KnowledgeView';
 import ProposalView from '../features/proposals/ProposalView';
 
 type View = 'home' | 'wiki' | 'market' | 'components' | 'reviews' | 'knowledge' | 'proposals';
-type Mode = 'split' | 'edit' | 'preview';
 const message = (error: unknown) =>
   error instanceof Error ? error.message : '发生未知错误，请重试。';
-const dateLabel = (date: string) => {
-  const d = new Date(date);
-  return Number.isNaN(d.getTime())
-    ? '尚未更新'
-    : d.toLocaleString('zh-CN', {
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-};
 
 type AppProps = {
   workspace: Workspace | null;
@@ -103,7 +88,7 @@ export default function App({
   });
   const [conflict, setConflict] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [mode, setMode] = useState<Mode>('split');
+  const [mode, setMode] = useState<WikiEditorMode>('split');
   const [html, setHtml] = useState('');
   const [rendering, setRendering] = useState(false);
   const [renderError, setRenderError] = useState('');
@@ -783,286 +768,44 @@ export default function App({
         ) : (
           <>
             {view === 'wiki' && (
-              <div className="wiki-view">
-                <div className="section-heading">
-                  <div>
-                    <div className="eyebrow">
-                      <span />
-                      YOUR PERSONAL KNOWLEDGE GARDEN
-                    </div>
-                    <h1>
-                      知识空间<span className="heading-dot">.</span>
-                    </h1>
-                    <p>
-                      {data.workspace.description ||
-                        '收藏灵感，连接想法。在这里，慢慢建立你的知识宇宙。'}
-                    </p>
-                  </div>
-                  <button className="primary-btn" disabled={!!busy} onClick={createPage}>
-                    {busy === 'new' ? (
-                      <LoaderCircle className="spin" size={16} />
-                    ) : (
-                      <Plus size={17} />
-                    )}
-                    新建页面
-                  </button>
-                </div>
-                <div className="workspace-stats">
-                  <span>
-                    <FileText size={14} />
-                    <b>{data.pages.length}</b> 篇知识笔记
-                  </span>
-                  <span>
-                    <Puzzle size={14} />
-                    <b>{data.plugins.filter((p) => p.enabled).length}</b> 个插件已启用
-                  </span>
-                  <span className="stats-hint">
-                    <span />
-                    所有内容存储在本地工作空间
-                  </span>
-                </div>
-                {!page ? (
-                  <div className="empty-state large">
-                    <div className="empty-icon">
-                      <Sprout size={32} />
-                    </div>
-                    <h2>给你的第一个想法，找个家</h2>
-                    <p>一份笔记、一段灵感，都可以是知识花园的开始。</p>
-                    <button className="primary-btn" onClick={createPage} disabled={!!busy}>
-                      <Plus size={16} />
-                      创建第一篇页面
-                    </button>
-                  </div>
-                ) : (
-                  <section className="editor-card">
-                    <div className="document-heading">
-                      <div className="document-path">
-                        <span className="document-icon">
-                          <FileText size={19} />
-                        </span>
-                        <span>知识笔记</span>
-                        <ChevronRight size={13} />
-                        <strong>{page.title}</strong>
-                      </div>
-                      <span className={`save-status ${dirty ? 'unsaved' : ''}`}>
-                        {dirty ? <span className="unsaved-dot" /> : <Check size={13} />}{' '}
-                        {dirty ? '有未保存更改' : '已保存'}
-                      </span>
-                    </div>
-                    <div className="document-title">
-                      <input
-                        aria-label="页面标题"
-                        disabled={!!busy}
-                        maxLength={200}
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        placeholder="无标题页面"
-                      />
-                      <div className="document-meta">
-                        <Clock3 size={13} />
-                        更新于 {dateLabel(page.updatedAt)}
-                        <span className="meta-separator">·</span>
-                        <span>{markdown.length.toLocaleString()} 字符</span>
-                        <span className="document-tag">Markdown · v{baseRevision}</span>
-                      </div>
-                      <label
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          fontSize: 13,
-                          marginTop: 12,
-                        }}
-                      >
-                        父页面
-                        <select
-                          aria-label="父页面"
-                          disabled={!!busy}
-                          value={parentId ?? ''}
-                          onChange={(e) => setParentId(e.target.value || null)}
-                          style={{
-                            maxWidth: '70%',
-                            padding: '6px 10px',
-                            border: '1px solid #deded8',
-                            borderRadius: 6,
-                            background: 'transparent',
-                          }}
-                        >
-                          <option value="">无（顶层页面）</option>
-                          {parentId && !data.pages.some((p) => p.id === parentId) && (
-                            <option value={parentId}>原父页面（已删除或不可访问）</option>
-                          )}
-                          {data.pages
-                            .filter((p) => p.id !== selected)
-                            .map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.title || '无标题页面'}
-                              </option>
-                            ))}
-                        </select>
-                      </label>
-                    </div>
-                    <div className="editor-toolbar">
-                      <div className="mode-tabs" aria-label="编辑模式">
-                        <button
-                          className={mode === 'edit' ? 'active' : ''}
-                          onClick={() => setMode('edit')}
-                        >
-                          <PencilLine size={14} />
-                          编辑
-                        </button>
-                        <button
-                          className={mode === 'split' ? 'active' : ''}
-                          onClick={() => setMode('split')}
-                        >
-                          <PanelLeftClose size={14} />
-                          分屏
-                        </button>
-                        <button
-                          className={mode === 'preview' ? 'active' : ''}
-                          onClick={() => setMode('preview')}
-                        >
-                          <Eye size={14} />
-                          预览
-                        </button>
-                      </div>
-                      <div
-                        style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
-                      >
-                        <button
-                          className="text-btn"
-                          disabled={!!busy}
-                          onClick={() => setHistoryOpen(true)}
-                        >
-                          历史
-                        </button>
-                        <button
-                          className="text-btn"
-                          disabled={!!busy}
-                          onClick={() => void loadLatest()}
-                        >
-                          加载最新
-                        </button>
-                        <button
-                          className="text-btn"
-                          disabled={!!busy || conflict}
-                          onClick={() => void deletePage()}
-                        >
-                          删除
-                        </button>
-                        <button
-                          className="save-btn"
-                          onClick={() => void savePage()}
-                          disabled={!!busy || conflict || !dirty || !title.trim()}
-                        >
-                          {busy === 'save' ? (
-                            <LoaderCircle className="spin" size={14} />
-                          ) : (
-                            <Check size={14} />
-                          )}
-                          保存页面
-                        </button>
-                      </div>
-                    </div>
-                    <div className={`editor-panels mode-${mode}`}>
-                      {mode !== 'preview' && (
-                        <div className="source-panel">
-                          <div className="panel-label">
-                            <span>
-                              <Code2 size={13} />
-                              MARKDOWN
-                            </span>
-                            <span>纯文本，专注表达</span>
-                          </div>
-                          <textarea
-                            aria-label="Markdown 内容"
-                            disabled={!!busy}
-                            spellCheck={false}
-                            value={markdown}
-                            onChange={(e) => setMarkdown(e.target.value)}
-                            placeholder="# 从一个想法开始…"
-                          />
-                        </div>
-                      )}
-                      {mode !== 'edit' && (
-                        <div className="preview-panel">
-                          <div className="panel-label">
-                            <span>
-                              <Eye size={13} />
-                              实时预览
-                            </span>
-                            <span className="live-indicator">
-                              <span />
-                              安全渲染
-                            </span>
-                          </div>
-                          {!enabled('official.markdown') ? (
-                            <div className="inline-state">
-                              <Puzzle size={25} />
-                              <p>Markdown 插件尚未启用</p>
-                              <button className="text-btn" onClick={() => nav('market')}>
-                                前往插件市场启用 <ArrowRight size={13} />
-                              </button>
-                            </div>
-                          ) : renderError ? (
-                            <div className="inline-state error-text" role="alert">
-                              <CircleHelp size={24} />
-                              <p>{renderError}</p>
-                              <button
-                                className="text-btn"
-                                onClick={() => void load().catch((e) => setError(message(e)))}
-                              >
-                                重试预览
-                              </button>
-                            </div>
-                          ) : rendering ? (
-                            <div className="inline-state">
-                              <LoaderCircle className="spin" size={24} />
-                              <p>正在安全渲染…</p>
-                            </div>
-                          ) : html ? (
-                            <div
-                              className="markdown-body"
-                              dangerouslySetInnerHTML={{ __html: html }}
-                            />
-                          ) : (
-                            <div className="inline-state">
-                              <PencilLine size={24} />
-                              <p>写点什么，预览会在这里生长。</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <footer className="editor-footer">
-                      <span>
-                        <ShieldCheck size={12} />
-                        预览仅使用服务端净化后的 HTML
-                      </span>
-                      <span>
-                        好想法，值得被记录 <Sprout size={13} />
-                      </span>
-                    </footer>
-                  </section>
+              <WikiWorkspaceView
+                description={data.workspace.description}
+                pageCount={data.pages.length}
+                enabledPluginCount={data.plugins.filter((p) => p.enabled).length}
+                busy={busy}
+                hasPage={!!page}
+                onCreatePage={createPage}
+                onAsk={() => setAskOpen(true)}
+              >
+                {page && (
+                  <WikiEditor
+                    page={page}
+                    pages={data.pages}
+                    title={title}
+                    markdown={markdown}
+                    parentId={parentId}
+                    baseRevision={baseRevision}
+                    dirty={dirty}
+                    conflict={conflict}
+                    busy={busy}
+                    mode={mode}
+                    markdownEnabled={enabled('official.markdown')}
+                    html={html}
+                    rendering={rendering}
+                    renderError={renderError}
+                    onTitleChange={setTitle}
+                    onMarkdownChange={setMarkdown}
+                    onParentIdChange={setParentId}
+                    onModeChange={setMode}
+                    onOpenHistory={() => setHistoryOpen(true)}
+                    onLoadLatest={() => void loadLatest()}
+                    onDelete={() => void deletePage()}
+                    onSave={() => void savePage()}
+                    onOpenMarket={() => nav('market')}
+                    onRetryPreview={() => void load().catch((e) => setError(message(e)))}
+                  />
                 )}
-                <button className="ask-banner" onClick={() => setAskOpen(true)}>
-                  <span className="ask-banner-icon">
-                    <Sparkles size={21} />
-                  </span>
-                  <span>
-                    <strong>让知识彼此连接</strong>
-                    <small>向你的 Wiki 提问，从已有笔记中寻找答案</small>
-                  </span>
-                  <span className="local-badge">本地引用问答</span>
-                  <ArrowRight size={18} />
-                </button>
-                <div className="quiet-footer">
-                  <span>一点一滴，积累属于你的知识。</span>
-                  <span>
-                    MADE FOR CURIOUS MINDS <Sprout size={12} />
-                  </span>
-                </div>
-              </div>
+              </WikiWorkspaceView>
             )}
             {view === 'proposals' && (
               <ProposalView

@@ -51,7 +51,7 @@ pnpm audit --prod --registry=https://registry.npmjs.org
 pnpm test:e2e
 ```
 
-当前浏览器测试使用本机 Microsoft Edge；在无 Edge 的环境需调整 Playwright channel 并安装对应浏览器。测试数据库使用内存，不写个人数据。
+当前本机浏览器测试使用 Microsoft Edge；无 Edge 时设置 `PLAYWRIGHT_CHANNEL=chromium` 并执行 `pnpm exec playwright install chromium`。CI按此方式配置，但尚未有远程CI运行证据。测试数据库使用内存，不写个人数据。
 
 部署配置：`MEOW_DATABASE` 指定数据库路径；`MEOW_AUTH_BASE_URL` 设置浏览器访问 origin；`NODE_ENV=production` 必须注入至少32字符高熵 `MEOW_AUTH_SECRET`。非生产启动会生成并保留 `.data/auth-secret`，备份时需与数据库一起安全保管。开发使用Vite前设置 `MEOW_ALLOW_VITE_ORIGIN=1`；默认不信任开发跨源地址。
 
@@ -60,9 +60,9 @@ pnpm test:e2e
 - [内核](<src/kernel.ts>)：小型 manifest 与受信能力注册表。
 - [官方插件](<src/plugins/official.ts>)：安全渲染、轻量检索和本地引用问答。
 - [HTTP 应用](<src/app.ts>)：宿主授权、参数校验与业务 API。
-- [数据仓储](<src/store.ts>)：SQLite 事务与资源 scope。
+- [内容应用门面](<src/store.ts>)：事务协调与资源 scope；[SQLite 仓储](<src/infrastructure/sqlite/content-repository.ts>) 隔离SQL及迁移；[页面领域规则](<src/modules/pages/domain.ts>) 为无IO纯函数。
 - [启动入口](<src/server.ts>)：仅本地监听与构建后静态文件。
-- [前端](<web/App.tsx>)：Wiki、插件市场、私有组件。
+- [前端装配](<web/app/App.tsx>)：Wiki、插件市场、私有组件。
 - [平台测试](<tests/platform.test.ts>)。
 
 ## 安全与边界

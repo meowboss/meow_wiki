@@ -1,18 +1,8 @@
-import { DatabaseSync } from 'node:sqlite';
 import { randomUUID } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
-
-export type Page = {
-  id: string;
-  title: string;
-  markdown: string;
-  updatedAt: string;
-  revision: number;
-  deletedAt: string | null;
-  parentId: string | null;
-};
-export type PageRevision = Page & { actorId: string; operation: string };
+import { ContentRepository } from './infrastructure/sqlite/content-repository.ts';
+import { PageRuleError, revisionOperation, updatePages } from './modules/pages/domain.ts';
+import type { Page, PageRevision } from './modules/pages/domain.ts';
+export type { Page, PageRevision } from './modules/pages/domain.ts';
 export class ConflictError extends Error {
   statusCode = 409;
 }
@@ -36,75 +26,26 @@ export class AccessError extends Error {
   statusCode = 404;
 }
 export class Store {
-  readonly db: DatabaseSync;
+  private readonly repository: ContentRepository;
+  /** Compatibility handle for existing platform/backup integrations. */
+  readonly db: ContentRepository['db'];
   constructor(path = '.data/meow.sqlite') {
-    if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
-    this.db = new DatabaseSync(path);
-    this.db.exec(
-      'PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS workspaces (id TEXT PRIMARY KEY, owner TEXT NOT NULL, data TEXT NOT NULL); CREATE TABLE IF NOT EXISTS catalog (id TEXT PRIMARY KEY, data TEXT NOT NULL);',
-    );
-    this.migrate();
-  }
-  private migrate() {
-    this.db
-      .exec(`CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS pages (id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL REFERENCES workspaces(id), data TEXT NOT NULL);
-      CREATE INDEX IF NOT EXISTS pages_workspace ON pages(workspace_id);
-      CREATE TABLE IF NOT EXISTS page_revisions (page_id TEXT NOT NULL REFERENCES pages(id), revision INTEGER NOT NULL, data TEXT NOT NULL, PRIMARY KEY(page_id, revision));`);
-    this.db.exec('BEGIN IMMEDIATE');
-    try {
-      // Check under the write lock: another Store may have completed migration
-      // while this connection waited for BEGIN IMMEDIATE.
-      if (this.db.prepare('SELECT 1 FROM schema_migrations WHERE version=1').get()) {
-        this.db.exec('COMMIT');
-        return;
-      }
-      for (const row of this.db.prepare('SELECT id, owner, data FROM workspaces').all()) {
-        const workspace = JSON.parse(String(row.data));
-        for (const old of workspace.pages ?? []) {
-          const page: Page = {
-            ...old,
-            revision: old.revision ?? 1,
-            deletedAt: old.deletedAt ?? null,
-            parentId: old.parentId ?? null,
-          };
-          this.insertPage(String(row.id), String(row.owner), page, 'migration');
-        }
-      }
-      this.db.prepare('INSERT INTO schema_migrations VALUES (1, ?)').run(new Date().toISOString());
-      this.db.exec('COMMIT');
-    } catch (error) {
-      this.db.exec('ROLLBACK');
-      throw error;
-    }
-  }
-  private insertPage(workspaceId: string, actorId: string, page: Page, operation: string) {
-    this.db
-      .prepare('INSERT INTO pages VALUES (?, ?, ?)')
-      .run(page.id, workspaceId, JSON.stringify(page));
-    this.recordRevision(actorId, page, operation);
-  }
-  private recordRevision(actorId: string, page: Page, operation: string) {
-    this.db
-      .prepare('INSERT INTO page_revisions VALUES (?, ?, ?)')
-      .run(page.id, page.revision, JSON.stringify({ ...page, actorId, operation }));
+    this.repository = new ContentRepository(path);
+    this.db = this.repository.db;
   }
   list(owner: string) {
-    return this.db
-      .prepare('SELECT id FROM workspaces WHERE owner=? ORDER BY rowid')
-      .all(owner)
-      .map((row) => {
-        const w = this.get(owner, String(row.id));
-        return { id: w.id, name: w.name, description: w.description };
-      });
+    return this.repository.workspaceIds(owner).map((id) => {
+      const w = this.get(owner, id);
+      return { id: w.id, name: w.name, description: w.description };
+    });
   }
   create(owner: string, name: string, description = '') {
     if (this.list(owner).length >= 20) throw new ConflictError('每位用户最多创建20个空间');
     return this.seed(owner, name, description);
   }
   ensure(owner: string): string {
-    const found = this.db.prepare('SELECT id FROM workspaces WHERE owner = ?').get(owner);
-    if (found) return String(found.id);
+    const found = this.repository.firstWorkspaceId(owner);
+    if (found) return found;
     return this.seed(owner, '我的喵喵知识花园', '让每一个好奇，都长成自己的知识。');
   }
   private seed(owner: string, name: string, description: string): string {
@@ -138,33 +79,26 @@ export class Store {
         },
       ],
     };
-    this.db.exec('BEGIN IMMEDIATE');
+    this.repository.begin();
     try {
-      this.db
-        .prepare('INSERT INTO workspaces VALUES (?, ?, ?)')
-        .run(id, owner, JSON.stringify({ ...workspace, pages: [] }));
-      for (const page of workspace.pages) this.insertPage(id, owner, page, 'create');
-      this.db.exec('COMMIT');
+      this.repository.insertWorkspace(id, owner, JSON.stringify({ ...workspace, pages: [] }));
+      for (const page of workspace.pages) this.repository.insertPage(id, owner, page, 'create');
+      this.repository.commit();
     } catch (error) {
-      this.db.exec('ROLLBACK');
+      this.repository.rollback();
       throw error;
     }
     return id;
   }
   get(owner: string, id: string): Workspace {
-    const row = this.db
-      .prepare('SELECT data FROM workspaces WHERE id = ? AND owner = ?')
-      .get(id, owner);
-    if (!row) throw new AccessError('未找到此 Wiki');
-    const workspace: Workspace = JSON.parse(String(row.data));
-    workspace.pages = this.db
-      .prepare('SELECT data FROM pages WHERE workspace_id=? ORDER BY rowid')
-      .all(id)
-      .map((p) => JSON.parse(String(p.data)));
+    const data = this.repository.workspaceData(owner, id);
+    if (data === undefined) throw new AccessError('未找到此 Wiki');
+    const workspace: Workspace = JSON.parse(data);
+    workspace.pages = this.repository.pages(id);
     return workspace;
   }
   change<T>(owner: string, id: string, mutate: (workspace: Workspace) => T): T {
-    this.db.exec('BEGIN IMMEDIATE');
+    this.repository.begin();
     try {
       const workspace = this.get(owner, id);
       const before = new Map(workspace.pages.map((page) => [page.id, JSON.stringify(page)]));
@@ -181,7 +115,7 @@ export class Store {
         const previous = before.get(page.id);
         if (!previous) {
           if (page.revision !== 1) throw new ConflictError('新页面版本必须为1');
-          this.insertPage(id, owner, page, 'create');
+          this.repository.insertPage(id, owner, page, 'create');
         } else if (previous !== JSON.stringify(page)) {
           const old: Page = JSON.parse(previous);
           // A workspace callback must not silently rewrite page content at an
@@ -189,37 +123,21 @@ export class Store {
           if (!Number.isSafeInteger(page.revision) || page.revision !== old.revision + 1) {
             throw new ConflictError('页面修改必须递增一个版本');
           }
-          this.db
-            .prepare('UPDATE pages SET data=? WHERE id=? AND workspace_id=?')
-            .run(JSON.stringify(page), page.id, id);
-          this.recordRevision(
-            owner,
-            page,
-            !old.deletedAt && page.deletedAt
-              ? 'delete'
-              : old.deletedAt && !page.deletedAt
-                ? 'undelete'
-                : 'update',
-          );
+          this.repository.updatePage(id, owner, page, revisionOperation(old, page));
         }
       }
-      this.db
-        .prepare('UPDATE workspaces SET data = ? WHERE id = ? AND owner = ?')
-        .run(JSON.stringify({ ...workspace, pages: [] }), id, owner);
-      this.db.exec('COMMIT');
+      this.repository.updateWorkspace(id, owner, JSON.stringify({ ...workspace, pages: [] }));
+      this.repository.commit();
       return result;
     } catch (error) {
-      this.db.exec('ROLLBACK');
+      this.repository.rollback();
       throw error;
     }
   }
   history(owner: string, workspaceId: string, pageId: string): PageRevision[] {
     if (!this.get(owner, workspaceId).pages.some((p) => p.id === pageId))
       throw new AccessError('未找到页面');
-    return this.db
-      .prepare('SELECT data FROM page_revisions WHERE page_id=? ORDER BY revision DESC')
-      .all(pageId)
-      .map((r) => JSON.parse(String(r.data)));
+    return this.repository.history(pageId);
   }
   updatePage(
     owner: string,
@@ -230,44 +148,24 @@ export class Store {
     action: 'update' | 'delete' | 'undelete' = 'update',
   ) {
     return this.change(owner, workspaceId, (workspace) => {
-      const page = workspace.pages.find((p) => p.id === pageId);
-      if (!page) throw new AccessError('未找到页面');
-      if (page.revision !== expectedRevision)
-        throw new ConflictError('页面已被更新，请保留本地内容并重新加载最新版本');
-      if (action !== 'undelete' && page.deletedAt) throw new ConflictError('页面已删除，请先恢复');
-      if (action === 'undelete' && !page.deletedAt) throw new ConflictError('页面未被删除');
-      if (patch.parentId) {
-        let next: string | null = patch.parentId;
-        const visited = new Set([page.id]);
-        while (next) {
-          if (visited.has(next)) throw new ConflictError('页面树不能形成循环');
-          visited.add(next);
-          const parent: Page | undefined = workspace.pages.find(
-            (p) => p.id === next && !p.deletedAt,
-          );
-          if (!parent) throw new AccessError('未找到父页面');
-          next = parent.parentId;
+      try {
+        const result = updatePages(
+          workspace.pages,
+          pageId,
+          expectedRevision,
+          patch,
+          action,
+          new Date().toISOString(),
+        );
+        workspace.pages = result.pages;
+        return result.page;
+      } catch (error) {
+        if (error instanceof PageRuleError) {
+          if (error.kind === 'missing') throw new AccessError(error.message);
+          throw new ConflictError(error.message);
         }
+        throw error;
       }
-      Object.assign(page, patch, {
-        revision: page.revision + 1,
-        updatedAt: new Date().toISOString(),
-      });
-      if (action === 'delete') {
-        page.deletedAt = page.updatedAt;
-        // Keep live descendants reachable. Detaching is itself a versioned
-        // edit, so a child editor cannot silently overwrite the structural change.
-        for (const child of workspace.pages.filter((p) => p.parentId === page.id && !p.deletedAt)) {
-          child.parentId = null;
-          child.revision += 1;
-          child.updatedAt = page.updatedAt;
-        }
-      }
-      if (action === 'undelete') {
-        page.deletedAt = null;
-        page.parentId = null;
-      }
-      return page;
     });
   }
   restorePage(
@@ -287,10 +185,7 @@ export class Store {
     });
   }
   marketplace(): Component[] {
-    return this.db
-      .prepare('SELECT data FROM catalog')
-      .all()
-      .map((row) => JSON.parse(String(row.data)));
+    return this.repository.catalogData().map((data) => JSON.parse(data));
   }
   /** Trusted service call only. Never exposed as a public HTTP moderation shortcut. */
   review(
@@ -305,13 +200,11 @@ export class Store {
         throw new AccessError('组件未处于待审核状态');
       component.status = decision;
       if (decision === 'published')
-        this.db
-          .prepare('INSERT INTO catalog VALUES (?, ?)')
-          .run(component.id, JSON.stringify(component));
+        this.repository.insertCatalog(component.id, JSON.stringify(component));
       return component;
     });
   }
   close() {
-    this.db.close();
+    this.repository.close();
   }
 }
