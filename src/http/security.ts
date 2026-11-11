@@ -67,7 +67,7 @@ export function registerSecurity(app: FastifyInstance, context: HttpContext, tok
     const candidate =
       error instanceof Error && 'statusCode' in error ? error.statusCode : undefined;
     const status =
-      typeof candidate === 'number' && candidate >= 400 && candidate < 500 ? candidate : 500;
+      typeof candidate === 'number' && candidate >= 400 && candidate <= 599 ? candidate : 500;
     if (status === 500) app.log.error(error);
     return reply.code(status).send({
       error:
