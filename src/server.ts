@@ -56,13 +56,30 @@ const modelBroker = modelConfigured
       allowLocal: process.env.MEOW_MODEL_ALLOW_LOCAL === '1',
     })
   : undefined;
+const hostSecret = persistentSecret();
+let workshopEndpoints: Record<string, string> = {};
+if (process.env.MEOW_WORKSHOP_ENDPOINTS) {
+  const parsed: unknown = JSON.parse(process.env.MEOW_WORKSHOP_ENDPOINTS);
+  if (
+    !parsed ||
+    typeof parsed !== 'object' ||
+    Array.isArray(parsed) ||
+    Object.values(parsed).some((value) => typeof value !== 'string')
+  )
+    throw new Error('MEOW_WORKSHOP_ENDPOINTS须为endpoint ID到URL的JSON对象');
+  workshopEndpoints = parsed as Record<string, string>;
+}
 const app = createApp({
+  workshop: {
+    masterSecret: process.env.MEOW_PROVIDER_MASTER_SECRET ?? hostSecret,
+    allowedEndpoints: workshopEndpoints,
+  },
   modelBroker,
   databasePath: process.env.MEOW_DATABASE,
   mode,
   token: process.env.MEOW_AUTH_TOKEN,
   userId: process.env.MEOW_USER_ID,
-  authSecret: mode === 'session' ? persistentSecret() : undefined,
+  authSecret: mode === 'session' ? hostSecret : undefined,
   authBaseURL: process.env.MEOW_AUTH_BASE_URL ?? `http://localhost:${port}`,
   trustedOrigins,
   // Reservation only, NEVER automatic promotion: existing users require a future trusted host

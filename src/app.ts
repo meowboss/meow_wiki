@@ -1,4 +1,6 @@
 import Fastify, { type FastifyRequest } from 'fastify';
+import { randomBytes } from 'node:crypto';
+import { registerWorkshop, type WorkshopOptions } from './modules/workshop/routes.ts';
 import { Identity, type IdentityOptions, type IdentitySession } from './identity.ts';
 import { createKernel } from './plugins/official.ts';
 import { Store } from './store.ts';
@@ -21,6 +23,7 @@ import { registerPluginRuntime } from './modules/plugin-runtime/routes.ts';
 
 export type AppOptions = IdentityOptions & {
   modelBroker?: ModelBroker;
+  workshop?: WorkshopOptions;
   databasePath?: string;
   store?: Store;
   mode?: 'local' | 'token' | 'session';
@@ -87,5 +90,13 @@ export function createApp(options: AppOptions = {}) {
   registerDomainRoutes(app, context, domains);
   registerMcpRoutes(app, context, domains);
   registerPluginRuntime(app);
+  registerWorkshop(
+    app,
+    context,
+    options.workshop ?? {
+      masterSecret: options.authSecret ?? randomBytes(48).toString('base64url'),
+      allowedEndpoints: {},
+    },
+  );
   return app;
 }

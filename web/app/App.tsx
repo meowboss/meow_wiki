@@ -47,6 +47,7 @@ import ProposalView from '../features/proposals/ProposalView';
 import DomainsView from '../features/domains/DomainsView';
 import McpCredentialsView from '../features/mcp/McpCredentialsView';
 import PluginLabView from '../features/plugin-lab/PluginLabView';
+import WorkshopView from '../features/workshop/WorkshopView';
 
 type View =
   | 'home'
@@ -58,7 +59,8 @@ type View =
   | 'proposals'
   | 'domains'
   | 'mcp'
-  | 'plugin-lab';
+  | 'plugin-lab'
+  | 'workshop';
 const message = (error: unknown) =>
   error instanceof Error ? error.message : '发生未知错误，请重试。';
 
@@ -125,7 +127,9 @@ export default function App({
   const [componentDirty, setComponentDirty] = useState(false);
   const [domainDirty, setDomainDirty] = useState(false);
   const [mcpDirty, setMcpDirty] = useState(false);
-  const independentView = view === 'domains' || view === 'mcp' || view === 'plugin-lab';
+  const [workshopDirty, setWorkshopDirty] = useState(false);
+  const independentView =
+    view === 'domains' || view === 'mcp' || view === 'plugin-lab' || view === 'workshop';
   const childBusy = useCallback((value: boolean) => setBusy(value ? 'component-view' : ''), []);
   const selectedRef = useRef('');
   const dirty = title !== saved.title || markdown !== saved.markdown || parentId !== saved.parentId;
@@ -146,7 +150,8 @@ export default function App({
       proposalDirty ||
       componentDirty ||
       domainDirty ||
-      mcpDirty
+      mcpDirty ||
+      workshopDirty
     ) ||
       window.confirm(
         mcpDirty
@@ -163,7 +168,8 @@ export default function App({
         proposalDirty ||
         componentDirty ||
         domainDirty ||
-        mcpDirty) &&
+        mcpDirty ||
+        workshopDirty) &&
       !window.confirm('当前页面有未保存的更改，确定放弃吗？')
     )
       return;
@@ -230,7 +236,8 @@ export default function App({
         proposalDirty ||
         componentDirty ||
         domainDirty ||
-        mcpDirty
+        mcpDirty ||
+        workshopDirty
       ) {
         e.preventDefault();
         e.returnValue = '';
@@ -247,6 +254,7 @@ export default function App({
     componentDirty,
     domainDirty,
     mcpDirty,
+    workshopDirty,
   ]);
   useEffect(() => {
     if (!selected || !enabled('official.markdown')) {
@@ -315,7 +323,7 @@ export default function App({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        if (view === 'domains' || view === 'mcp' || view === 'plugin-lab') {
+        if (view === 'domains' || view === 'mcp' || view === 'plugin-lab' || view === 'workshop') {
           e.preventDefault();
           return;
         }
@@ -532,7 +540,8 @@ export default function App({
         proposalDirty ||
         componentDirty ||
         domainDirty ||
-        mcpDirty) &&
+        mcpDirty ||
+        workshopDirty) &&
       !window.confirm('新建页面将离开当前未保存的内容，确定继续吗？')
     )
       return;
@@ -576,7 +585,8 @@ export default function App({
           proposalDirty ||
           componentDirty ||
           domainDirty ||
-          mcpDirty) &&
+          mcpDirty ||
+          workshopDirty) &&
         !window.confirm(
           mcpDirty
             ? '离开后将清除仅展示一次的令牌明文，且无法再次查看。请确认已安全保存，继续吗？'
@@ -662,6 +672,10 @@ export default function App({
           >
             <Puzzle size={18} />
             插件实验室
+          </button>
+          <button className={view === 'workshop' ? 'active' : ''} onClick={() => nav('workshop')}>
+            <Puzzle size={18} />
+            组件工坊
           </button>
           <button
             className={view === 'components' ? 'active' : ''}
@@ -778,25 +792,27 @@ export default function App({
             <span>{independentView ? '跨空间协作' : '我的工作空间'}</span>
             <ChevronRight size={13} />
             <strong>
-              {view === 'plugin-lab'
-                ? '插件实验室'
-                : view === 'mcp'
-                  ? 'Agent 连接'
-                  : view === 'domains'
-                    ? '知识域'
-                    : view === 'home'
-                      ? '首页'
-                      : view === 'wiki'
-                        ? '知识空间'
-                        : view === 'market'
-                          ? '插件市场'
-                          : view === 'knowledge'
-                            ? '资料工作台'
-                            : view === 'reviews'
-                              ? '组件审核'
-                              : view === 'proposals'
-                                ? '写入提议'
-                                : '我的组件'}
+              {view === 'workshop'
+                ? '组件工坊'
+                : view === 'plugin-lab'
+                  ? '插件实验室'
+                  : view === 'mcp'
+                    ? 'Agent 连接'
+                    : view === 'domains'
+                      ? '知识域'
+                      : view === 'home'
+                        ? '首页'
+                        : view === 'wiki'
+                          ? '知识空间'
+                          : view === 'market'
+                            ? '插件市场'
+                            : view === 'knowledge'
+                              ? '资料工作台'
+                              : view === 'reviews'
+                                ? '组件审核'
+                                : view === 'proposals'
+                                  ? '写入提议'
+                                  : '我的组件'}
             </strong>
           </div>
           <div className="topbar-actions">
@@ -848,7 +864,14 @@ export default function App({
             {notice}
           </div>
         )}
-        {view === 'plugin-lab' ? (
+        {view === 'workshop' ? (
+          <WorkshopView
+            key={workspace?.id ?? 'no-workspace'}
+            workspaceId={workspace?.id ?? null}
+            onDirtyChange={setWorkshopDirty}
+            onBusyChange={childBusy}
+          />
+        ) : view === 'plugin-lab' ? (
           <PluginLabView
             key={workspace?.id ?? 'no-workspace'}
             workspaceId={workspace?.id ?? null}
