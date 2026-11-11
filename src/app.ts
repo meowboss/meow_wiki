@@ -14,6 +14,8 @@ import { WorkspacesService } from './modules/workspaces/service.ts';
 import { registerWorkspaceRoutes } from './modules/workspaces/routes.ts';
 import { registerExtensionRoutes } from './modules/extensions/routes.ts';
 import { ExtensionsService } from './modules/extensions/service.ts';
+import { DomainsService } from './modules/domains/service.ts';
+import { registerDomainRoutes } from './modules/domains/routes.ts';
 
 export type AppOptions = IdentityOptions & {
   modelBroker?: ModelBroker;
@@ -79,5 +81,6 @@ export function createApp(options: AppOptions = {}) {
   registerPageRoutes(app, context, new PagesService(store, kernel));
   registerExtensionRoutes(app, context, new ExtensionsService(store, kernel));
   registerKnowledge(app, store, context.caller, options.modelBroker);
+  registerDomainRoutes(app, context, new DomainsService(store.db));
   return app;
 }

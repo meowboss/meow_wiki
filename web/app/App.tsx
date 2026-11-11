@@ -44,8 +44,10 @@ import ComponentCatalog from '../features/extensions/ComponentCatalog';
 import ReviewView from '../features/reviews/ReviewView';
 import KnowledgeView from '../features/knowledge/KnowledgeView';
 import ProposalView from '../features/proposals/ProposalView';
+import DomainsView from '../features/domains/DomainsView';
 
-type View = 'home' | 'wiki' | 'market' | 'components' | 'reviews' | 'knowledge' | 'proposals';
+type View =
+  'home' | 'wiki' | 'market' | 'components' | 'reviews' | 'knowledge' | 'proposals' | 'domains';
 const message = (error: unknown) =>
   error instanceof Error ? error.message : '发生未知错误，请重试。';
 
@@ -110,6 +112,7 @@ export default function App({
   const [knowledgeDirty, setKnowledgeDirty] = useState(false);
   const [proposalDirty, setProposalDirty] = useState(false);
   const [componentDirty, setComponentDirty] = useState(false);
+  const [domainDirty, setDomainDirty] = useState(false);
   const childBusy = useCallback((value: boolean) => setBusy(value ? 'component-view' : ''), []);
   const selectedRef = useRef('');
   const dirty = title !== saved.title || markdown !== saved.markdown || parentId !== saved.parentId;
@@ -123,7 +126,7 @@ export default function App({
   const guardWorkspaceExit = () =>
     !busy &&
     !logoutBusy &&
-    (!(dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty) ||
+    (!(dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty || domainDirty) ||
       window.confirm(
         '页面、资料或首页布局有未保存的更改，切换工作空间或退出将放弃这些更改。确定继续吗？',
       ));
@@ -131,7 +134,7 @@ export default function App({
     if (!force && busy) return;
     if (
       !force &&
-      (dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty) &&
+      (dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty || domainDirty) &&
       !window.confirm('当前页面有未保存的更改，确定放弃吗？')
     )
       return;
@@ -190,14 +193,22 @@ export default function App({
   }, [workspace]);
   useEffect(() => {
     const fn = (e: BeforeUnloadEvent) => {
-      if (dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty) {
+      if (
+        busy ||
+        dirty ||
+        homeDirty ||
+        knowledgeDirty ||
+        proposalDirty ||
+        componentDirty ||
+        domainDirty
+      ) {
         e.preventDefault();
         e.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', fn);
     return () => window.removeEventListener('beforeunload', fn);
-  }, [dirty, homeDirty, knowledgeDirty, proposalDirty, componentDirty]);
+  }, [busy, dirty, homeDirty, knowledgeDirty, proposalDirty, componentDirty, domainDirty]);
   useEffect(() => {
     if (!selected || !enabled('official.markdown')) {
       setHtml('');
@@ -265,6 +276,10 @@ export default function App({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        if (view === 'domains') {
+          e.preventDefault();
+          return;
+        }
         if (document.querySelector('[role="dialog"]')) return;
         e.preventDefault();
         setSearchOpen((v) => !v);
@@ -277,7 +292,7 @@ export default function App({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [view]);
   useEffect(() => {
     if (!notice) return;
     const timer = window.setTimeout(() => setNotice(''), 4200);
@@ -472,7 +487,7 @@ export default function App({
   }
   function createPage() {
     if (
-      (dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty) &&
+      (dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty || domainDirty) &&
       !window.confirm('新建页面将离开当前未保存的内容，确定继续吗？')
     )
       return;
@@ -510,7 +525,7 @@ export default function App({
     if (
       busy ||
       (view !== next &&
-        (dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty) &&
+        (dirty || homeDirty || knowledgeDirty || proposalDirty || componentDirty || domainDirty) &&
         !window.confirm('页面、资料或首页布局有未保存的更改，确定离开吗？'))
     )
       return;
@@ -549,12 +564,18 @@ export default function App({
           disabled={!!busy || logoutBusy}
           onBusyChange={(value) => setBusy(value ? 'workspace' : '')}
         />
-        <button className="search-trigger" onClick={() => setSearchOpen(true)}>
-          <Search size={16} />
-          <span>搜索你的知识</span>
-          <kbd>Ctrl K</kbd>
-        </button>
+        {view !== 'domains' && (
+          <button className="search-trigger" onClick={() => setSearchOpen(true)}>
+            <Search size={16} />
+            <span>搜索你的知识</span>
+            <kbd>Ctrl K</kbd>
+          </button>
+        )}
         <nav className="main-nav" aria-label="主导航">
+          <button className={view === 'domains' ? 'active' : ''} onClick={() => nav('domains')}>
+            <Layers3 size={18} />
+            知识域
+          </button>
           <button className={view === 'proposals' ? 'active' : ''} onClick={() => nav('proposals')}>
             <PencilLine size={18} />
             写入提议
@@ -590,61 +611,73 @@ export default function App({
             </button>
           )}
         </nav>
-        <div className="sidebar-label">
-          <span>我的页面</span>
-          <button
-            title="新建页面"
-            aria-label="新建页面"
-            disabled={!!busy || !data}
-            onClick={createPage}
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-        <div className="page-tree">
-          <div className="tree-folder">
-            <FolderClosed size={15} />
-            <span>知识笔记</span>
-            <span>{data?.pages.length || 0}</span>
-          </div>
-          {data?.pages.map((p) => (
-            <button
-              key={p.id}
-              className={`tree-page ${selected === p.id && view === 'wiki' ? 'selected' : ''}`}
-              onClick={() => selectPage(p)}
-            >
-              <FileText size={15} />
-              <span>{p.title || '无标题页面'}</span>
-            </button>
-          ))}
-          {!loading && !data?.pages.length && (
-            <p className="sidebar-empty">还没有页面，种下第一颗知识种子吧。</p>
-          )}
-        </div>
-        <details style={{ padding: '8px 20px', maxHeight: 200, overflowY: 'auto' }}>
-          <summary style={{ cursor: 'pointer' }}>回收站 · {data?.trash?.length || 0}</summary>
-          {data?.trash?.map((p) => (
-            <div
-              key={p.id}
-              style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0' }}
-            >
-              <span style={{ flex: 1, overflowWrap: 'anywhere' }}>{p.title || '无标题页面'}</span>
-              <button className="text-btn" disabled={!!busy} onClick={() => void undeletePage(p)}>
-                恢复
+        {view !== 'domains' && (
+          <>
+            <div className="sidebar-label">
+              <span>我的页面</span>
+              <button
+                title="新建页面"
+                aria-label="新建页面"
+                disabled={!!busy || !data}
+                onClick={createPage}
+              >
+                <Plus size={16} />
               </button>
             </div>
-          ))}
-          {!data?.trash?.length && <p className="sidebar-empty">回收站为空</p>}
-        </details>
+            <div className="page-tree">
+              <div className="tree-folder">
+                <FolderClosed size={15} />
+                <span>知识笔记</span>
+                <span>{data?.pages.length || 0}</span>
+              </div>
+              {data?.pages.map((p) => (
+                <button
+                  key={p.id}
+                  className={`tree-page ${selected === p.id && view === 'wiki' ? 'selected' : ''}`}
+                  onClick={() => selectPage(p)}
+                >
+                  <FileText size={15} />
+                  <span>{p.title || '无标题页面'}</span>
+                </button>
+              ))}
+              {!loading && !data?.pages.length && (
+                <p className="sidebar-empty">还没有页面，种下第一颗知识种子吧。</p>
+              )}
+            </div>
+            <details style={{ padding: '8px 20px', maxHeight: 200, overflowY: 'auto' }}>
+              <summary style={{ cursor: 'pointer' }}>回收站 · {data?.trash?.length || 0}</summary>
+              {data?.trash?.map((p) => (
+                <div
+                  key={p.id}
+                  style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0' }}
+                >
+                  <span style={{ flex: 1, overflowWrap: 'anywhere' }}>
+                    {p.title || '无标题页面'}
+                  </span>
+                  <button
+                    className="text-btn"
+                    disabled={!!busy}
+                    onClick={() => void undeletePage(p)}
+                  >
+                    恢复
+                  </button>
+                </div>
+              ))}
+              {!data?.trash?.length && <p className="sidebar-empty">回收站为空</p>}
+            </details>
+          </>
+        )}
         <div className="sidebar-bottom">
-          <div className="garden-card">
-            <Sprout size={24} />
-            <strong>每一条记录，都有回响</strong>
-            <p>把零散的灵感，种成自己的知识花园。</p>
-            <button onClick={createPage} disabled={!!busy || !data}>
-              记录一个灵感 <ArrowRight size={14} />
-            </button>
-          </div>
+          {view !== 'domains' && (
+            <div className="garden-card">
+              <Sprout size={24} />
+              <strong>每一条记录，都有回响</strong>
+              <p>把零散的灵感，种成自己的知识花园。</p>
+              <button onClick={createPage} disabled={!!busy || !data}>
+                记录一个灵感 <ArrowRight size={14} />
+              </button>
+            </div>
+          )}
           <div className="profile">
             <span className="profile-avatar">{user.username.slice(0, 1) || '我'}</span>
             <div>
@@ -676,33 +709,35 @@ export default function App({
             >
               <Menu size={20} />
             </button>
-            <span>我的工作空间</span>
+            <span>{view === 'domains' ? '跨空间协作' : '我的工作空间'}</span>
             <ChevronRight size={13} />
             <strong>
-              {view === 'home'
-                ? '首页'
-                : view === 'wiki'
-                  ? '知识空间'
-                  : view === 'market'
-                    ? '插件市场'
-                    : view === 'knowledge'
-                      ? '资料工作台'
-                      : view === 'reviews'
-                        ? '组件审核'
-                        : view === 'proposals'
-                          ? '写入提议'
-                          : '我的组件'}
+              {view === 'domains'
+                ? '知识域'
+                : view === 'home'
+                  ? '首页'
+                  : view === 'wiki'
+                    ? '知识空间'
+                    : view === 'market'
+                      ? '插件市场'
+                      : view === 'knowledge'
+                        ? '资料工作台'
+                        : view === 'reviews'
+                          ? '组件审核'
+                          : view === 'proposals'
+                            ? '写入提议'
+                            : '我的组件'}
             </strong>
           </div>
           <div className="topbar-actions">
             <span className="private-label">
               <ShieldCheck size={13} />
-              仅自己可见
+              {view === 'domains' ? '仅域成员可见' : '仅自己可见'}
             </span>
             <button
               className="icon-btn"
               title="刷新工作空间"
-              disabled={!!busy || loading}
+              disabled={!!busy || loading || view === 'domains'}
               onClick={() => {
                 void load().catch((e) => setError(message(e)));
               }}
@@ -743,7 +778,15 @@ export default function App({
             {notice}
           </div>
         )}
-        {loading ? (
+        {view === 'domains' ? (
+          <DomainsView
+            key={workspace?.id ?? 'no-workspace'}
+            workspace={workspace}
+            userId={user.id}
+            onDirtyChange={setDomainDirty}
+            onBusyChange={childBusy}
+          />
+        ) : loading ? (
           <div className="loading-screen">
             <LoaderCircle className="spin" size={30} />
             <h2>正在打开你的知识花园</h2>

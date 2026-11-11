@@ -76,6 +76,34 @@ export class ApiError extends Error {
   }
 }
 
+export type DomainRole = 'owner' | 'reader' | 'contributor' | 'maintainer';
+export type BuildProfile = 'general' | 'project' | 'research' | 'product';
+export interface Domain {
+  id: string;
+  name: string;
+  description: string;
+  buildProfile: BuildProfile;
+  revision: number;
+  role: DomainRole;
+}
+export interface DomainMember {
+  userId: string;
+  name: string;
+  email: string;
+  role: DomainRole;
+}
+export interface DomainContribution {
+  id: string;
+  domainId: string;
+  authorId: string;
+  title: string;
+  content: string;
+  expectedDomainRevision: number;
+  status: 'pending' | 'published' | 'rejected';
+  reviewerId: string | null;
+  reason: string | null;
+}
+
 export interface SessionUser {
   id: string;
   username: string;

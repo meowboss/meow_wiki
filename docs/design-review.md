@@ -19,6 +19,8 @@
 - [ADR-004：内容与编辑器](<adr-004-content-and-editor.md>)：Markdown唯一真相、版本/删除恢复、链接与导入导出。
 - [ADR-005：模型与来源](<adr-005-models-and-provenance.md>)：密钥、出站策略、来源版本、引用质量和人工确认。
 
+- [ADR-006：知识域、Harness与MCP](<adr-006-domains-harness-mcp.md>)：新增五步实施顺序、成员/贡献治理与开发/运行隔离威胁模型。
+
 另见 [需求追踪矩阵](<requirements-traceability.md>)：15项需求与用户流程、模块/实体、验收证据及MVP/后置范围的对应关系。
 
 ## 最重要的设计结论
