@@ -10,6 +10,10 @@
 - 宿主CLI管理员grant/revoke、禁止自审、批准/退回/撤架与审计。
 - 文本来源导入/版本化处理/分块/关键词引用检索、删除撤回、账号配额。
 - 模型broker固定宿主endpoint、超时/输出/并发限制、引用编号验证；可生成pending提议，人工确认时验证证据/目标revision并原子写入。
+- 独立知识域成员与贡献快照、审核CAS、确定性场景汇编（非LLM）；域权限不授予原私人空间。
+- 官方SDK MCP：域范围read/contribute凭据、摘要分页/响应与请求预算、仅提交pending无审核工具。
+- 受信代码示例opaque iframe/MessageChannel/CSP验证；未开放任意用户JS。
+- 受控声明式组件工坊：虚拟文件allowlist、8轮工具循环、用户provider加密配置/部署endpoint allowlist、取消和启动中断恢复；原生HTTP可控provider验证通过。
 - SQLite在线备份/完整性与恢复测试；工程分层、格式与依赖边界门禁；桌面/移动截图实际检查。
 
 ## 明确没有完成或没有外部验证
