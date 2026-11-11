@@ -65,6 +65,9 @@ export function registerWorkshop(
     const { providerId } = z.object({ providerId: z.string().uuid() }).strict().parse(request.body);
     return engine.run(context.caller(request), request.params.id, providerId);
   });
+  app.post<{ Params: { id: string } }>('/api/workshop/projects/:id/cancel', async (request) =>
+    engine.cancel(context.caller(request), request.params.id),
+  );
   app.post<{ Params: { id: string } }>('/api/workshop/projects/:id/install', async (request) =>
     projects.install(context.caller(request), request.params.id),
   );

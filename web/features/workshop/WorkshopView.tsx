@@ -278,6 +278,15 @@ export default function WorkshopView({ workspaceId, onDirtyChange, onBusyChange 
       }
     });
   }
+  async function cancelRun() {
+    if (!project) return;
+    try {
+      await api(`/workshop/projects/${encodeURIComponent(project.id)}/cancel`, {});
+      setNotice('已请求取消，等待运行请求结束后刷新项目确认；不会自动导入。');
+    } catch (e) {
+      setError(message(e));
+    }
+  }
   function install() {
     if (!project || fileDirty || !validation?.valid || projectRunning) return;
     void action('install', async (signal) => {
@@ -625,6 +634,11 @@ export default function WorkshopView({ workspaceId, onDirtyChange, onBusyChange 
             >
               运行模型生成
             </button>
+            {(busy === 'run' || projectRunning) && (
+              <button className="secondary-btn" onClick={() => void cancelRun()}>
+                请求取消运行
+              </button>
+            )}
             <button
               className="secondary-btn"
               disabled={working || fileDirty || !validation?.valid || projectRunning}
