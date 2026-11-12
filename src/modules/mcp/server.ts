@@ -123,14 +123,26 @@ export function createDomainMcp(domains: DomainsService, principal: McpPrincipal
         inputSchema: submitSchema,
         annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
       },
-      async (input) => ({
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(domains.submit(principal.userId, principal.domainId, input)),
-          },
-        ],
-      }),
+      async (input) => {
+        const contribution = domains.submit(principal.userId, principal.domainId, input);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                id: contribution.id,
+                domainId: contribution.domainId,
+                authorId: contribution.authorId,
+                title: contribution.title,
+                status: contribution.status,
+                expectedDomainRevision: contribution.expectedDomainRevision,
+                reviewerId: contribution.reviewerId,
+                reason: contribution.reason,
+              }),
+            },
+          ],
+        };
+      },
     );
   }
   return server;

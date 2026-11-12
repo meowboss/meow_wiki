@@ -39,20 +39,22 @@ const aliases: Record<string, string> = {
 /** Fresh parser/slug scope per document; no global marked mutations or executable embeds. */
 export async function renderMarkdown(markdown: string): Promise<string> {
   const renderer = new Renderer();
-  const slugs = new Map<string, number>();
+  const slugs = new Set<string>();
+  const slug = (text: string) =>
+    text
+      .normalize('NFKC')
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}_ -]/gu, '')
+      .trim()
+      .replace(/\s+/g, '-') || 'section';
   renderer.heading = function ({ tokens, depth }) {
     const text = this.parser.parseInline(tokens);
     const plain = sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} });
-    const base =
-      plain
-        .normalize('NFKC')
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}_ -]/gu, '')
-        .trim()
-        .replace(/\s+/g, '-') || 'section';
-    const count = (slugs.get(base) ?? 0) + 1;
-    slugs.set(base, count);
-    const id = `wiki-${base}${count > 1 ? `-${count}` : ''}`;
+    const base = slug(plain);
+    let suffix = 1;
+    let id = `wiki-${base}`;
+    while (slugs.has(id)) id = `wiki-${base}-${++suffix}`;
+    slugs.add(id);
     return `<h${depth} id="${escape(id)}">${text}<a class="heading-anchor" href="#${escape(id)}" aria-hidden="true" tabindex="-1">#</a></h${depth}>\n`;
   };
   renderer.code = ({ text, lang }) => {
@@ -76,9 +78,16 @@ export async function renderMarkdown(markdown: string): Promise<string> {
       normalized.startsWith('\\')
     )
       return label;
-    const anchor = normalized.startsWith('#')
-      ? `#${normalized.slice(1).startsWith('wiki-') ? normalized.slice(1) : 'wiki-' + normalized.slice(1)}`
-      : normalized;
+    let anchor = normalized;
+    if (normalized.startsWith('#')) {
+      let fragment = normalized.slice(1);
+      try {
+        fragment = decodeURIComponent(fragment);
+      } catch {
+        /* Preserve readable fallback for malformed input. */
+      }
+      anchor = `#${fragment.startsWith('wiki-') ? fragment : 'wiki-' + slug(fragment)}`;
+    }
     const external = /^https?:\/\//i.test(anchor);
     return `<a href="${escape(anchor)}"${title ? ` title="${escape(title)}"` : ''}${external ? ' target="_blank" rel="noopener noreferrer"' : ''}>${label}</a>`;
   };

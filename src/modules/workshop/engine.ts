@@ -83,6 +83,7 @@ export class WorkshopEngine {
           throw new WorkshopError('Provider拒绝请求，请检查配置或额度', 502);
         }
         const text = await readBounded(response);
+        controller.signal.throwIfAborted(); // Cancellation can race the final response chunk.
         const raw = z
           .object({
             choices: z

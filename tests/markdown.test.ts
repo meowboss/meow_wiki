@@ -16,6 +16,15 @@ test('Markdown supports GFM tables task lists strikethrough and safe highlighted
   const plain = await renderMarkdown('```unknown-language\n<script>alert(1)</script>\n```');
   assert.match(plain, /&lt;script&gt;/);
 });
+test('heading ids remain unique when suffixes collide and anchor fragments normalize', async () => {
+  const html = await renderMarkdown(
+    '# A\n\n# A\n\n# A-2\n\n[跳转](#A-2) [编码](#%E4%B8%AD%E6%96%87)\n\n# 中文',
+  );
+  const ids = [...html.matchAll(/<h\d id="([^"]+)"/g)].map((match) => match[1]);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.match(html, /href="#wiki-a-2"/);
+  assert.match(html, /href="#wiki-中文"/);
+});
 test('links and images retain readable meaning without executable navigation or tracking', async () => {
   const html = await renderMarkdown(
     '[外部](https://example.test) [锚点](#标题) [坏](javascript:alert)\n\n![说明](https://tracker.test/a.png)',

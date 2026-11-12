@@ -19,7 +19,7 @@ export class ProposalRepository {
   list(owner: string, workspaceId: string) {
     return this.db
       .prepare(
-        'SELECT data,status FROM mw_proposals WHERE owner=? AND workspace_id=? ORDER BY rowid DESC LIMIT 100',
+        "SELECT data,status FROM mw_proposals WHERE owner=? AND workspace_id=? ORDER BY CASE WHEN status='pending' THEN 0 ELSE 1 END, rowid DESC LIMIT 200",
       )
       .all(owner, workspaceId);
   }

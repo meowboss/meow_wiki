@@ -94,7 +94,7 @@ test('SDK HTTP client can only submit pending contributions with a live contribu
     assert.equal(submitted.reviewerId, null);
     assert.deepEqual(
       domains.contributions(owner.id, domain.id).map((row) => ({ ...row })),
-      [submitted],
+      [{ ...submitted, content: input.content }],
     );
     assert.equal(domains.get(owner.id, domain.id).revision, 1);
     assert.deepEqual(domains.search(reader.id, domain.id, 'SDK'), []);
