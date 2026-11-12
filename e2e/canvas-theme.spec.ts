@@ -1,0 +1,23 @@
+import { test, expect } from '@playwright/test';
+test('page theme is scoped persisted and does not recolor recovery controls', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '注册', exact: true }).click();
+  await page.getByLabel('你的名字').fill('画布主题');
+  await page.getByLabel('邮箱', { exact: true }).fill(`theme-${Date.now()}@example.test`);
+  await page.getByLabel('密码', { exact: true }).fill('theme-password-123');
+  await page.getByRole('button', { name: '创建我的知识花园' }).click();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '编辑布局', exact: true }).click();
+  await page.getByRole('button', { name: '深色主题', exact: true }).click();
+  await page.getByRole('button', { name: '保存布局', exact: true }).click();
+  await page.reload();
+  await expect(page.getByRole('button', { name: '恢复默认布局', exact: true })).toBeVisible();
+  const doc = await (await page.request.get('/api/compositions/wiki')).json();
+  expect(doc.theme.foreground).toBeTruthy();
+  expect(doc.theme.font).toBeTruthy();
+  await expect(page.locator('.wiki-reader .markdown-body')).toBeVisible();
+  await page.screenshot({ path: 'artifacts/visual/canvas-theme-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: 'artifacts/visual/canvas-theme-mobile.png', fullPage: true });
+});

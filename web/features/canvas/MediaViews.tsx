@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CanvasInstance } from './useCanvasComposition';
 import './media-views.css';
 import { useCanvasActive } from './runtime-context';
+import { useInstanceSessionState } from '../../shared/canvas-instance-session';
 
 type MediaConfig = {
   assetId?: string;
@@ -123,8 +124,8 @@ function VideoView({ source, config }: { source: string; config: MediaConfig }) 
 function PetView({ config }: { config: MediaConfig }) {
   const active = useCanvasActive();
   const reducedMotion = useReducedMotion();
-  const [paused, setPaused] = useState(false);
-  const [greetings, setGreetings] = useState(0);
+  const [paused, setPaused] = useInstanceSessionState('pet.paused', false);
+  const [greetings, setGreetings] = useInstanceSessionState('pet.greetings', 0);
   const character = config.text?.trim() || '🐈';
   return (
     <div className="canvas-media-pet" data-paused={paused || reducedMotion || !active}>

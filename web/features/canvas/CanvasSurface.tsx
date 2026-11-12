@@ -11,7 +11,12 @@ import {
   type CanvasSurfaceName,
 } from './useCanvasComposition';
 import './canvas.css';
+import {
+  CanvasInstanceSessionScopeProvider,
+  useCanvasInstanceSessionScope,
+} from '../../shared/canvas-instance-session';
 import { exportCanvasLayout } from './export-layout';
+import { canvasThemeStyle } from './theme';
 
 type Props = {
   surface: CanvasSurfaceName;
@@ -53,6 +58,10 @@ export default function CanvasSurface({
     null,
   );
   const { draft, editing, busy } = state;
+  const instanceSession = useCanvasInstanceSessionScope(
+    { ownerId, workspaceId, surface },
+    draft?.instances.map((item) => item.id) ?? [],
+  );
   const locked = disabled || busy || mediaBusy;
   const selected = draft?.instances.find((item) => item.id === selectedId);
   const { updateInstance, addView, addText, duplicate, remove, restoreDefault } =
@@ -120,6 +129,7 @@ export default function CanvasSurface({
         '--canvas-columns': COLUMNS,
         '--canvas-gap': `${draft.gap}px`,
         '--canvas-height': `${maxBottom * 48 + Math.max(0, maxBottom - 1) * draft.gap}px`,
+        ...canvasThemeStyle(draft.theme),
         background: draft.background,
       } as CSSProperties)
     : undefined;
@@ -240,30 +250,34 @@ export default function CanvasSurface({
         </div>
       )}
       <div className="canvas-workspace">
-        <div
-          className={`canvas-board canvas-layout-${draft?.layout ?? 'flow'}${draft?.tree !== undefined ? ' canvas-has-tree' : ''}${editing ? ' canvas-editing-board' : ''}${surface === 'wiki' && draft?.instances.find((i) => i.viewId === 'wiki.directory')?.x === 0 && draft?.instances.find((i) => i.viewId === 'wiki.directory')?.w === 4 && draft?.instances.find((i) => i.viewId === 'wiki.document')?.x === 4 && draft?.instances.find((i) => i.viewId === 'wiki.document')?.w === 8 ? ' canvas-default-wiki' : ''}`}
-          style={boardStyle}
-          aria-busy={busy}
-        >
-          {draft?.tree !== undefined ? (
-            <>
-              <CanvasTree
-                tree={draft.tree}
-                instances={draft.instances}
-                editing={editing}
-                renderInstance={renderInstance}
-              />
-              {draft.instances
-                .filter((item) => item.layer !== 'content')
-                .map((item) => renderInstance(item, false))}
-            </>
-          ) : (
-            draft?.instances.map((item) => renderInstance(item, false))
-          )}
-          {draft && visible.length === 0 && (
-            <p className="canvas-empty">此布局暂无组件。可通过“编辑布局”添加文本或恢复默认布局。</p>
-          )}
-        </div>
+        <CanvasInstanceSessionScopeProvider value={instanceSession}>
+          <div
+            className={`canvas-board${draft?.theme !== undefined ? ' canvas-themed' : ''} canvas-layout-${draft?.layout ?? 'flow'}${draft?.tree !== undefined ? ' canvas-has-tree' : ''}${editing ? ' canvas-editing-board' : ''}${surface === 'wiki' && draft?.instances.find((i) => i.viewId === 'wiki.directory')?.x === 0 && draft?.instances.find((i) => i.viewId === 'wiki.directory')?.w === 4 && draft?.instances.find((i) => i.viewId === 'wiki.document')?.x === 4 && draft?.instances.find((i) => i.viewId === 'wiki.document')?.w === 8 ? ' canvas-default-wiki' : ''}`}
+            style={boardStyle}
+            aria-busy={busy}
+          >
+            {draft?.tree !== undefined ? (
+              <>
+                <CanvasTree
+                  tree={draft.tree}
+                  instances={draft.instances}
+                  editing={editing}
+                  renderInstance={renderInstance}
+                />
+                {draft.instances
+                  .filter((item) => item.layer !== 'content')
+                  .map((item) => renderInstance(item, false))}
+              </>
+            ) : (
+              draft?.instances.map((item) => renderInstance(item, false))
+            )}
+            {draft && visible.length === 0 && (
+              <p className="canvas-empty">
+                此布局暂无组件。可通过“编辑布局”添加文本或恢复默认布局。
+              </p>
+            )}
+          </div>
+        </CanvasInstanceSessionScopeProvider>
         {editing && draft && (
           <CanvasInspector
             workspaceId={workspaceId}

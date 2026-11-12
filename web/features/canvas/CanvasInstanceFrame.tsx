@@ -4,6 +4,7 @@ import CanvasResizeHandle from './CanvasResizeHandle';
 import { CanvasRuntimeContext } from './runtime-context';
 import { ViewBoundary, ViewContent } from './CanvasView';
 import type { CanvasInstance } from './useCanvasComposition';
+import { CanvasInstanceSessionProvider } from '../../shared/canvas-instance-session';
 
 type Props = {
   item: CanvasInstance;
@@ -68,7 +69,9 @@ export default function CanvasInstanceFrame({
       <div className="canvas-business-content" inert={editing || loading}>
         <ViewBoundary key={`${workspaceId}:${surface}:${item.id}`}>
           <CanvasRuntimeContext.Provider value={{ active: item.visible && !editing && !loading }}>
-            <ViewContent instance={item} renderView={renderView} workspaceId={workspaceId} />
+            <CanvasInstanceSessionProvider instanceId={item.id}>
+              <ViewContent instance={item} renderView={renderView} workspaceId={workspaceId} />
+            </CanvasInstanceSessionProvider>
           </CanvasRuntimeContext.Provider>
         </ViewBoundary>
       </div>

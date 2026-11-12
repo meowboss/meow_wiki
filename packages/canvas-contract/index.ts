@@ -35,6 +35,16 @@ const coreViewIdSchema = z.enum([
 export const canvasViewIdSchema = z.union([coreViewIdSchema, trustedViewIdSchema]);
 
 const hex = z.string().regex(/^#(?:[\da-fA-F]{3}|[\da-fA-F]{4}|[\da-fA-F]{6}|[\da-fA-F]{8})$/);
+/** Opaque six-digit colors only: theme values can never carry CSS or URLs. */
+const themeHex = z.string().regex(/^#[\da-fA-F]{6}$/);
+export const canvasThemeSchema = z.strictObject({
+  foreground: themeHex.optional(),
+  accent: themeHex.optional(),
+  font: z.enum(['sans', 'serif', 'mono']).optional(),
+  fontSize: z.number().int().min(14).max(22).optional(),
+  lineHeight: z.number().min(1.3).max(2.2).optional(),
+});
+export type CanvasTheme = z.infer<typeof canvasThemeSchema>;
 const revision = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 const instanceSchema = z
   .strictObject({
@@ -83,6 +93,7 @@ const documentShape = {
   columns: z.literal(12),
   gap: z.number().int().min(0).max(48),
   background: hex,
+  theme: canvasThemeSchema.optional(),
   instances: z.array(instanceSchema).max(40),
   // Unknown intentionally: bounded iterative validation must precede recursive tree parsing.
   tree: z.unknown().optional(),

@@ -1,6 +1,7 @@
 import type { Composition } from '../../../packages/canvas-contract/index';
 import type { CanvasInstance } from './useCanvasComposition';
 import MediaInspector from './MediaInspector';
+import CanvasThemeInspector from './CanvasThemeInspector';
 import CanvasTreeInspector from './CanvasTreeInspector';
 import { isRepeatableView } from './registry';
 import { moveCanvasInstance } from './layout-operations';
@@ -129,6 +130,7 @@ export default function CanvasInspector({
           />
         </label>
       </fieldset>
+      <CanvasThemeInspector composition={composition} disabled={disabled} onChange={onChange} />
       {selected ? (
         <fieldset disabled={disabled}>
           <legend>所选组件</legend>

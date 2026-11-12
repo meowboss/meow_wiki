@@ -1,4 +1,5 @@
-import { useId, useState } from 'react';
+import { useId } from 'react';
+import { useInstanceSessionState } from '../canvas-instance-session';
 import type { WikiPage } from '../api';
 
 interface CanvasDirectoryViewProps {
@@ -8,7 +9,7 @@ interface CanvasDirectoryViewProps {
 }
 
 export default function CanvasDirectoryView({ pages, onOpen, config }: CanvasDirectoryViewProps) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useInstanceSessionState('directory.query', '');
   const id = useId();
   const title = config.text ?? '笔记目录';
   const normalizedQuery = query.trim().toLocaleLowerCase();
