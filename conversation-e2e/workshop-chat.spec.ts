@@ -12,11 +12,19 @@ test('user and Agent clarify, create, iterate and explicitly save a private comp
   await page.getByRole('button', { name: '我的组件', exact: true }).click();
   await page.getByRole('button', { name: '创建组件', exact: true }).click();
   await expect(page.getByRole('heading', { name: /组件工坊/ })).toBeVisible();
-  await page.getByLabel('Provider 名称', { exact: true }).fill('验收模型');
-  await page.getByRole('combobox', { name: '模型端点', exact: true }).selectOption('acceptance');
-  await page.getByLabel('模型名称', { exact: true }).fill('acceptance-model');
-  await page.getByLabel('API Key', { exact: true }).fill('acceptance-test-key');
-  await page.getByRole('button', { name: '保存 Provider', exact: true }).click();
+  // Trusted local HTTP fixture uses the legacy host-mapped API; user URLs correctly forbid loopback.
+  const me = await (await page.request.get('/api/auth/me')).json();
+  await page.request.post('/api/workshop/providers', {
+    headers: { 'x-csrf-token': me.csrfToken },
+    data: {
+      label: '验收模型',
+      endpointId: 'acceptance',
+      model: 'acceptance-model',
+      apiKey: 'acceptance-test-key',
+    },
+  });
+  await page.reload();
+  await page.getByRole('button', { name: '组件工坊', exact: true }).click();
   await page.locator('#workshop-message').fill('帮我创建一个组件');
   await page.getByRole('button', { name: '发送并创建组件项目', exact: true }).click();
   await expect(

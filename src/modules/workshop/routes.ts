@@ -5,6 +5,7 @@ import { ProviderVault } from './providers.ts';
 import { WorkshopProjects } from './projects.ts';
 import { WorkshopEngine } from './engine.ts';
 import { ConversationStore } from './conversation.ts';
+import { ProviderOperations } from './provider-operations.ts';
 export type WorkshopOptions = {
   masterSecret: string;
   allowedEndpoints: Record<string, string>;
@@ -16,6 +17,19 @@ export function registerWorkshop(
   options: WorkshopOptions,
 ) {
   const vault = new ProviderVault(context.store.db, options.masterSecret, options.allowedEndpoints);
+  const providerOperations = new ProviderOperations(vault);
+  app.post('/api/workshop/providers/custom', async (request, reply) =>
+    reply.code(201).send(vault.saveCustom(context.caller(request), request.body as never)),
+  );
+  app.put<{ Params: { id: string } }>('/api/workshop/providers/custom/:id', async (request) =>
+    vault.updateCustom(context.caller(request), request.params.id, request.body as never),
+  );
+  app.post('/api/workshop/providers/custom/models', async (request) =>
+    providerOperations.models(context.caller(request), request.body),
+  );
+  app.post('/api/workshop/providers/custom/test', async (request) =>
+    providerOperations.test(context.caller(request), request.body),
+  );
   const projects = new WorkshopProjects(context.store.db, context.components);
   projects.recoverInterruptedRuns(); // Single-instance startup reconciliation, not a multi-replica lease.
   const conversation = new ConversationStore(context.store.db, projects);

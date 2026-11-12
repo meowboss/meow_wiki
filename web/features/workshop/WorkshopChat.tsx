@@ -152,7 +152,12 @@ export default function WorkshopChat({
             required
           />
         </label>
-        {!canSend && <p>请先在“Provider 设置”配置真实凭据并选择可用模型；不会模拟 Agent。</p>}
+        {!canSend && (
+          <p>
+            请在“Provider 设置”新增供应商或选择已配置的 Provider，无需管理员预设端点；不会模拟
+            Agent。
+          </p>
+        )}
         <div className="workshop-actions">
           <button
             className="primary-btn"

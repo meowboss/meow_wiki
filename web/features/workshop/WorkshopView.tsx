@@ -58,13 +58,9 @@ export default function WorkshopView({
   const projectRunning = project?.state === 'running';
   const running = projectRunning || busy === 'chat';
   const working = loading || !!busy || projectRunning;
-  const endpointsReady = config.configured && config.endpoints.length > 0;
   const chosenProvider = providers.find((item) => item.id === providerId);
-  const canRun = !!(
-    endpointsReady &&
-    chosenProvider?.configured &&
-    config.endpoints.some((item) => item.id === chosenProvider.endpointId)
-  );
+  // Host endpoint configuration does not gate custom providers; the server authorizes execution.
+  const canRun = chosenProvider?.configured === true;
 
   function acceptProject(next: Project) {
     if (typeof next?.files?.[FILE] !== 'string')
@@ -357,11 +353,6 @@ export default function WorkshopView({
       )}
       {loading && <p role="status">正在加载工坊配置…</p>}
       {!workspaceId && <p className="workshop-warning">请先选择工作空间，再开始组件对话。</p>}
-      {!loading && !endpointsReady && (
-        <p className="workshop-warning">
-          服务端未配置可用模型端点，不会模拟 AI。请联系管理员配置后刷新页面。
-        </p>
-      )}
       <div className="workshop-project-picker workshop-panel">
         <label>
           选择项目

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import type { ProviderVault } from './providers.ts';
+import { safeProviderFetch } from './provider-network.ts';
 import type { WorkshopProjects } from './projects.ts';
 import type { ConversationStore, ConversationMessage } from './conversation.ts';
 const command = z.discriminatedUnion('tool', [
@@ -117,7 +118,7 @@ export class WorkshopEngine {
         controller.signal.throwIfAborted();
         if (containsSecret(JSON.stringify(messages), profile.apiKey))
           throw new WorkshopError('开发上下文包含当前Provider凭据，已阻止发送');
-        const response = await this.fetcher(
+        const response = await (profile.custom ? safeProviderFetch : this.fetcher)(
           profile.endpoint.replace(/\/$/, '') + '/chat/completions',
           {
             method: 'POST',
