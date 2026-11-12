@@ -9,7 +9,7 @@ test('personal settings shows real account, saves nickname globally and persists
   await page.getByLabel('邮箱', { exact: true }).fill(email);
   await page.getByLabel('密码', { exact: true }).fill('profile-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '个人设置', exact: true }).first().click();
   await expect(page.getByRole('heading', { name: '个人设置', exact: true })).toBeVisible();
   await expect(page.getByLabel('邮箱', { exact: true })).toHaveValue(email);

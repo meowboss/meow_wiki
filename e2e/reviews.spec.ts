@@ -13,7 +13,7 @@ test('ordinary author submits a pending component without review navigation or m
   await page.getByLabel('邮箱', { exact: true }).fill(`review-author-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('review-author-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   const sessionResponse = await page.request.get('/api/auth/me');
   expect(sessionResponse.ok()).toBeTruthy();
   expect((await sessionResponse.json()).user.role).toBe('user');

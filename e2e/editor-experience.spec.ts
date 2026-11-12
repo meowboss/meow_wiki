@@ -9,6 +9,8 @@ test('focus reading gains width while mode and formatting preserve unsaved Markd
   await page.getByLabel('邮箱', { exact: true }).fill(`editor-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('editor-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '编辑页面', exact: true }).click();
   const source = page.getByLabel('Markdown 内容');
   await expect(source).toBeVisible();
   const content =

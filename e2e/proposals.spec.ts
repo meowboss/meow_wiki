@@ -11,10 +11,13 @@ test('real evidence proposal leaves the page unchanged until explicit browser ac
   await page.getByLabel('邮箱', { exact: true }).fill(`proposal-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('proposal-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
 
+  await page.getByRole('button', { name: '编辑页面', exact: true }).click();
   const originalTitle = await page.getByLabel('页面标题').inputValue();
   const originalMarkdown = await page.getByLabel('Markdown 内容').inputValue();
+  await page.getByRole('button', { name: '返回阅读', exact: true }).click();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   const sessionResponse = await page.request.get('/api/auth/me');
   expect(sessionResponse.ok()).toBeTruthy();
   const session = await sessionResponse.json();
@@ -106,11 +109,23 @@ test('real evidence proposal leaves the page unchanged until explicit browser ac
     0,
   );
   await page.getByRole('button', { name: title, exact: true }).click();
+  await expect(
+    page
+      .locator('.wiki-reader-heading')
+      .getByRole('heading', { name: title, exact: true, level: 1 }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '编辑页面', exact: true }).click();
   await expect(page.getByLabel('页面标题')).toHaveValue(title);
   await expect(page.getByLabel('Markdown 内容')).toHaveValue(markdown);
   await expect(page.locator('.document-tag')).toHaveText(`Markdown · v${target.revision + 1}`);
   await page.reload();
   await page.getByRole('button', { name: title, exact: true }).click();
+  await expect(
+    page
+      .locator('.wiki-reader-heading')
+      .getByRole('heading', { name: title, exact: true, level: 1 }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '编辑页面', exact: true }).click();
   await expect(page.getByLabel('Markdown 内容')).toHaveValue(markdown);
   expect(errors).toEqual([]);
 });

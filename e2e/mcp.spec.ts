@@ -8,7 +8,7 @@ test('MCP credential is displayed once, lists without secret, and revokes immedi
   await page.getByLabel('邮箱', { exact: true }).fill(`mcp-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('mcp-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   const me = await (await page.request.get('/api/auth/me')).json();
   const created = await page.request.post('/api/domains', {
     headers: { 'x-csrf-token': me.csrfToken },

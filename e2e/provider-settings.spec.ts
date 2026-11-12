@@ -8,7 +8,7 @@ test('user can configure custom Provider without host endpoints and edit metadat
   await page.getByLabel('邮箱', { exact: true }).fill(`provider-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('provider-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '组件工坊', exact: true }).click();
   await page.getByLabel('Provider 名称', { exact: true }).fill('我的模型');
   await page.getByRole('combobox', { name: '供应商', exact: true }).selectOption('custom');

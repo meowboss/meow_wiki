@@ -8,7 +8,7 @@ test('history cleanup requires exported snapshot acknowledgement and preserves c
   await page.getByLabel('邮箱', { exact: true }).fill(`archive-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('archive-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   const me = await (await page.request.get('/api/auth/me')).json();
   const workspace = await (await page.request.get('/api/workspace')).json();
   const target = workspace.pages[0];

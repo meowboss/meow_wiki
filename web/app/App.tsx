@@ -39,6 +39,7 @@ import '../shared/compact-layout.css';
 import PageHistory from '../features/wiki/PageHistory';
 import PageTransfer from '../features/wiki/PageTransfer';
 import WikiEditor, { type WikiEditorMode } from '../features/wiki/WikiEditor';
+import WikiReader from '../features/wiki/WikiReader';
 import WikiWorkspaceView from '../features/wiki/WikiWorkspaceView';
 import WorkspacePicker from '../features/workspaces/WorkspacePicker';
 import HomeView from '../features/home/HomeView';
@@ -97,6 +98,7 @@ export default function App({
   const [view, setView] = useState<View>('wiki');
   const [selected, setSelected] = useState('');
   const [editorPage, setEditorPage] = useState<WikiPage | null>(null);
+  const [documentMode, setDocumentMode] = useState<'read' | 'edit'>('read');
   const [title, setTitle] = useState('');
   const [markdown, setMarkdown] = useState('');
   const [parentId, setParentId] = useState<string | null>(null);
@@ -114,6 +116,7 @@ export default function App({
   const [html, setHtml] = useState('');
   const [rendering, setRendering] = useState(false);
   const [renderError, setRenderError] = useState('');
+  const [previewVersion, setPreviewVersion] = useState(0);
   const [busy, setBusy] = useState('');
   useEffect(() => {
     setBusy((current) => (logoutBusy ? 'logout' : current === 'logout' ? '' : current));
@@ -195,6 +198,11 @@ export default function App({
     selectedRef.current = p.id;
     setSelected(p.id);
     setEditorPage(p);
+    setDocumentMode('read');
+    setPreviewVersion((version) => version + 1);
+    setHtml('');
+    setRendering(enabled('official.markdown'));
+    setRenderError('');
     setTitle(p.title);
     setMarkdown(p.markdown);
     setParentId(p.parentId);
@@ -221,6 +229,7 @@ export default function App({
           selectedRef.current = p.id;
           setSelected(p.id);
           setEditorPage(p);
+          setDocumentMode('read');
           setTitle(p.title);
           setMarkdown(p.markdown);
           setParentId(p.parentId);
@@ -309,7 +318,7 @@ export default function App({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [markdown, selected, data?.plugins]);
+  }, [markdown, selected, data?.plugins, previewVersion]);
   useEffect(() => {
     if (!searchOpen || !query.trim() || !enabled('official.search')) {
       setResults([]);
@@ -434,6 +443,10 @@ export default function App({
     selectedRef.current = '';
     setSelected('');
     setEditorPage(null);
+    setDocumentMode('read');
+    setHtml('');
+    setRendering(false);
+    setRenderError('');
     setTitle('');
     setMarkdown('');
     setParentId(null);
@@ -441,6 +454,19 @@ export default function App({
     setSaved({ title: '', markdown: '', parentId: null });
     setConflict(false);
     setHistoryOpen(false);
+  }
+  function cancelEdit() {
+    if (busy || !editorPage) return;
+    if (dirty && !window.confirm('当前页面有未保存的更改，确定放弃并返回阅读吗？')) return;
+    // Restore only this snapshot; cancellation must not fetch or advance the CAS baseline.
+    setTitle(saved.title);
+    setMarkdown(saved.markdown);
+    setParentId(saved.parentId);
+    setHtml('');
+    setRendering(enabled('official.markdown'));
+    setRenderError('');
+    setPreviewVersion((version) => version + 1);
+    setDocumentMode('read');
   }
   async function loadLatest() {
     if (busy || !selected) return;
@@ -578,6 +604,7 @@ export default function App({
           markdown: '# 新的灵感\n\n从这里开始，记录值得留下的知识。\n',
         });
         selectPage(p, true);
+        setDocumentMode('edit');
       },
       '新页面已创建',
     );
@@ -1004,34 +1031,52 @@ export default function App({
                 onCreatePage={createPage}
                 onAsk={() => setAskOpen(true)}
               >
-                {page && (
-                  <WikiEditor
-                    page={page}
-                    pages={data.pages}
-                    title={title}
-                    markdown={markdown}
-                    parentId={parentId}
-                    baseRevision={baseRevision}
-                    dirty={dirty}
-                    conflict={conflict}
-                    busy={busy}
-                    mode={mode}
-                    markdownEnabled={enabled('official.markdown')}
-                    html={html}
-                    rendering={rendering}
-                    renderError={renderError}
-                    onTitleChange={setTitle}
-                    onMarkdownChange={setMarkdown}
-                    onParentIdChange={setParentId}
-                    onModeChange={setMode}
-                    onOpenHistory={() => setHistoryOpen(true)}
-                    onLoadLatest={() => void loadLatest()}
-                    onDelete={() => void deletePage()}
-                    onSave={() => void savePage()}
-                    onOpenMarket={() => nav('market')}
-                    onRetryPreview={() => void load().catch((e) => setError(message(e)))}
-                  />
-                )}
+                {page &&
+                  (documentMode === 'read' ? (
+                    <WikiReader
+                      page={page}
+                      pages={data.pages}
+                      html={html}
+                      rendering={rendering}
+                      renderError={renderError}
+                      markdownEnabled={enabled('official.markdown')}
+                      busy={busy}
+                      onEdit={() => setDocumentMode('edit')}
+                      onOpenHistory={() => setHistoryOpen(true)}
+                      onDelete={() => void deletePage()}
+                      onOpenMarket={() => nav('market')}
+                      onRetryPreview={() => setPreviewVersion((version) => version + 1)}
+                      onOpen={openSource}
+                    />
+                  ) : (
+                    <WikiEditor
+                      page={page}
+                      pages={data.pages}
+                      title={title}
+                      markdown={markdown}
+                      parentId={parentId}
+                      baseRevision={baseRevision}
+                      dirty={dirty}
+                      conflict={conflict}
+                      busy={busy}
+                      mode={mode}
+                      markdownEnabled={enabled('official.markdown')}
+                      html={html}
+                      rendering={rendering}
+                      renderError={renderError}
+                      onTitleChange={setTitle}
+                      onMarkdownChange={setMarkdown}
+                      onParentIdChange={setParentId}
+                      onModeChange={setMode}
+                      onOpenHistory={() => setHistoryOpen(true)}
+                      onLoadLatest={() => void loadLatest()}
+                      onDelete={() => void deletePage()}
+                      onSave={() => void savePage()}
+                      onCancel={cancelEdit}
+                      onOpenMarket={() => nav('market')}
+                      onRetryPreview={() => setPreviewVersion((version) => version + 1)}
+                    />
+                  ))}
               </WikiWorkspaceView>
             )}
             {view === 'proposals' && (

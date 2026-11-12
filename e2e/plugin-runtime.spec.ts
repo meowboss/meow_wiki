@@ -8,7 +8,7 @@ test('reviewed plugin runs through isolated iframe and receives only authorized 
   await page.getByLabel('邮箱', { exact: true }).fill(`plugin-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('plugin-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '插件实验室', exact: true }).click();
   const iframe = page.getByTitle('受信插件示例沙箱');
   await expect(iframe).toHaveAttribute('sandbox', 'allow-scripts');

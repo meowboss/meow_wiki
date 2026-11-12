@@ -8,7 +8,7 @@ test('secondary explanations stay discoverable without dominating page content',
   await page.getByLabel('邮箱', { exact: true }).fill(`compact-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('compact-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   for (const name of [
     '知识域',
     'Agent 连接',

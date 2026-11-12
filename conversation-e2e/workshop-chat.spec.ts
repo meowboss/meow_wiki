@@ -8,7 +8,7 @@ test('user and Agent clarify, create, iterate and explicitly save a private comp
   await page.getByLabel('邮箱', { exact: true }).fill(`chat-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('chat-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '我的组件', exact: true }).click();
   await page.getByRole('button', { name: '创建组件', exact: true }).click();
   await expect(page.getByRole('heading', { name: /组件工坊/ })).toBeVisible();

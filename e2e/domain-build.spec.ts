@@ -15,7 +15,7 @@ async function register(page: Page, name: string, email: string) {
   await page.getByLabel('邮箱', { exact: true }).fill(email);
   await page.getByLabel('密码', { exact: true }).fill('domain-build-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   return json<SessionInfo>(await page.request.get('/api/auth/me'));
 }
 

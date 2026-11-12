@@ -8,9 +8,12 @@ test('page package UI exports current pages and imports new identifiers without 
   await page.getByLabel('邮箱', { exact: true }).fill(`transfer-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('transfer-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   const bundle = await (await page.request.get('/api/pages/export')).json();
+  await page.getByRole('button', { name: '编辑页面', exact: true }).click();
   const original = await page.getByLabel('页面标题').inputValue();
+  await page.getByRole('button', { name: '返回阅读', exact: true }).click();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '页面包', exact: true }).click();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: '导出当前空间页面包' }).click();
@@ -26,6 +29,12 @@ test('page package UI exports current pages and imports new identifiers without 
   await page.getByRole('button', { name: '以新 ID 追加导入' }).click();
   await expect(page.getByRole('status')).toContainText(/导入/);
   await page.getByRole('button', { name: '关闭', exact: true }).click();
+  await expect(
+    page
+      .locator('.wiki-reader-heading')
+      .getByRole('heading', { name: original, exact: true, level: 1 }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: '编辑页面', exact: true }).click();
   await expect(page.getByLabel('页面标题')).toHaveValue(original);
   const workspace = await (await page.request.get('/api/workspace')).json();
   expect(workspace.pages).toHaveLength(bundle.pages.length * 2);

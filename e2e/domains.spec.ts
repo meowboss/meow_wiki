@@ -8,7 +8,7 @@ test('create a domain and keep self-authored contribution pending without self-a
   await page.getByLabel('邮箱', { exact: true }).fill(`domain-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('domain-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '知识域', exact: true }).click();
   await page.getByRole('button', { name: '创建知识域', exact: true }).click();
   await page.getByLabel('域名称', { exact: true }).fill('项目协作知识');

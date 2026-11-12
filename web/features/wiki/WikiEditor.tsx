@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import {
+  ArrowLeft,
   ArrowRight,
   Check,
   ChevronRight,
@@ -43,6 +44,7 @@ export type WikiEditorProps = {
   onLoadLatest: () => void;
   onDelete: () => void;
   onSave: () => void;
+  onCancel?: () => void;
   onOpenMarket: () => void;
   onRetryPreview: () => void;
 };
@@ -83,6 +85,7 @@ export default function WikiEditor({
   onLoadLatest,
   onDelete,
   onSave,
+  onCancel,
   onOpenMarket,
   onRetryPreview,
 }: WikiEditorProps) {
@@ -170,6 +173,12 @@ export default function WikiEditor({
       style={{ '--wiki-editor-font-size': `${fontSize}px` } as CSSProperties}
     >
       <div className="document-heading">
+        {onCancel && (
+          <button type="button" className="text-btn" disabled={!!busy} onClick={onCancel}>
+            <ArrowLeft size={14} />
+            返回阅读
+          </button>
+        )}
         <div className="document-path">
           <span className="document-icon">
             <FileText size={19} />
@@ -294,6 +303,7 @@ export default function WikiEditor({
           </button>
           <button
             className="save-btn"
+            title="保存后返回阅读"
             onClick={onSave}
             disabled={!!busy || conflict || !dirty || !title.trim()}
           >
@@ -406,7 +416,7 @@ export default function WikiEditor({
           预览仅使用服务端净化后的 HTML
         </span>
         <span>
-          好想法，值得被记录 <Sprout size={13} />
+          保存后返回阅读 <Sprout size={13} />
         </span>
       </footer>
     </section>

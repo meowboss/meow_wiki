@@ -8,7 +8,7 @@ test('virtual workshop validates declaration and imports private component witho
   await page.getByLabel('邮箱', { exact: true }).fill(`workshop-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('workshop-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '组件工坊', exact: true }).click();
   const me = await (await page.request.get('/api/auth/me')).json();
   await page.request.post('/api/workshop/projects', {

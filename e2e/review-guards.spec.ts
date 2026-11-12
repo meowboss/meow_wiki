@@ -6,7 +6,7 @@ async function signup(page: import('@playwright/test').Page) {
   await page.getByLabel('邮箱', { exact: true }).fill(`guards-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('guards-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
 }
 test('revoking an old MCP credential preserves another currently displayed one-time secret', async ({
   page,

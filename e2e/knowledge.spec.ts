@@ -6,7 +6,7 @@ test('source processing and honest extractive citations', async ({ page }) => {
   await page.getByLabel('邮箱', { exact: true }).fill(`knowledge-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('knowledge-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '资料工作台', exact: true }).click();
   await page.getByLabel('资料标题', { exact: true }).fill('猫咪百科');
   await page.getByLabel('资料原文', { exact: true }).fill('猫咪需要清洁饮水，也喜欢温暖阳光。');

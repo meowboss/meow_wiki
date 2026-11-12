@@ -8,7 +8,7 @@ test('private declarative component can compose and persist its own workspace ho
   await page.getByLabel('邮箱', { exact: true }).fill(`component-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('component-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '我的组件', exact: true }).click();
   await page.getByRole('button', { name: '高级手动创建', exact: true }).click();
   await page.getByLabel('组件名称', { exact: true }).fill('个人知识入口');

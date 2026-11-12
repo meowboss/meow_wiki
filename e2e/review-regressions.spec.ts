@@ -8,7 +8,7 @@ test('renaming a component preserves ordered duplicate blocks and dialogs suppre
   await page.getByLabel('邮箱', { exact: true }).fill(`review-${Date.now()}@example.test`);
   await page.getByLabel('密码', { exact: true }).fill('review-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
-  await expect(page.getByLabel('页面标题')).toBeVisible();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   const session = await (await page.request.get('/api/auth/me')).json();
   const workspace = await (await page.request.get('/api/workspace')).json();
   const blocks = [
