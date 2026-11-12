@@ -1,10 +1,16 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import WorkshopWorkspace from './WorkshopWorkspace';
+import WorkshopSource from './WorkshopSource';
+import WorkshopProjectPicker from './WorkshopProjectPicker';
+import WorkbenchActions from './WorkbenchActions';
 import { api, type WikiPage } from '../../shared/api';
 import ProviderSettings from './ProviderSettings';
 import WorkshopChat from './WorkshopChat';
 import WorkshopPreview from './WorkshopPreview';
+import WorkshopPagePreview from './WorkshopPagePreview';
 import {
-  FILE,
+  projectFile,
+  type PageSurface,
   errorMessage,
   providerMetadata,
   type Config,
@@ -18,6 +24,7 @@ import './workshop.css';
 type Props = {
   workspaceId: string | null;
   pages?: WikiPage[];
+  renderPagePreview?: (content: string) => ReactNode;
   onOpen?: (id: string) => void;
   onDirtyChange: (value: boolean) => void;
   onBusyChange: (value: boolean) => void;
@@ -26,6 +33,7 @@ type Props = {
 export default function WorkshopView({
   workspaceId,
   pages = [],
+  renderPagePreview,
   onOpen = () => {},
   onDirtyChange,
   onBusyChange,
@@ -47,14 +55,19 @@ export default function WorkshopView({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [pollingError, setPollingError] = useState('');
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [newKind, setNewKind] = useState<'component' | 'page'>('component');
+  const [surface, setSurface] = useState<PageSurface>('home');
+  const [fromCurrent, setFromCurrent] = useState(true);
+  const [selectedFile, setSelectedFile] = useState('');
   const lifecycle = useRef<AbortController | null>(null);
   const lock = useRef(false);
   const projectRef = useRef<Project | null>(null);
   const reloadRevision = useRef(0);
   const callbacks = useRef({ onDirtyChange, onBusyChange });
   callbacks.current = { onDirtyChange, onBusyChange };
-  const fileDirty = !!project && content !== project.files[FILE];
+  const file = projectFile(project);
+  const fileDirty = !!project && content !== project.files[file];
+  const isPage = project?.kind === 'page';
   const dirty = fileDirty || !!draft || providerDirty;
   const projectRunning = project?.state === 'running';
   const running = projectRunning || busy === 'chat';
@@ -64,15 +77,20 @@ export default function WorkshopView({
   const canRun = chosenProvider?.configured === true;
 
   function acceptProject(next: Project) {
-    if (typeof next?.files?.[FILE] !== 'string')
-      throw new Error('项目未返回唯一的声明式组件文件。');
+    const nextFile = projectFile(next);
+    if (typeof next?.files?.[nextFile] !== 'string')
+      throw new Error('项目未返回对应的声明式产物文件。');
     if (workspaceId && next.workspaceId !== workspaceId)
       throw new Error('项目不属于当前工作空间，已阻止加载。');
     const previous = projectRef.current;
     projectRef.current = next;
     setProject(next);
-    setContent(next.files[FILE]);
-    if (previous?.id !== next.id || previous.files[FILE] !== next.files[FILE]) setValidation(null);
+    setContent(next.files[nextFile]);
+    setSelectedFile((current) =>
+      previous?.id === next.id && current in next.files ? current : nextFile,
+    );
+    if (previous?.id !== next.id || previous.files[nextFile] !== next.files[nextFile])
+      setValidation(null);
     setProjects((current) => [next, ...current.filter((item) => item.id !== next.id)]);
   }
   async function reload(id: string, signal: AbortSignal) {
@@ -134,9 +152,6 @@ export default function WorkshopView({
     };
   }, [workspaceId]);
   useEffect(() => {
-    setPreviewOpen(!!project?.id);
-  }, [project?.id]);
-  useEffect(() => {
     callbacks.current.onDirtyChange(dirty);
   }, [dirty]);
   useEffect(() => {
@@ -192,8 +207,12 @@ export default function WorkshopView({
       let current = projectRef.current;
       if (!current) {
         current = await api<Project>(
-          '/workshop/projects',
-          { name: Array.from(submitted).slice(0, 40).join(''), instruction: submitted },
+          `${newKind === 'page' ? '/workshop/page-projects' : '/workshop/projects'}?workspaceId=${encodeURIComponent(workspaceId)}`,
+          {
+            name: Array.from(submitted).slice(0, 40).join(''),
+            instruction: submitted,
+            ...(newKind === 'page' ? { surface, fromCurrent } : {}),
+          },
           'POST',
           signal,
         );
@@ -226,7 +245,7 @@ export default function WorkshopView({
         );
         setDraft('');
         await reload(id, signal);
-        setNotice('已加载服务端对话与项目状态；产物未自动保存为私有组件。');
+        setNotice('已加载服务端对话与项目状态；产物未自动应用到页面或保存为私有组件。');
       } catch (e) {
         if (signal.aborted) return;
         try {
@@ -296,7 +315,7 @@ export default function WorkshopView({
     void action('save', async (signal) => {
       await api(
         `/workshop/projects/${encodeURIComponent(project.id)}/file`,
-        { path: FILE, content },
+        { path: file, content, ...(isPage ? { expectedRevision: project.revision } : {}) },
         'PUT',
         signal,
       );
@@ -317,7 +336,13 @@ export default function WorkshopView({
     });
   }
   function install() {
-    if (!project || fileDirty || running || !(project.state === 'ready' || validation?.valid))
+    if (
+      !project ||
+      isPage ||
+      fileDirty ||
+      running ||
+      !(project.state === 'ready' || validation?.valid)
+    )
       return;
     void action('install', async (signal) => {
       const component = await api<{ id: string; name?: string }>(
@@ -335,6 +360,30 @@ export default function WorkshopView({
       } catch {
         setError('组件已保存，但列表刷新失败，请手动刷新；不要重复保存。');
       }
+      await reload(project.id, signal);
+    });
+  }
+  function applyPage() {
+    if (
+      !project ||
+      !isPage ||
+      fileDirty ||
+      running ||
+      !(project.state === 'ready' || validation?.valid)
+    )
+      return;
+    if (!window.confirm(`确认将此项目应用到 ${project.sourceSurface} 页面？当前页面布局将被替换。`))
+      return;
+    void action('apply', async (signal) => {
+      await api(
+        `/workshop/projects/${encodeURIComponent(project.id)}/apply`,
+        { expectedProjectRevision: project.revision },
+        'POST',
+        signal,
+      );
+      if (signal.aborted) return;
+      setNotice('页面已应用。项目文件保存与页面应用是独立操作。');
+      await onInstalled();
       await reload(project.id, signal);
     });
   }
@@ -360,152 +409,127 @@ export default function WorkshopView({
       )}
       {loading && <p role="status">正在加载工坊配置…</p>}
       {!workspaceId && <p className="workshop-warning">请先选择工作空间，再开始组件对话。</p>}
-      <div className="workshop-project-picker">
-        <label>
-          选择项目
-          <select
-            value={project?.id ?? ''}
-            disabled={working || !workspaceId}
-            onChange={(e) => selectProject(e.target.value)}
-          >
-            <option value="">新建对话 / 选择已有项目</option>
-            {projects.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          className="text-btn"
-          disabled={working || !project}
-          onClick={() => {
-            if (dirty && !window.confirm('新建对话将放弃未发送消息或未保存编辑，确定继续吗？'))
-              return;
-            projectRef.current = null;
-            setProject(null);
-            setMessages([]);
-            setDraft('');
-            setContent('');
-            setValidation(null);
-            setPollingError('');
-            setError('');
-            setNotice('');
-          }}
-        >
-          新建组件对话
-        </button>
-        <button
-          className="text-btn"
-          disabled={working || !workspaceId}
-          onClick={() =>
-            void action('refresh-projects', async (signal) => {
-              const result = await api<{ projects: Project[] }>(
-                `/workshop/projects?workspaceId=${encodeURIComponent(workspaceId || '')}`,
-                undefined,
-                'GET',
-                signal,
-              );
-              if (!signal.aborted)
-                setProjects(result.projects.filter((item) => item.workspaceId === workspaceId));
-            })
-          }
-        >
-          刷新项目列表
-        </button>
-      </div>
-      <div className={`workshop-conversation-layout${previewOpen ? ' is-preview-open' : ''}`}>
-        <WorkshopChat
-          project={project}
-          messages={messages}
-          draft={draft}
-          onDraftChange={setDraft}
-          providers={providers}
-          providerId={providerId}
-          onProviderChange={setProviderId}
-          disabled={loading || (!!busy && busy !== 'chat') || !workspaceId || fileDirty}
-          canSend={canRun}
-          running={running}
-          cancelling={cancelling}
-          pollingError={pollingError}
-          onSend={send}
-          onCancel={() => void cancelRun()}
-          onRefresh={() => void refreshCurrent()}
-        />
-        <details
-          className="workshop-preview-drawer"
-          open={previewOpen}
-          onToggle={(event) => setPreviewOpen(event.currentTarget.open)}
-        >
-          <summary>预览产物</summary>
-          <WorkshopPreview
-            content={project?.files[FILE] || ''}
-            pages={pages}
-            onOpen={onOpen}
-            stale={running || fileDirty}
+      <WorkshopProjectPicker
+        project={project}
+        projects={projects}
+        working={working}
+        workspaceId={workspaceId}
+        kind={newKind}
+        surface={surface}
+        fromCurrent={fromCurrent}
+        onKindChange={setNewKind}
+        onSurfaceChange={setSurface}
+        onFromCurrentChange={setFromCurrent}
+        onSelect={selectProject}
+        onNew={() => {
+          if (dirty && !window.confirm('新建对话将放弃未发送消息或未保存编辑，确定继续吗？'))
+            return;
+          projectRef.current = null;
+          setProject(null);
+          setMessages([]);
+          setDraft('');
+          setContent('');
+          setSelectedFile('');
+          setValidation(null);
+          setPollingError('');
+          setError('');
+          setNotice('');
+        }}
+        onRefresh={() =>
+          void action('refresh-projects', async (signal) => {
+            const result = await api<{ projects: Project[] }>(
+              `/workshop/projects?workspaceId=${encodeURIComponent(workspaceId || '')}`,
+              undefined,
+              'GET',
+              signal,
+            );
+            if (!signal.aborted)
+              setProjects(result.projects.filter((item) => item.workspaceId === workspaceId));
+          })
+        }
+      />
+      <WorkshopWorkspace
+        chat={
+          <WorkshopChat
+            project={project}
+            messages={messages}
+            draft={draft}
+            onDraftChange={setDraft}
+            providers={providers}
+            providerId={providerId}
+            onProviderChange={setProviderId}
+            disabled={loading || (!!busy && busy !== 'chat') || !workspaceId || fileDirty}
+            canSend={canRun}
+            running={running}
+            cancelling={cancelling}
+            pollingError={pollingError}
+            onSend={send}
+            onCancel={() => void cancelRun()}
+            onRefresh={() => void refreshCurrent()}
           />
-        </details>
-      </div>
+        }
+        preview={
+          isPage ? (
+            <section className="workshop-preview" aria-label="页面安全预览">
+              <h2>页面安全预览</h2>
+              {(running || fileDirty) && (
+                <p className="workshop-warning">当前展示最近保存的页面；未保存 JSON 不进入预览。</p>
+              )}
+              {renderPagePreview ? (
+                renderPagePreview(project?.files[file] ?? '')
+              ) : (
+                <p>页面预览渲染器尚未连接；可在源码中检查页面，项目不会自动应用。</p>
+              )}
+            </section>
+          ) : (
+            <WorkshopPreview
+              content={project?.files[file] ?? ''}
+              pages={pages}
+              onOpen={onOpen}
+              stale={running || fileDirty}
+            />
+          )
+        }
+        source={
+          project ? (
+            <WorkshopSource
+              path={selectedFile || file}
+              content={
+                !selectedFile || selectedFile === file
+                  ? content
+                  : (project.files[selectedFile] ?? '')
+              }
+              editable={!selectedFile || selectedFile === file}
+              page={isPage}
+              working={working}
+              dirty={fileDirty}
+              onChange={(value) => {
+                setContent(value);
+                setValidation(null);
+              }}
+              onSave={saveFile}
+            />
+          ) : (
+            <p>开始对话后可查看项目文件。</p>
+          )
+        }
+        files={Object.keys(project?.files ?? {})}
+        selectedFile={selectedFile}
+        onSelectFile={setSelectedFile}
+        title={project?.name ?? (newKind === 'page' ? '页面工作区' : '组件工作区')}
+        busy={working}
+      />
       <div className="workshop-configuration" aria-label="组件保存与工坊设置">
         {project && (
-          <section className="workshop-editor" aria-label="组件保存与高级编辑">
-            {project.error && (
-              <p className="form-error" role="alert">
-                执行错误：{project.error}
-              </p>
-            )}
-            <div className="workshop-actions">
-              <button className="secondary-btn" disabled={working || fileDirty} onClick={validate}>
-                校验组件
-              </button>
-              <button
-                className="primary-btn"
-                disabled={working || fileDirty || !(project.state === 'ready' || validation?.valid)}
-                onClick={install}
-              >
-                保存为私有组件
-              </button>
-            </div>
-            <p>保存与公开发布分开。完成对话不会自动上架；你可先预览并继续发消息修改。</p>
-            {validation && (
-              <div
-                className={
-                  validation.valid ? 'workshop-validation-success' : 'workshop-validation-error'
-                }
-                role="status"
-              >
-                <strong>{validation.valid ? '校验通过' : '校验未通过'}</strong>
-                {validation.issues && (
-                  <pre className="workshop-issues">
-                    {JSON.stringify(validation.issues, null, 2)}
-                  </pre>
-                )}
-              </div>
-            )}
-            <details>
-              <summary>高级：声明式 JSON 编辑</summary>
-              <p>可选，不用填写即可开始对话。只允许 {FILE}；手动改动需先保存再校验或继续对话。</p>
-              <label>
-                声明式组件 JSON（{FILE}）
-                <textarea
-                  className="workshop-json"
-                  maxLength={30000}
-                  value={content}
-                  onChange={(e) => {
-                    setContent(e.target.value);
-                    setValidation(null);
-                  }}
-                  spellCheck={false}
-                  disabled={working}
-                  rows={18}
-                />
-              </label>
-              <button className="secondary-btn" disabled={working || !fileDirty} onClick={saveFile}>
-                保存 JSON
-              </button>
-              {fileDirty && <p>JSON 未保存；对话、项目刷新和私有保存暂不可用，避免覆盖编辑。</p>}
-            </details>
-          </section>
+          <WorkbenchActions
+            project={project}
+            validation={validation}
+            working={working}
+            fileDirty={fileDirty}
+            onValidate={validate}
+            onInstall={install}
+            onApply={applyPage}
+          />
         )}
         <ProviderSettings
           config={config}
@@ -522,7 +546,7 @@ export default function WorkshopView({
             <summary>开发边界</summary>
             <p>
               受控 Agent，不是通用代码 IDE。只读虚拟 SDK：/sdk/README.md 和
-              /sdk/component.schema.json。唯一可写文件 {FILE}（最多 30000 字符）；最多 8
+              /sdk/component.schema.json。唯一可写文件 {file}（最多 30000 字符）；最多 8
               轮受限工具执行。不提供 shell、任意网络或主机文件访问，不执行自定义
               JavaScript。工具事件只显示服务端安全摘要，不呈现原始敏感输出或模型思考。
             </p>

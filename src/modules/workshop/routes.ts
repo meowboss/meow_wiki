@@ -2,6 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { HttpContext } from '../../http/context.ts';
 import { ProviderVault } from './providers.ts';
+import { CompositionService } from '../compositions/service.ts';
+import { pageInput, revisionSchema } from './page-projects.ts';
 import { WorkshopProjects } from './projects.ts';
 import { WorkshopEngine } from './engine.ts';
 import { ConversationStore } from './conversation.ts';
@@ -30,7 +32,10 @@ export function registerWorkshop(
   app.post('/api/workshop/providers/custom/test', async (request) =>
     providerOperations.test(context.caller(request), request.body),
   );
-  const projects = new WorkshopProjects(context.store.db, context.components);
+  const compositions = new CompositionService(context.store.db, (owner, workspace) => {
+    context.store.get(owner, workspace);
+  });
+  const projects = new WorkshopProjects(context.store.db, context.components, compositions);
   projects.recoverInterruptedRuns(); // Single-instance startup reconciliation, not a multi-replica lease.
   const conversation = new ConversationStore(context.store.db, projects);
   const engine = new WorkshopEngine(projects, vault, options.fetcher, conversation);
@@ -63,15 +68,45 @@ export function registerWorkshop(
       .code(201)
       .send(projects.create(context.caller(request), context.scope(request).id, input));
   });
+  app.post('/api/workshop/page-projects', async (request, reply) =>
+    reply
+      .code(201)
+      .send(
+        projects.createPage(
+          context.caller(request),
+          context.scope(request).id,
+          pageInput.parse(request.body),
+        ),
+      ),
+  );
+  app.post<{ Params: { id: string } }>('/api/workshop/projects/:id/apply', async (request) => {
+    const input = z.strictObject({ expectedProjectRevision: revisionSchema }).parse(request.body);
+    return projects.apply(
+      context.caller(request),
+      request.params.id,
+      input.expectedProjectRevision,
+    );
+  });
   app.get<{ Params: { id: string } }>('/api/workshop/projects/:id', async (request) =>
     projects.get(context.caller(request), request.params.id),
   );
   app.put<{ Params: { id: string } }>('/api/workshop/projects/:id/file', async (request) => {
     const input = z
-      .object({ path: z.literal('/project/component.json'), content: z.string().max(30000) })
+      .object({
+        path: z.enum(['/project/component.json', '/project/page.json']),
+        content: z.string().max(30000),
+        expectedRevision: revisionSchema.optional(),
+      })
       .strict()
       .parse(request.body);
-    projects.writeFile(context.caller(request), request.params.id, input.path, input.content);
+    projects.writeFile(
+      context.caller(request),
+      request.params.id,
+      input.path,
+      input.content,
+      false,
+      input.expectedRevision,
+    );
     return projects.get(context.caller(request), request.params.id);
   });
   app.post<{ Params: { id: string } }>('/api/workshop/projects/:id/validate', async (request) =>

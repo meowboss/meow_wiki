@@ -1,0 +1,202 @@
+.workshop-workspace {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.2fr);
+  align-items: start;
+  gap: 18px;
+  min-width: 0;
+}
+
+.workshop-workspace-chat,
+.workshop-workspace-pane,
+.workshop-workspace-panel,
+.workshop-workspace-editor {
+  min-width: 0;
+}
+
+.workshop-workspace-pane {
+  overflow: hidden;
+  border: 1px solid var(--border, #dce2e8);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+}
+
+.workshop-workspace-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.workshop-workspace-heading h2 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1rem;
+}
+
+.workshop-workspace-status {
+  flex: 0 0 auto;
+  color: var(--text-muted, #64748b);
+  font-size: 0.8rem;
+}
+
+.workshop-workspace-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border, #dce2e8);
+}
+
+.workshop-workspace-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.workshop-workspace-tabs > button,
+.workshop-workspace-files-toggle,
+.workshop-workspace-files button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.workshop-workspace-tabs > button {
+  padding: 11px 14px;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted, #64748b);
+}
+
+.workshop-workspace-tabs > button[aria-selected='true'] {
+  border-bottom-color: var(--accent, #2563eb);
+  color: var(--accent, #2563eb);
+  font-weight: 600;
+}
+
+.workshop-workspace-files-toggle {
+  padding: 7px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.workshop-workspace button:focus-visible,
+.workshop-workspace-panel:focus-visible {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: -2px;
+}
+
+.workshop-workspace-files-toggle:hover,
+.workshop-workspace-files button:hover {
+  background: var(--surface-hover, #f1f5f9);
+}
+
+.workshop-workspace-preview {
+  overflow: auto;
+  padding: 18px;
+  max-height: min(78vh, 960px);
+  container-type: inline-size;
+}
+@container (max-width: 620px) {
+  .workshop-workspace-preview .canvas-layout-grid {
+    display: flex;
+    flex-direction: column;
+  }
+  .workshop-workspace-preview .canvas-instance {
+    min-height: 0;
+  }
+  .workshop-workspace-preview .canvas-tree-flow {
+    flex-direction: column !important;
+  }
+  .workshop-workspace-preview .canvas-tree-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.workshop-workspace-source {
+  display: flex;
+  align-items: stretch;
+}
+
+/* Explicitly preserve native hidden behavior even on flex/grid containers. */
+.workshop-workspace [hidden] {
+  display: none !important;
+}
+
+.workshop-workspace-files {
+  flex: 0 0 180px;
+  min-width: 0;
+  overflow: auto;
+  padding: 14px 10px;
+  border-right: 1px solid var(--border, #dce2e8);
+}
+
+.workshop-workspace-files h3 {
+  margin: 0 8px 10px;
+  font-size: 0.8rem;
+  color: var(--text-muted, #64748b);
+}
+
+.workshop-workspace-files ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workshop-workspace-files button {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  border-radius: 6px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}
+
+.workshop-workspace-files button[aria-current='true'] {
+  background: var(--surface-hover, #eff6ff);
+  color: var(--accent, #2563eb);
+  font-weight: 600;
+}
+
+.workshop-workspace-files p {
+  margin: 8px;
+  color: var(--text-muted, #64748b);
+  font-size: 0.8rem;
+}
+
+.workshop-workspace-editor {
+  flex: 1 1 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.workshop-workspace-file-path {
+  margin: 0 0 12px;
+  color: var(--text-muted, #64748b);
+  overflow-wrap: anywhere;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 900px) {
+  .workshop-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workshop-workspace-source {
+    flex-direction: column;
+  }
+
+  .workshop-workspace-files {
+    flex-basis: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border, #dce2e8);
+  }
+}

@@ -1,4 +1,9 @@
 export const FILE = '/project/component.json' as const;
+export const PAGE_FILE = '/project/page.json' as const;
+export type PageSurface = 'home' | 'wiki' | 'collaboration';
+export function projectFile(project: Pick<Project, 'kind'> | null): string {
+  return project?.kind === 'page' ? PAGE_FILE : FILE;
+}
 export type Endpoint = { id: string; label: string };
 export type Config = { endpoints: Endpoint[]; configured: boolean };
 export type ProviderVendor = 'openai' | 'deepseek' | 'custom';
@@ -19,7 +24,11 @@ export type Project = {
   state: string;
   iterations: number;
   error?: string | null;
-  files: { '/project/component.json': string };
+  files: Record<string, string>;
+  kind?: 'component' | 'page';
+  sourceSurface?: PageSurface;
+  sourceRevision?: number;
+  revision?: number;
   workspaceId: string;
   turnId?: string;
 };

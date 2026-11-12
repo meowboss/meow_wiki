@@ -153,15 +153,6 @@
   max-width: 620px;
   padding: 8px 10px;
 }
-.workshop-view .workshop-conversation-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 24px;
-  align-items: start;
-}
-.workshop-view .workshop-conversation-layout.is-preview-open {
-  grid-template-columns: minmax(0, 1fr) 380px;
-}
 .workshop-view .workshop-chat {
   min-width: 0;
   min-height: 55vh;
@@ -190,17 +181,6 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 6px 14px;
-}
-.workshop-view .workshop-preview-drawer {
-  min-width: 0;
-  max-width: 380px;
-  border-left: 1px solid var(--workshop-line);
-  padding-left: 20px;
-}
-.workshop-view .workshop-preview-drawer > summary {
-  padding: 4px 0 12px;
-  color: #225766;
-  white-space: nowrap;
 }
 .workshop-view .workshop-preview {
   min-width: 0;
@@ -314,20 +294,6 @@
 @media (max-width: 900px) {
   .workshop-view {
     padding: 18px 18px 28px;
-  }
-  .workshop-view .workshop-conversation-layout,
-  .workshop-view .workshop-conversation-layout.is-preview-open {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 18px;
-  }
-  .workshop-view .workshop-preview-drawer {
-    max-width: none;
-    padding: 12px 0 0;
-    border-left: 0;
-    border-top: 1px solid var(--workshop-line);
-  }
-  .workshop-view .workshop-preview-drawer > summary {
-    padding: 0;
   }
 }
 @media (max-width: 520px) {

@@ -6,7 +6,13 @@ import { WorkshopError, type WorkshopProjects } from './projects.ts';
 export const conversationDetailsSchema = z
   .object({
     path: z
-      .enum(['/sdk/README.md', '/sdk/component.schema.json', '/project/component.json'])
+      .enum([
+        '/sdk/README.md',
+        '/sdk/component.schema.json',
+        '/project/component.json',
+        '/sdk/page.schema.json',
+        '/project/page.json',
+      ])
       .optional(),
     bytes: z.number().int().min(0).max(128000).optional(),
     lines: z.number().int().min(0).max(30001).optional(),
@@ -52,7 +58,14 @@ const input = z
     details: conversationDetailsSchema.optional(),
   })
   .strict();
-const tools = new Set(['read_file', 'write_file', 'validate_component', 'ask_user', 'finish']);
+const tools = new Set([
+  'read_file',
+  'write_file',
+  'validate_component',
+  'validate_project',
+  'ask_user',
+  'finish',
+]);
 
 /** Durable, owner-scoped bounded history. Tool content is an allowlisted name, never raw I/O. */
 export class ConversationStore {

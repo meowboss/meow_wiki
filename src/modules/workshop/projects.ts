@@ -1,12 +1,20 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
+import { CompositionError, CompositionService } from '../compositions/service.ts';
+import type { CanvasSurface } from '../../../packages/canvas-contract/index.ts';
 import {
-  ComponentError,
-  ComponentService,
-  componentSchema,
-  type ComponentDraft,
-} from '../../components.ts';
+  PAGE_FILE,
+  componentPath,
+  projectInput,
+  pageInput,
+  revisionSchema,
+  projectFromRow,
+  parsePage,
+  validation,
+  pageContent,
+} from './page-projects.ts';
+import { ComponentError, ComponentService, type ComponentDraft } from '../../components.ts';
 
 export type WorkshopState = 'draft' | 'running' | 'ready' | 'failed';
 export type WorkshopProject = {
@@ -18,6 +26,10 @@ export type WorkshopProject = {
   state: WorkshopState;
   error: string | null;
   iterations: number;
+  kind?: 'page';
+  sourceSurface?: CanvasSurface;
+  sourceRevision?: number;
+  revision?: number;
 };
 export type WorkshopValidation = { valid: true } | { valid: false; issues: string[] };
 export class WorkshopError extends Error {
@@ -31,12 +43,6 @@ export class WorkshopError extends Error {
 }
 
 const identifier = z.string().min(1).max(200);
-const projectInput = z
-  .object({
-    name: z.string().trim().min(1).max(160),
-    instruction: z.string().min(1).max(3000),
-  })
-  .strict();
 const runInput = z
   .object({
     state: z.enum(['draft', 'running', 'ready', 'failed']),
@@ -44,30 +50,6 @@ const runInput = z
     error: z.string().max(2000).nullable(),
   })
   .strict();
-const componentPath = '/project/component.json';
-const sdkFiles: Readonly<Record<string, string>> = Object.freeze({
-  '/sdk/README.md': `# Declarative component SDK
-This is a database-backed virtual filesystem, not an OS filesystem or code sandbox.
-Only /sdk/README.md, /sdk/component.schema.json and /project/component.json can be read.
-Only /project/component.json can be written (at most 30000 characters).
-All paths must match exactly. No directories, aliases, traversal, shell, npm, host files,
-network access or executable code are supported. Never put provider keys or secrets in files.
-
-Write a JSON object matching /sdk/component.schema.json:
-- name: nonempty string, at most 160 characters.
-- description: string, at most 500 characters.
-- template: inert plain text/Markdown string, at most 10000 characters.
-- blocks: optional array of at most 20 blocks. Each block is exactly one of:
-  {"type":"markdown","text":"Markdown text (at most 10000 characters)"}
-  {"type":"page-list","title":"Title (at most 160 characters)"}
-  {"type":"search","title":"Title (at most 160 characters)"}
-The markdown block uses text, not title. page-list and search use title, not text.
-Unknown fields, scripts, imports and custom executable blocks are rejected.
-Validate the JSON before importing it. Import creates a new private component in the
-project's workspace, never overwrites an existing component and never publishes to market.
-`,
-  '/sdk/component.schema.json': JSON.stringify(z.toJSONSchema(componentSchema), null, 2),
-});
 const invalid = () => new WorkshopError('Invalid workshop input', 400);
 const missing = () => new WorkshopError('Workshop project or workspace not found', 404);
 const conflict = () => new WorkshopError('Workshop project state conflict or limit reached', 409);
@@ -77,6 +59,7 @@ export class WorkshopProjects {
   constructor(
     private readonly db: DatabaseSync,
     private readonly components: ComponentService,
+    private readonly compositions?: CompositionService,
   ) {
     this.database(() =>
       db.exec(`
@@ -92,6 +75,22 @@ export class WorkshopProjects {
       CREATE INDEX IF NOT EXISTS mw_workshop_projects_owner ON mw_workshop_projects(owner, workspace_id);
     `),
     );
+    this.database(() => {
+      const columns = new Set(
+        this.db
+          .prepare('PRAGMA table_info(mw_workshop_projects)')
+          .all()
+          .map((row) => row.name),
+      );
+      for (const [name, definition] of Object.entries({
+        kind: "TEXT NOT NULL DEFAULT 'component'",
+        source_surface: 'TEXT',
+        source_revision: 'INTEGER',
+        revision: 'INTEGER NOT NULL DEFAULT 0',
+      }))
+        if (!columns.has(name))
+          this.db.exec(`ALTER TABLE mw_workshop_projects ADD COLUMN ${name} ${definition}`);
+    });
   }
 
   recoverInterruptedRuns(): number {
@@ -108,19 +107,73 @@ export class WorkshopProjects {
     this.ids(owner, workspaceId);
     const parsed = projectInput.safeParse(input);
     if (!parsed.success) throw invalid();
+    return this.transaction(() => this.createInTransaction(owner, workspaceId, parsed.data));
+  }
+
+  private createInTransaction(
+    owner: string,
+    workspaceId: string,
+    input: z.infer<typeof projectInput>,
+  ): WorkshopProject {
+    this.ownedWorkspace(owner, workspaceId);
+    const count = this.db
+      .prepare('SELECT count(*) AS n FROM mw_workshop_projects WHERE owner = ?')
+      .get(owner)!;
+    if (Number(count.n) >= 20) throw conflict();
+    const id = randomUUID();
+    this.db
+      .prepare(
+        `INSERT INTO mw_workshop_projects
+        (id, owner, workspace_id, name, instruction) VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(id, owner, workspaceId, input.name, input.instruction);
+    return this.get(owner, id);
+  }
+
+  createPage(owner: string, workspaceId: string, input: unknown): WorkshopProject {
+    this.ids(owner, workspaceId);
+    const parsed = pageInput.safeParse(input);
+    if (!parsed.success || !this.compositions) throw invalid();
+    const service = this.compositions;
     return this.transaction(() => {
-      this.ownedWorkspace(owner, workspaceId);
-      const count = this.db
-        .prepare('SELECT count(*) AS n FROM mw_workshop_projects WHERE owner = ?')
-        .get(owner)!;
-      if (Number(count.n) >= 20) throw conflict();
-      const id = randomUUID();
+      const project = this.createInTransaction(owner, workspaceId, parsed.data);
+      const current = service.get(owner, workspaceId, parsed.data.surface);
+      const content = pageContent(parsed.data.name, current, parsed.data.fromCurrent);
       this.db
         .prepare(
-          `INSERT INTO mw_workshop_projects
-        (id, owner, workspace_id, name, instruction) VALUES (?, ?, ?, ?, ?)`,
+          `UPDATE mw_workshop_projects SET kind='page', content=?, source_surface=?,
+        source_revision=? WHERE owner=? AND id=?`,
         )
-        .run(id, owner, workspaceId, parsed.data.name, parsed.data.instruction);
+        .run(content, parsed.data.surface, current.revision, owner, project.id);
+      return this.get(owner, project.id);
+    });
+  }
+
+  apply(owner: string, id: string, expectedProjectRevision: number): WorkshopProject {
+    if (!revisionSchema.safeParse(expectedProjectRevision).success || !this.compositions)
+      throw invalid();
+    const service = this.compositions;
+    return this.transaction(() => {
+      const project = this.get(owner, id);
+      if (project.kind !== 'page') throw invalid();
+      if (
+        project.state === 'running' ||
+        project.revision !== expectedProjectRevision ||
+        project.revision === Number.MAX_SAFE_INTEGER
+      )
+        throw conflict();
+      const declaration = parsePage(project.files[PAGE_FILE]);
+      const saved = service.update(owner, project.workspaceId, project.sourceSurface!, {
+        expectedRevision: project.sourceRevision,
+        composition: declaration.composition,
+      });
+      const changed = this.db
+        .prepare(
+          `UPDATE mw_workshop_projects SET source_revision=?, revision=revision+1
+        WHERE owner=? AND id=? AND revision=? AND state!='running'`,
+        )
+        .run(saved.revision, owner, id, expectedProjectRevision);
+      if (Number(changed.changes) !== 1) throw conflict();
       return this.get(owner, id);
     });
   }
@@ -134,7 +187,7 @@ export class WorkshopProjects {
           'SELECT * FROM mw_workshop_projects WHERE owner = ? AND workspace_id = ? ORDER BY rowid',
         )
         .all(owner, workspaceId)
-        .map((row) => this.project(row));
+        .map((row) => projectFromRow(row));
     });
   }
 
@@ -149,14 +202,13 @@ export class WorkshopProjects {
         )
         .get(owner, id);
       if (!row) throw missing();
-      return this.project(row);
+      return projectFromRow(row);
     });
   }
 
   readFile(owner: string, id: string, path: string): string {
     const project = this.get(owner, id);
-    if (typeof path !== 'string' || (path !== componentPath && !Object.hasOwn(sdkFiles, path)))
-      throw invalid();
+    if (typeof path !== 'string' || !Object.hasOwn(project.files, path)) throw invalid();
     return project.files[path];
   }
 
@@ -167,38 +219,52 @@ export class WorkshopProjects {
     path: string,
     content: string,
     engine = false,
+    expectedRevision?: number,
   ): WorkshopProject {
     const project = this.get(owner, id);
     if (
-      path !== componentPath ||
+      path !== (project.kind === 'page' ? PAGE_FILE : componentPath) ||
       typeof content !== 'string' ||
       content.length > 30000 ||
       typeof engine !== 'boolean'
     )
       throw invalid();
     if (project.state === 'running' && !engine) throw conflict();
+    const expected = engine ? project.revision : expectedRevision;
+    if (expected !== undefined && !revisionSchema.safeParse(expected).success) throw invalid();
+    if (project.kind === 'page' && expected === undefined) throw invalid();
+    if (
+      project.kind === 'page' &&
+      (expected !== project.revision || expected === Number.MAX_SAFE_INTEGER)
+    )
+      throw conflict();
     return this.database(() => {
-      this.db
+      const result = this.db
         .prepare(
-          `UPDATE mw_workshop_projects SET content = ?,
+          `UPDATE mw_workshop_projects SET content = ?, revision=revision+1,
         state = CASE WHEN state = 'running' THEN state ELSE 'draft' END, error = NULL
-        WHERE owner = ? AND id = ?`,
+        WHERE owner = ? AND id = ? AND (? IS NULL OR revision = ?)`,
         )
-        .run(content, owner, id);
+        .run(content, owner, id, expected ?? null, expected ?? null);
+      if (Number(result.changes) !== 1) throw conflict();
       return this.get(owner, id);
     });
   }
 
   validate(owner: string, id: string): WorkshopValidation {
-    return this.validation(this.get(owner, id).files[componentPath]);
+    const project = this.get(owner, id);
+    return validation(
+      project.files[project.kind === 'page' ? PAGE_FILE : componentPath],
+      project.kind === 'page',
+    );
   }
 
   install(owner: string, id: string): ComponentDraft {
     const project = this.get(owner, id);
+    if (project.kind === 'page') throw invalid();
     if (project.state === 'running') throw conflict();
     const content = project.files[componentPath];
-    if (!this.validation(content).valid)
-      throw new WorkshopError('Invalid component declaration', 400);
+    if (!validation(content).valid) throw new WorkshopError('Invalid component declaration', 400);
     // ComponentService performs its own ownership check and creates a distinct private draft.
     return this.components.create(owner, project.workspaceId, JSON.parse(content));
   }
@@ -233,36 +299,6 @@ export class WorkshopProjects {
     });
   }
 
-  private validation(content: string): WorkshopValidation {
-    let value: unknown;
-    try {
-      value = JSON.parse(content);
-    } catch {
-      return { valid: false, issues: ['Invalid JSON component declaration'] };
-    }
-    const result = componentSchema.safeParse(value);
-    if (result.success) return { valid: true };
-    return {
-      valid: false,
-      issues: result.error.issues.map(
-        (issue) => `${issue.path.map(String).join('.') || 'component'}: ${issue.code}`,
-      ),
-    };
-  }
-
-  private project(row: Record<string, unknown>): WorkshopProject {
-    return {
-      id: String(row.id),
-      workspaceId: String(row.workspace_id),
-      name: String(row.name),
-      instruction: String(row.instruction),
-      files: { ...sdkFiles, [componentPath]: String(row.content) },
-      state: row.state as WorkshopState,
-      error: row.error === null ? null : String(row.error),
-      iterations: Number(row.iterations),
-    };
-  }
-
   private ids(...values: string[]): void {
     if (values.some((value) => !identifier.safeParse(value).success)) throw invalid();
   }
@@ -280,7 +316,12 @@ export class WorkshopProjects {
     try {
       return action();
     } catch (error) {
-      if (error instanceof WorkshopError || error instanceof ComponentError) throw error;
+      if (
+        error instanceof WorkshopError ||
+        error instanceof ComponentError ||
+        error instanceof CompositionError
+      )
+        throw error;
       throw new WorkshopError('Workshop storage operation failed', 500);
     }
   }

@@ -68,7 +68,7 @@ test('durable multi-turn clarification, modification and finish retain safe orde
     assert.equal(second.project.state, 'ready');
     assert.equal(second.messages.at(-1)?.content, '已修改标题。');
     assert.deepEqual(
-      requests[1].messages.filter((row) => row.role !== 'system'),
+      requests[1].messages.filter((row, index) => row.role !== 'system' && index !== 1),
       [
         { role: 'user', content: '帮我创建' },
         { role: 'assistant', content: '标题是什么？' },

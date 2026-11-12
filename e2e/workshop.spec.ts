@@ -21,7 +21,7 @@ test('virtual workshop validates declaration and imports private component witho
   await page
     .getByRole('combobox', { name: '选择项目', exact: true })
     .selectOption({ label: '读书组件项目' });
-  await page.getByText('高级：声明式 JSON 编辑', { exact: true }).click();
+  await page.getByRole('tab', { name: '源码', exact: true }).click();
   const editor = page
     .getByRole('textbox', { name: /component.json|组件 JSON|JSON 内容|项目文件/ })
     .first();

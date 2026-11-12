@@ -50,6 +50,7 @@ import DomainsView from '../features/domains/DomainsView';
 import McpCredentialsView from '../features/mcp/McpCredentialsView';
 import PluginLabView from '../features/plugin-lab/PluginLabView';
 import WorkshopView from '../features/workshop/WorkshopView';
+import WorkshopPageCanvas from './WorkshopPageCanvas';
 import ProfileView from '../features/profile/ProfileView';
 
 import PrimaryNavigation from './navigation/PrimaryNavigation';
@@ -908,6 +909,14 @@ export default function App({
             onDirtyChange={setWorkshopDirty}
             onBusyChange={childBusy}
             onInstalled={load}
+            renderPagePreview={(content) => (
+              <WorkshopPageCanvas
+                content={content}
+                data={data ?? undefined}
+                ownerId={user.id}
+                workspaceId={workspace?.id ?? ''}
+              />
+            )}
           />
         ) : view === 'plugin-lab' ? (
           <PluginLabView

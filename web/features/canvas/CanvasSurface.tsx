@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import CanvasInstanceFrame from './CanvasInstanceFrame';
 import CanvasTree from './CanvasTree';
 import CanvasInspector from './CanvasInspector';
@@ -16,7 +16,7 @@ import {
   useCanvasInstanceSessionScope,
 } from '../../shared/canvas-instance-session';
 import { exportCanvasLayout } from './export-layout';
-import { canvasThemeStyle } from './theme';
+import { canvasItemStyle, canvasBoardStyle, canvasBoardClassName } from './shared-layout-style';
 
 type Props = {
   surface: CanvasSurfaceName;
@@ -30,7 +30,6 @@ type Props = {
   catalog?: CanvasCatalogEntry[];
   availableViews?: CanvasCatalogEntry[];
 };
-const COLUMNS = 12;
 const CONTENT_DRAFT_MESSAGE = '请先保存或取消业务草稿，再编辑布局或重新加载布局。';
 
 export default function CanvasSurface({
@@ -80,30 +79,13 @@ export default function CanvasSurface({
       setEditing: state.setEditing,
       setDragPosition,
     });
-  function itemStyle(item: CanvasInstance): CSSProperties {
-    const position = dragPosition?.id === item.id ? dragPosition : item;
-    const width = Math.min(item.w, COLUMNS);
-    const x = Math.min(position.x, COLUMNS - width);
-    return {
-      background: item.style.background,
-      color: item.style.color,
-      padding: item.style.padding,
-      borderRadius: item.style.borderRadius,
-      gridColumn: `${x + 1} / span ${width}`,
-      gridRow: `${position.y + 1} / span ${item.h}`,
-      '--canvas-x': x,
-      '--canvas-y': position.y,
-      '--canvas-w': width,
-      '--canvas-h': item.h,
-    } as CSSProperties;
-  }
   function renderInstance(item: CanvasInstance, nested: boolean) {
     if (!draft) return null;
     return (
       <CanvasInstanceFrame
         key={item.id}
         item={item}
-        style={itemStyle(item)}
+        style={canvasItemStyle(item, dragPosition)}
         nested={nested}
         editing={editing}
         loading={busy}
@@ -123,16 +105,7 @@ export default function CanvasSurface({
     );
   }
   const visible = draft?.instances.filter((item) => editing || item.visible) ?? [];
-  const maxBottom = Math.max(1, ...visible.map((item) => item.y + item.h));
-  const boardStyle = draft
-    ? ({
-        '--canvas-columns': COLUMNS,
-        '--canvas-gap': `${draft.gap}px`,
-        '--canvas-height': `${maxBottom * 48 + Math.max(0, maxBottom - 1) * draft.gap}px`,
-        ...canvasThemeStyle(draft.theme),
-        background: draft.background,
-      } as CSSProperties)
-    : undefined;
+  const boardStyle = draft ? canvasBoardStyle(draft, editing) : undefined;
   return (
     <section className={`canvas-surface${editing ? ' is-editing' : ''}`} aria-label="页面画布">
       {state.hasRecovery && !editing && (
@@ -252,7 +225,9 @@ export default function CanvasSurface({
       <div className="canvas-workspace">
         <CanvasInstanceSessionScopeProvider value={instanceSession}>
           <div
-            className={`canvas-board${draft?.theme !== undefined ? ' canvas-themed' : ''} canvas-layout-${draft?.layout ?? 'flow'}${draft?.tree !== undefined ? ' canvas-has-tree' : ''}${editing ? ' canvas-editing-board' : ''}${surface === 'wiki' && draft?.instances.find((i) => i.viewId === 'wiki.directory')?.x === 0 && draft?.instances.find((i) => i.viewId === 'wiki.directory')?.w === 4 && draft?.instances.find((i) => i.viewId === 'wiki.document')?.x === 4 && draft?.instances.find((i) => i.viewId === 'wiki.document')?.w === 8 ? ' canvas-default-wiki' : ''}`}
+            className={
+              draft ? canvasBoardClassName(draft, editing) : 'canvas-board canvas-layout-flow'
+            }
             style={boardStyle}
             aria-busy={busy}
           >

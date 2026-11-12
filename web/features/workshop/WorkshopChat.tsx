@@ -89,7 +89,11 @@ export default function WorkshopChat({
   return (
     <section className="workshop-panel workshop-chat" aria-labelledby="workshop-chat-title">
       <h2 id="workshop-chat-title">{project?.name || '和 AI 一起创建组件'}</h2>
-      <p className="workshop-chat-hint">生成后需明确保存为私有组件，不会自动发布。</p>
+      <p className="workshop-chat-hint">
+        {project?.kind === 'page'
+          ? '页面工作副本不会自动覆盖原页面，校验后需明确确认应用。'
+          : '生成后需明确保存为私有组件，不会自动发布。'}
+      </p>
       {project && (
         <div className="workshop-session-status">
           <p role="status">
