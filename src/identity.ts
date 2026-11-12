@@ -44,6 +44,14 @@ export class Identity {
     this.baseURL = url.origin;
     this.trustedOrigins = new Set([
       this.baseURL,
+      // Explicit same-port IPv4 loopback aliases only; never trust arbitrary Host headers.
+      ...(['localhost', '127.0.0.1'].includes(url.hostname)
+        ? [
+            new URL(
+              `${url.protocol}//${url.hostname === 'localhost' ? '127.0.0.1' : 'localhost'}${url.port ? ':' + url.port : ''}`,
+            ).origin,
+          ]
+        : []),
       ...(options.trustedOrigins ?? []).map((origin) => {
         const parsed = new URL(origin);
         if (parsed.origin !== origin || !['http:', 'https:'].includes(parsed.protocol))
