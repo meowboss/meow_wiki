@@ -94,10 +94,11 @@ export function validation(content: string, page = false): WorkshopValidation {
   if (result.success) return { valid: true };
   return {
     valid: false,
-    issues: result.error.issues.map(
-      (issue) =>
-        `${issue.path.map(String).join('.') || (page ? 'page' : 'component')}: ${issue.code}`,
-    ),
+    issues: result.error.issues
+      .slice(0, 8)
+      .map((issue) =>
+        `${issue.path.map(String).join('.') || 'component'}: ${issue.code}`.slice(0, 160),
+      ),
   };
 }
 export function pageContent(

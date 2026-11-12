@@ -121,7 +121,7 @@ export default function ProfileView({
       if (next.id !== profile.id) throw new Error('个人资料账户不一致，请重试。');
       setProfile(next);
       setName(next.name);
-      callbacks.current.onDirtyChange(false);
+      // Dirty/busy notifications below aggregate profile and Provider state.
       callbacks.current.onUserUpdated(next.name);
       setSuccess('昵称已保存。');
     } catch (e) {
@@ -130,7 +130,6 @@ export default function ProfileView({
       lock.current = false;
       if (!signal.aborted) {
         setSaving(false);
-        callbacks.current.onBusyChange(false);
       }
     }
   }
@@ -139,6 +138,7 @@ export default function ProfileView({
     <section className="profile-view" aria-labelledby="profile-title" aria-busy={working}>
       <header className="profile-view-heading">
         <h1 id="profile-title">个人设置</h1>
+        <small aria-label="应用版本">Meow Wiki {__MEOW_VERSION__}</small>
         <p>管理你的平台个人资料。头像根据名字首字符在本地生成。</p>
       </header>
       {!editable ? (
@@ -186,7 +186,9 @@ export default function ProfileView({
                 aria-invalid={dirty && invalidName ? true : undefined}
                 onChange={(event) => {
                   setName(event.target.value);
-                  callbacks.current.onDirtyChange(event.target.value !== profile.name);
+                  callbacks.current.onDirtyChange(
+                    event.target.value !== profile.name || providerDirty,
+                  );
                   setSuccess('');
                 }}
               />

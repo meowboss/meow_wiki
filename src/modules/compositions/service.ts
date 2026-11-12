@@ -185,7 +185,6 @@ export class CompositionService {
     const { expectedRevision, composition } = parsed.data;
     if (composition.surface !== surface)
       throw new CompositionError(400, '画布 surface 与路径不一致');
-    this.validateReferences(owner, workspace, composition);
     if (expectedRevision === Number.MAX_SAFE_INTEGER)
       throw new CompositionError(409, '画布版本已达上限');
     const json = JSON.stringify(composition);
@@ -195,6 +194,9 @@ export class CompositionService {
     // Synchronous SAVEPOINT composes with an existing transaction without async interleaving.
     this.db.exec('SAVEPOINT composition_update');
     try {
+      // Keep the reference snapshot alive through the write. A competing deletion must
+      // either wait or make this transaction fail rather than commit dangling references.
+      this.validateReferences(owner, workspace, composition);
       const result =
         expectedRevision === 0
           ? this.db

@@ -96,8 +96,8 @@ export class WorkshopCreatedPages {
       throw new CreatedPageError('Source project and revision must be supplied together', 400);
     const doc = parsedComposition.data;
     this.authorize(owner, workspaceId);
-    this.validateRefs(owner, workspaceId, doc);
     return this.transaction(() => {
+      this.validateRefs(owner, workspaceId, doc);
       const count = this.db
         .prepare('SELECT count(*) AS n FROM mw_workshop_pages WHERE owner=?')
         .get(owner);

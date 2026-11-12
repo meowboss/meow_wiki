@@ -6,6 +6,8 @@
 
 ## 文档
 
+- [Meow Wiki 1.0.0发布与代码Review](<release-1.0.md>)
+
 - [对话式组件工坊首批实现](<conversational-workshop-delivery.md>)
 - [设计评审入口](<design-review.md>)
 - [文档知识库整理验收](<documentation-reorganization.md>)

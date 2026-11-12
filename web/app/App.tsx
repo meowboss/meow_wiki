@@ -12,7 +12,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   MessageCircle,
-  Plus,
   Puzzle,
   RefreshCw,
   Search,

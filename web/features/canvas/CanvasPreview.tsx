@@ -68,7 +68,6 @@ export default function CanvasPreview({
               <CanvasTree
                 tree={composition.tree}
                 instances={composition.instances}
-                editing={false}
                 renderInstance={renderInstance}
               />
               {composition.instances

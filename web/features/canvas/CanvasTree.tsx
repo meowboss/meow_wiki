@@ -48,11 +48,10 @@ export function removeCanvasTreeInstance(tree: LayoutTree, instanceId: string): 
 type Props = {
   tree: unknown;
   instances: CanvasInstance[];
-  editing: boolean;
   renderInstance: (instance: CanvasInstance, nested: boolean) => ReactNode;
 };
 
-export default function CanvasTree({ tree, instances, editing, renderInstance }: Props) {
+export default function CanvasTree({ tree, instances, renderInstance }: Props) {
   let root: LayoutTree;
   try {
     root = readCanvasTree(

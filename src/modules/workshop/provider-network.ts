@@ -1,4 +1,5 @@
 import { lookup } from 'node:dns/promises';
+import { containsDecodedSecret } from './secret-guard.ts';
 import { isIP, type LookupFunction } from 'node:net';
 import ipaddr from 'ipaddr.js';
 import { Agent, fetch as undiciFetch, type Dispatcher } from 'undici';
@@ -257,7 +258,7 @@ export class ProviderNetwork {
       const text = await response.text();
       if (apiKey && text.includes(apiKey)) throw failure();
       const decoded: unknown = JSON.parse(text);
-      if (apiKey && JSON.stringify(decoded).includes(apiKey)) throw failure();
+      if (containsDecodedSecret(decoded, apiKey)) throw failure();
       return decoded;
     } catch {
       throw failure();

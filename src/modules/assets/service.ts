@@ -149,7 +149,19 @@ export class AssetService {
   }
 
   remove(owner: string, workspace: string, id: string) {
-    this.get(owner, workspace, id);
+    this.db.exec('SAVEPOINT asset_remove');
+    try {
+      this.get(owner, workspace, id);
+      this.removeUnreferenced(owner, workspace, id);
+      this.db.exec('RELEASE SAVEPOINT asset_remove');
+    } catch (error) {
+      this.db.exec('ROLLBACK TO SAVEPOINT asset_remove');
+      this.db.exec('RELEASE SAVEPOINT asset_remove');
+      throw error;
+    }
+  }
+
+  private removeUnreferenced(owner: string, workspace: string, id: string) {
     const hasCompositions = this.db
       .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='mw_compositions'")
       .get();

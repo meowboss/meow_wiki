@@ -236,7 +236,6 @@ export default function CanvasSurface({
                 <CanvasTree
                   tree={draft.tree}
                   instances={draft.instances}
-                  editing={editing}
                   renderInstance={renderInstance}
                 />
                 {draft.instances

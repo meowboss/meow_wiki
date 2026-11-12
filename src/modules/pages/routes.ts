@@ -92,19 +92,19 @@ export function registerPageRoutes(
     return pages.undelete(owner, w.id, request.params.id, body.expectedRevision);
   });
   app.post('/api/render', async (request) => {
-    const owner = caller(request);
+    caller(request);
     const w = scope(request);
     const { markdown } = z.object({ markdown: z.string().max(200_000) }).parse(request.body);
     return pages.render(w, markdown);
   });
   app.get('/api/search', async (request) => {
-    const owner = caller(request);
+    caller(request);
     const w = scope(request);
     const { q } = z.object({ q: z.string().max(500) }).parse(request.query);
     return pages.search(w, q);
   });
   app.post('/api/ask', async (request) => {
-    const owner = caller(request);
+    caller(request);
     const w = scope(request);
     const { question } = z
       .object({ question: z.string().trim().min(1).max(500) })

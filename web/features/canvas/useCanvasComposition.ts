@@ -88,7 +88,7 @@ export function useCanvasComposition(
         setDraft(value);
         setRecovery(readCanvasDraft({ ownerId, workspaceId, surface }));
       })
-      .catch((cause: unknown) => {
+      .catch(() => {
         if (!controller.signal.aborted && version === generation.current) {
           setBaseline(fallback);
           setError('布局加载失败，已使用临时默认布局；重新加载后才能保存，业务内容仍可使用。');
