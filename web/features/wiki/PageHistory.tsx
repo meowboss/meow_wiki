@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Clock3, LoaderCircle, X } from 'lucide-react';
 import { api, ApiError, type PageRevision, type WikiPage } from '../../shared/api';
 
@@ -76,9 +76,18 @@ export default function PageHistory({ pageId, busy, conflict, onClose, onRestore
   const keepOptions = [10, 25, 50, 100].filter((count) => count <= revisions.length);
   const selectedKeep = keepOptions.includes(keep) ? keep : (keepOptions[0] ?? 0);
   const currentSnapshot = snapshot?.pageId === pageId ? snapshot : null;
-  const close = () => {
-    if (!busy && !operation.current) onClose();
-  };
+  const close = useCallback(() => {
+    if (!busy && !localBusy && !operation.current) onClose();
+  }, [busy, localBusy, onClose]);
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      close();
+    };
+    document.addEventListener('keydown', key);
+    return () => document.removeEventListener('keydown', key);
+  }, [close]);
   const exportHistory = async () => {
     if (disabled || operation.current) return;
     const controller = new AbortController();

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   api,
   ApiError,
@@ -90,6 +90,11 @@ export default function ComponentCatalog({
     onDirtyChange(editing !== null);
     return () => onDirtyChange(false);
   }, [editing, onDirtyChange]);
+  const closeEditor = useCallback(() => {
+    if (busy || !editing) return;
+    if (!window.confirm('组件编辑有未保存的更改，确定放弃吗？')) return;
+    setEditing(null);
+  }, [busy, editing]);
   useEffect(() => {
     if (!editing && !preview) return;
     const previous = document.activeElement as HTMLElement | null;
@@ -104,9 +109,11 @@ export default function ComponentCatalog({
       );
     items()[0]?.focus();
     const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !busy) {
-        setEditing(null);
-        setPreview(null);
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (busy) return;
+        if (editing) closeEditor();
+        else setPreview(null);
       }
       if (e.key !== 'Tab') return;
       const list = items();
@@ -124,7 +131,7 @@ export default function ComponentCatalog({
       document.removeEventListener('keydown', key);
       previous?.focus();
     };
-  }, [editing, preview, busy]);
+  }, [editing, preview, busy, closeEditor]);
   function edit(component: WikiComponent | 'new') {
     setError('');
     setEditing(component);
@@ -499,7 +506,7 @@ export default function ComponentCatalog({
                   type="button"
                   className="secondary-btn"
                   disabled={busy}
-                  onClick={() => setEditing(null)}
+                  onClick={closeEditor}
                 >
                   取消
                 </button>

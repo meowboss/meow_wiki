@@ -26,6 +26,7 @@ type Props = {
   workspaceId: string | null;
   onDirtyChange: (value: boolean) => void;
   onBusyChange: (value: boolean) => void;
+  onInstalled: () => Promise<unknown>;
 };
 const FILE = '/project/component.json' as const;
 const message = (error: unknown) => (error instanceof Error ? error.message : '请求失败，请重试。');
@@ -40,7 +41,12 @@ function metadata(provider: Provider): Provider {
   };
 }
 
-export default function WorkshopView({ workspaceId, onDirtyChange, onBusyChange }: Props) {
+export default function WorkshopView({
+  workspaceId,
+  onDirtyChange,
+  onBusyChange,
+  onInstalled,
+}: Props) {
   const [config, setConfig] = useState<Config>({ endpoints: [], configured: false });
   const [providers, setProviders] = useState<Provider[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -296,8 +302,14 @@ export default function WorkshopView({ workspaceId, onDirtyChange, onBusyChange 
         'POST',
         signal,
       );
-      if (!signal.aborted)
+      if (!signal.aborted) {
         setNotice(`已导入私有组件：${component.name || component.id}。未上架市场，未自动审核。`);
+        try {
+          await onInstalled();
+        } catch {
+          setError('组件已导入，但列表刷新失败，请手动刷新空间；不要重复导入。');
+        }
+      }
     });
   }
 

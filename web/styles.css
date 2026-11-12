@@ -905,6 +905,80 @@ h1 {
 .markdown-body th {
   background: #f0f3e9;
 }
+.markdown-body .heading-anchor {
+  font-size: 0.7em;
+  margin-left: 0.5em;
+  opacity: 0.35;
+  text-decoration: none;
+}
+.markdown-body .heading-anchor:hover {
+  opacity: 1;
+}
+.markdown-body :is(h1, h2, h3, h4, h5, h6) {
+  scroll-margin-top: 90px;
+  overflow-wrap: anywhere;
+}
+.markdown-body .code-block {
+  position: relative;
+  padding-top: 32px;
+}
+.markdown-body .code-block::before {
+  content: attr(data-language);
+  position: absolute;
+  top: 5px;
+  left: 15px;
+  font-size: 10px;
+  color: #64756a;
+}
+.markdown-body .hljs-keyword,
+.markdown-body .hljs-selector-tag {
+  color: #8954a1;
+}
+.markdown-body .hljs-string,
+.markdown-body .hljs-attr {
+  color: #287d4b;
+}
+.markdown-body .hljs-number,
+.markdown-body .hljs-literal {
+  color: #aa5c25;
+}
+.markdown-body .hljs-comment {
+  color: #7e897e;
+  font-style: italic;
+}
+.markdown-body .hljs-title,
+.markdown-body .hljs-built_in {
+  color: #24649a;
+}
+.markdown-body .image-placeholder {
+  display: inline-block;
+  padding: 6px 10px;
+  border: 1px dashed #b9c7b3;
+  border-radius: 5px;
+  color: #65785d;
+  font-size: 12px;
+}
+.markdown-body input[type='checkbox'] {
+  width: auto;
+  display: inline-block;
+  margin-right: 7px;
+}
+.markdown-body a {
+  overflow-wrap: anywhere;
+}
+.markdown-body pre code {
+  white-space: pre;
+  font-family: Consolas, 'SFMono-Regular', monospace;
+  color: #35473b;
+}
+.markdown-body th[align='center'],
+.markdown-body td[align='center'] {
+  text-align: center;
+}
+.markdown-body th[align='right'],
+.markdown-body td[align='right'] {
+  text-align: right;
+}
 .markdown-body hr {
   border: 0;
   border-top: 1px solid #e5eadb;

@@ -53,13 +53,21 @@ export class PageTransfer {
 
   export(owner: string, workspaceId: string): PageBundle {
     const workspace = this.store.get(owner, workspaceId);
+    const liveIds = new Set(
+      workspace.pages.filter((page) => !page.deletedAt).map((page) => page.id),
+    );
     const bundle: PageBundle = {
       format: 'meow.pages.v1',
       version: 1,
       workspace: { name: workspace.name, description: workspace.description },
       pages: workspace.pages
         .filter((page) => !page.deletedAt)
-        .map(({ id, title, markdown, parentId }) => ({ id, title, markdown, parentId })),
+        .map(({ id, title, markdown, parentId }) => ({
+          id,
+          title,
+          markdown,
+          parentId: parentId && liveIds.has(parentId) ? parentId : null,
+        })),
     };
     if (
       bundle.pages.length > 100 ||

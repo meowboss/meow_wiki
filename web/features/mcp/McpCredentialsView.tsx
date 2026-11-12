@@ -59,6 +59,7 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
   const [label, setLabel] = useState('');
   const [days, setDays] = useState('7');
   const [token, setToken] = useState('');
+  const tokenRecordId = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -113,6 +114,7 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
   }, [working]);
 
   function clearToken() {
+    tokenRecordId.current = null;
     setToken('');
     setCopyMessage('');
     callbacks.current.onDirtyChange(false);
@@ -151,9 +153,11 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
         throw new Error('签发接口未返回令牌。请刷新核对凭据列表，必要时撤销后重新签发。');
       }
       // Preserve the one-time secret even if its accompanying metadata is malformed.
+      tokenRecordId.current = null;
       setToken(result.token);
       callbacks.current.onDirtyChange(true);
       const record = credential(result.record);
+      tokenRecordId.current = record.id;
       setCredentials((current) => [record, ...current.filter((item) => item.id !== record.id)]);
       setLabel('');
     } catch (e) {
@@ -185,7 +189,7 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
           item.id === record.id ? { ...item, revokedAt: new Date().toISOString() } : item,
         ),
       );
-      clearToken();
+      if (tokenRecordId.current === record.id) clearToken();
     } catch (e) {
       if (!signal.aborted) setError(message(e));
     } finally {

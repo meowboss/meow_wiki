@@ -43,8 +43,14 @@ export function registerSecurity(app: FastifyInstance, context: HttpContext, tok
     }
   });
   app.addHook('preHandler', async (request, reply) => {
-    if (!identity) return;
     const route = request.routeOptions.url ?? '';
+    if (!identity) {
+      if (/^\/api\/(domains|mcp\/credentials|workshop\/providers)(\/|$)/.test(route))
+        return reply
+          .code(409)
+          .send({ error: '此功能需要session账号模式；本地/脚本身份不会隐式获得平台账号权限' });
+      return;
+    }
     // Authorization uses the matched route, never client-controlled URL classification.
     if (!route.startsWith('/api/') || (route.startsWith('/api/auth/') && route !== '/api/auth/me'))
       return;

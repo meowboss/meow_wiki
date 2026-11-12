@@ -58,7 +58,7 @@ export function createApp(options: AppOptions = {}) {
           },
         }
       : false,
-    bodyLimit: 256 * 1024,
+    bodyLimit: 2 * 1024 * 1024, // Supports 200k Unicode Markdown plus JSON escaping; route/schema limits remain stricter.
     ajv: { customOptions: { removeAdditional: false } },
   });
   const store = options.store ?? new Store(options.databasePath);

@@ -1,5 +1,4 @@
-import { marked } from 'marked';
-import sanitizeHtml from 'sanitize-html';
+import { renderMarkdown } from './markdown.ts';
 import { Kernel, type SearchPage, type SearchResult } from '../kernel.ts';
 
 function search(query: string, pages: SearchPage[]): SearchResult[] {
@@ -38,23 +37,7 @@ export function createKernel() {
       kind: 'renderer',
       requires: [],
     },
-    setup: (register) =>
-      register('render', async (markdown) =>
-        sanitizeHtml(await marked.parse(markdown), {
-          allowedTags: sanitizeHtml.defaults.allowedTags.concat(['h1', 'h2', 'img', 'del']),
-          allowedAttributes: {
-            ...sanitizeHtml.defaults.allowedAttributes,
-            img: ['src', 'alt', 'title'],
-          },
-          allowedSchemes: ['https', 'http', 'mailto'],
-          allowProtocolRelative: false,
-          transformTags: {
-            a: sanitizeHtml.simpleTransform('a', { rel: 'noopener noreferrer', target: '_blank' }),
-          },
-          // Remote images leak reading activity; rendering is local until an asset proxy exists.
-          exclusiveFilter: (frame) => frame.tag === 'img',
-        }),
-      ),
+    setup: (register) => register('render', renderMarkdown),
   });
   kernel.register({
     manifest: {

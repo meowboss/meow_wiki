@@ -36,4 +36,7 @@ test('virtual workshop validates declaration and imports private component witho
       (c: { name: string; status: string }) => c.name === '工坊读书卡' && c.status === 'private',
     ),
   ).toBeTruthy();
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.getByRole('button', { name: '我的组件', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '工坊读书卡', exact: true })).toBeVisible();
 });

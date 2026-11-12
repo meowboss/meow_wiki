@@ -127,6 +127,7 @@ export default function App({
   const [knowledgeDirty, setKnowledgeDirty] = useState(false);
   const [proposalDirty, setProposalDirty] = useState(false);
   const [componentDirty, setComponentDirty] = useState(false);
+  const [reviewDirty, setReviewDirty] = useState(false);
   const [domainDirty, setDomainDirty] = useState(false);
   const [mcpDirty, setMcpDirty] = useState(false);
   const [workshopDirty, setWorkshopDirty] = useState(false);
@@ -151,6 +152,7 @@ export default function App({
       knowledgeDirty ||
       proposalDirty ||
       componentDirty ||
+      reviewDirty ||
       domainDirty ||
       mcpDirty ||
       workshopDirty
@@ -171,6 +173,7 @@ export default function App({
         knowledgeDirty ||
         proposalDirty ||
         componentDirty ||
+        reviewDirty ||
         domainDirty ||
         mcpDirty ||
         workshopDirty) &&
@@ -239,6 +242,7 @@ export default function App({
         knowledgeDirty ||
         proposalDirty ||
         componentDirty ||
+        reviewDirty ||
         domainDirty ||
         mcpDirty ||
         workshopDirty
@@ -256,6 +260,7 @@ export default function App({
     knowledgeDirty,
     proposalDirty,
     componentDirty,
+    reviewDirty,
     domainDirty,
     mcpDirty,
     workshopDirty,
@@ -338,7 +343,7 @@ export default function App({
       if (e.key === 'Escape') {
         setSearchOpen(false);
         setAskOpen(false);
-        setHistoryOpen(false);
+        // PageHistory owns Escape so its in-flight export/archive guard cannot be bypassed.
       }
     };
     window.addEventListener('keydown', onKey);
@@ -543,6 +548,7 @@ export default function App({
         knowledgeDirty ||
         proposalDirty ||
         componentDirty ||
+        reviewDirty ||
         domainDirty ||
         mcpDirty ||
         workshopDirty) &&
@@ -588,6 +594,7 @@ export default function App({
           knowledgeDirty ||
           proposalDirty ||
           componentDirty ||
+          reviewDirty ||
           domainDirty ||
           mcpDirty ||
           workshopDirty) &&
@@ -889,6 +896,7 @@ export default function App({
             workspaceId={workspace?.id ?? null}
             onDirtyChange={setWorkshopDirty}
             onBusyChange={childBusy}
+            onInstalled={load}
           />
         ) : view === 'plugin-lab' ? (
           <PluginLabView
@@ -1023,6 +1031,7 @@ export default function App({
                 onOpen={openSource}
                 refresh={load}
                 onBusyChange={childBusy}
+                onDirtyChange={setReviewDirty}
               />
             )}
           </>

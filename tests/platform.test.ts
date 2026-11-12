@@ -105,7 +105,7 @@ test('sanitized markdown strips active content and remote image requests', async
     });
     assert.equal(result.statusCode, 200);
     const html = result.json().html;
-    assert.match(html, /<h1>Hello<\/h1>/);
+    assert.match(html, /<h1 id="wiki-hello">Hello<a[^>]*>[\s\S]*?<\/a><\/h1>/);
     assert.doesNotMatch(html, /script|onerror|javascript:|iframe|<img/i);
   } finally {
     await f.close();

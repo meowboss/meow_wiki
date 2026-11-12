@@ -7,12 +7,14 @@ export default function ReviewView({
   onOpen,
   refresh,
   onBusyChange,
+  onDirtyChange,
 }: {
   userId: string;
   pages: WikiPage[];
   onOpen: (id: string) => void;
   refresh: () => Promise<unknown>;
   onBusyChange: (busy: boolean) => void;
+  onDirtyChange: (dirty: boolean) => void;
 }) {
   const [releases, setReleases] = useState<WikiComponent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +22,11 @@ export default function ReviewView({
   const [error, setError] = useState('');
   const [reason, setReason] = useState<Record<string, string>>({});
   const [notice, setNotice] = useState('');
+  const dirty = Object.values(reason).some((value) => value.length > 0);
+  useEffect(() => {
+    onDirtyChange(dirty);
+    return () => onDirtyChange(false);
+  }, [dirty, onDirtyChange]);
   useEffect(() => {
     const c = new AbortController();
     void api<{ releases: WikiComponent[] }>('/reviews', undefined, 'GET', c.signal)
@@ -59,6 +66,11 @@ export default function ReviewView({
     try {
       await api(`/reviews/${encodeURIComponent(c.id)}`, { decision, reason: reason[c.id] ?? '' });
       setReleases((current) => current.filter((r) => r.id !== c.id));
+      setReason((current) => {
+        const next = { ...current };
+        delete next[c.id];
+        return next;
+      });
       setNotice('审核决定已保存。');
       await refresh();
     } catch (e) {
