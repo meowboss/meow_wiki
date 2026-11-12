@@ -7,6 +7,7 @@ import {
   createCanvasRegistry,
   createSlotCanvasRegistration,
   defaultRegistry,
+  registeredCanvasEntries,
   type CanvasRenderContext,
   type CanvasViewInstance,
   type CanvasViewRegistration,
@@ -191,4 +192,21 @@ test('default registrations render search, directory, component references and e
   for (const id of ['builtin.text', 'builtin.image', 'builtin.video', 'builtin.pet']) {
     assert.equal(defaultRegistry.get(id), undefined);
   }
+});
+
+test('trusted renderer metadata enters the same surface catalog without an App branch', () => {
+  const registry = createCanvasRegistry([
+    ...coreCanvasRegistrations,
+    {
+      id: 'official.sample.card',
+      title: 'Sample card',
+      config: { text: 'sample' },
+      surfaces: ['home'],
+      render: () => null,
+    },
+  ]);
+  assert.deepEqual(registeredCanvasEntries(registry, 'home'), [
+    { label: 'Sample card', viewId: 'official.sample.card', config: { text: 'sample' } },
+  ]);
+  assert.deepEqual(registeredCanvasEntries(registry, 'wiki'), []);
 });

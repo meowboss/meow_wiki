@@ -167,6 +167,16 @@
   gap: var(--canvas-gap);
   align-items: stretch;
 }
+@media (min-width: 761px) {
+  .canvas-layout-grid.canvas-default-wiki {
+    grid-template-rows: auto auto max-content auto auto auto;
+  }
+  .canvas-layout-grid.canvas-default-wiki
+    > .canvas-instance[data-view-id='wiki.directory']
+    .space-navigator-directory {
+    min-height: 0;
+  }
+}
 @media (min-width: 1101px) {
   .canvas-layout-grid.canvas-default-wiki:has(.space-navigator-wide)
     > .canvas-instance[data-view-id='wiki.directory'] {

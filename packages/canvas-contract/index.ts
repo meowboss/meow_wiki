@@ -132,7 +132,7 @@ export const compositionDocumentSchema = z
               'builtin.image',
               'builtin.video',
               'builtin.pet',
-            ].includes(i.viewId),
+            ].includes(i.viewId) && !trustedViewIdSchema.safeParse(i.viewId).success,
         )
         .map((i) => i.viewId);
       return new Set(views).size === views.length;
@@ -159,7 +159,7 @@ export const compositionSchema = z
               'builtin.image',
               'builtin.video',
               'builtin.pet',
-            ].includes(i.viewId),
+            ].includes(i.viewId) && !trustedViewIdSchema.safeParse(i.viewId).success,
         )
         .map((i) => i.viewId);
       return new Set(views).size === views.length;
@@ -210,7 +210,7 @@ export function createDefaultComposition(surface: CanvasSurface): Composition {
         ? [
             instance('wiki-header', 'wiki.header', 0, 12),
             { ...instance('wiki-stats', 'wiki.stats', 0, 12), y: 1 },
-            { ...instance('wiki-directory', 'wiki.directory', 0, 4), y: 2 },
+            { ...instance('wiki-directory', 'wiki.directory', 0, 4), y: 2, h: 2 },
             { ...instance('wiki-toolbar', 'wiki.toolbar', 4, 8), y: 2 },
             {
               ...instance('wiki-document', 'wiki.document', 4, 8),

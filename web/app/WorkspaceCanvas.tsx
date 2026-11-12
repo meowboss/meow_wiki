@@ -1,12 +1,13 @@
 import type { ComponentProps, ReactNode } from 'react';
 import CanvasSurface from '../features/canvas/CanvasSurface';
 import { homeCanvasEntries } from '../features/home/HomeComponentView';
-import { defaultRegistry } from './canvas-registry';
+import { defaultRegistry, registeredCanvasEntries, type CanvasRegistry } from './canvas-registry';
 import type { WorkspaceData } from '../shared/api';
 import type { CanvasCatalogEntry } from '../features/canvas/CanvasCatalog';
 
 type WorkspaceCanvasProps = Omit<ComponentProps<typeof CanvasSurface>, 'renderView'> & {
   data?: WorkspaceData;
+  registry?: CanvasRegistry;
   onOpen?: (id: string) => void;
   /** Old wiki documents predate the independently removable toolbar instance. */
   wikiDocumentFallbackToolbar?: ReactNode;
@@ -35,6 +36,7 @@ type WorkspaceCanvasProps = Omit<ComponentProps<typeof CanvasSurface>, 'renderVi
 /** App composition owns business views; the canvas only owns their placement. */
 export default function WorkspaceCanvas({
   slots,
+  registry = defaultRegistry,
   data,
   onOpen = () => {},
   wikiDocumentFallbackToolbar,
@@ -45,6 +47,8 @@ export default function WorkspaceCanvas({
     <CanvasSurface
       {...props}
       availableViews={[
+        ...registeredCanvasEntries(registry, props.surface),
+        ...(props.availableViews ?? []),
         { label: '文本', viewId: 'builtin.text', config: { text: '新文本' } },
         { label: '搜索笔记', viewId: 'builtin.search', config: {} },
         ...Object.entries(slots)
@@ -88,7 +92,7 @@ export default function WorkspaceCanvas({
           : []
       }
       renderView={(instance) =>
-        defaultRegistry.render(
+        registry.render(
           instance,
           {
             data,

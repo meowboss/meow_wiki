@@ -1,0 +1,23 @@
+import { test, expect } from '@playwright/test';
+test('directory and pet remain usable when Markdown rendering is disabled', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '注册', exact: true }).click();
+  await page.getByLabel('你的名字').fill('无正文画布');
+  await page.getByLabel('邮箱', { exact: true }).fill(`without-md-${Date.now()}@example.test`);
+  await page.getByLabel('密码', { exact: true }).fill('without-md-password-123');
+  await page.getByRole('button', { name: '创建我的知识花园' }).click();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '编辑布局', exact: true }).click();
+  await page.getByLabel('添加功能视图').selectOption({ label: '页面桌宠' });
+  await page.getByRole('button', { name: '保存布局', exact: true }).click();
+  const nav = page.locator('.space-navigator');
+  await nav.getByRole('tab', { name: '空间管理', exact: true }).click();
+  await nav.locator('summary').filter({ hasText: '插件配置' }).click();
+  await nav.getByRole('switch', { name: /停用.*Markdown/i }).click();
+  await expect(page.getByRole('button', { name: '和桌宠打招呼', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '和桌宠打招呼', exact: true }).click();
+  await expect(page.getByText('喵～很高兴见到你！', { exact: true })).toBeVisible();
+  await nav.getByRole('tab', { name: '笔记目录', exact: true }).click();
+  await nav.getByRole('button', { name: '插件与自己的组件', exact: true }).click();
+  await expect(page.locator('.wiki-reader-heading h1')).toHaveText('插件与自己的组件');
+});

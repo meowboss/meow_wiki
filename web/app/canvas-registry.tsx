@@ -19,6 +19,8 @@ export type CanvasViewRegistration = {
   readonly id: string;
   readonly render: (instance: CanvasViewInstance, ctx: CanvasRenderContext) => ReactNode;
   readonly surfaces?: readonly CanvasSurface[];
+  readonly title?: string;
+  readonly config?: CanvasInstance['config'];
 };
 
 export type CanvasRegistry = {
@@ -136,5 +138,14 @@ export const coreCanvasRegistrations: readonly CanvasViewRegistration[] = create
   ].map((id) => createSlotCanvasRegistration(id, ['collaboration'])),
 ]).registrations;
 
+export function registeredCanvasEntries(registry: CanvasRegistry, surface: CanvasSurface) {
+  return registry.registrations
+    .filter((view) => view.title && (!view.surfaces || view.surfaces.includes(surface)))
+    .map((view) => ({
+      label: view.title!,
+      viewId: view.id as CanvasInstance['viewId'],
+      config: { ...view.config },
+    }));
+}
 export const defaultRegistry = createCanvasRegistry(coreCanvasRegistrations);
 export default defaultRegistry;

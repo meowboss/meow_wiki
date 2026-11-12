@@ -9,6 +9,9 @@ test('wiki toolbar can be removed independently while content remains and recove
   await page.getByLabel('密码', { exact: true }).fill('toolbar-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
   await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
+  const toolbarBox = await page.locator('.wiki-reader-toolbar').boundingBox();
+  const articleBox = await page.locator('.wiki-reader-article').boundingBox();
+  expect(articleBox!.y - toolbarBox!.y - toolbarBox!.height).toBeLessThan(100);
   await page.getByRole('button', { name: '编辑布局', exact: true }).click();
   await page.getByRole('button', { name: '选择并移动组件 wiki.toolbar', exact: true }).click();
   page.once('dialog', (d) => d.accept());
