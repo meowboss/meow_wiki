@@ -136,6 +136,11 @@ export default function AccountGate() {
         key={session.user.id}
         user={session.user}
         mode={session.mode}
+        onUserUpdated={(name) =>
+          setSession((current) =>
+            current?.user ? { ...current, user: { ...current.user, username: name } } : current,
+          )
+        }
         onLogout={() => void logout()}
         logoutBusy={busy}
         logoutError={logoutError}
@@ -286,12 +291,14 @@ export default function AccountGate() {
 function WorkspaceSession({
   user,
   mode,
+  onUserUpdated,
   onLogout,
   logoutBusy,
   logoutError,
 }: {
   user: SessionUser;
   mode: SessionInfo['mode'];
+  onUserUpdated: (name: string) => void;
   onLogout: () => void;
   logoutBusy: boolean;
   logoutError: string;
@@ -358,6 +365,7 @@ function WorkspaceSession({
       onWorkspaceChange={activate}
       user={user}
       sessionMode={mode}
+      onUserUpdated={onUserUpdated}
       onLogout={onLogout}
       logoutBusy={logoutBusy}
       logoutError={logoutError}

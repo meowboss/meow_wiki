@@ -21,6 +21,7 @@ import { DomainsService } from './modules/domains/service.ts';
 import { registerDomainRoutes } from './modules/domains/routes.ts';
 import { registerMcpRoutes } from './modules/mcp/routes.ts';
 import { registerPluginRuntime } from './modules/plugin-runtime/routes.ts';
+import { registerProfileRoutes } from './modules/profile/routes.ts';
 
 export type AppOptions = IdentityOptions & {
   modelBroker?: ModelBroker;
@@ -84,6 +85,7 @@ export function createApp(options: AppOptions = {}) {
   registerSecurity(app, context, options.token);
   registerHealth(app, store);
   registerIdentityRoutes(app, context);
+  registerProfileRoutes(app, context);
   registerWorkspaceRoutes(app, context, new WorkspacesService(store, components, kernel));
   registerPageRoutes(app, context, new PagesService(store, kernel));
   registerExtensionRoutes(app, context, new ExtensionsService(store, kernel));

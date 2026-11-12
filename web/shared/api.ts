@@ -109,6 +109,15 @@ export interface SessionUser {
   username: string;
   role: string;
 }
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  emailVerified: boolean;
+  createdAt: string | number;
+  updatedAt: string | number;
+  role: string;
+}
 export interface SessionInfo {
   mode: 'session' | 'local' | 'token';
   user: SessionUser | null;
@@ -138,7 +147,8 @@ export async function api<T>(
   const auth = /^\/auth(?:\/|\?|$)/.test(path);
   const workspaceManagement = /^\/workspaces(?:\/|\?|$)/.test(path);
   const url = new URL(`/api${path}`, window.location.origin);
-  if (workspaceId && !auth && !workspaceManagement)
+  const profile = /^\/profile(?:\/|\?|$)/.test(path);
+  if (workspaceId && !auth && !workspaceManagement && !profile)
     url.searchParams.set('workspaceId', workspaceId);
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';

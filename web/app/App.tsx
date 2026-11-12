@@ -49,8 +49,10 @@ import DomainsView from '../features/domains/DomainsView';
 import McpCredentialsView from '../features/mcp/McpCredentialsView';
 import PluginLabView from '../features/plugin-lab/PluginLabView';
 import WorkshopView from '../features/workshop/WorkshopView';
+import ProfileView from '../features/profile/ProfileView';
 
 type View =
+  | 'profile'
   | 'home'
   | 'wiki'
   | 'market'
@@ -71,6 +73,7 @@ type AppProps = {
   onWorkspaceChange: (workspace: Workspace) => void;
   user: SessionUser;
   sessionMode: SessionInfo['mode'];
+  onUserUpdated: (name: string) => void;
   onLogout: () => void;
   logoutBusy: boolean;
   logoutError: string;
@@ -81,6 +84,7 @@ export default function App({
   onWorkspaceChange,
   user,
   sessionMode,
+  onUserUpdated,
   onLogout,
   logoutBusy,
   logoutError,
@@ -131,8 +135,13 @@ export default function App({
   const [domainDirty, setDomainDirty] = useState(false);
   const [mcpDirty, setMcpDirty] = useState(false);
   const [workshopDirty, setWorkshopDirty] = useState(false);
+  const [profileDirty, setProfileDirty] = useState(false);
   const independentView =
-    view === 'domains' || view === 'mcp' || view === 'plugin-lab' || view === 'workshop';
+    view === 'profile' ||
+    view === 'domains' ||
+    view === 'mcp' ||
+    view === 'plugin-lab' ||
+    view === 'workshop';
   const childBusy = useCallback((value: boolean) => setBusy(value ? 'component-view' : ''), []);
   const selectedRef = useRef('');
   const dirty = title !== saved.title || markdown !== saved.markdown || parentId !== saved.parentId;
@@ -155,7 +164,8 @@ export default function App({
       reviewDirty ||
       domainDirty ||
       mcpDirty ||
-      workshopDirty
+      workshopDirty ||
+      profileDirty
     ) ||
       window.confirm(
         preserveDraft
@@ -176,7 +186,8 @@ export default function App({
         reviewDirty ||
         domainDirty ||
         mcpDirty ||
-        workshopDirty) &&
+        workshopDirty ||
+        profileDirty) &&
       !window.confirm('当前页面有未保存的更改，确定放弃吗？')
     )
       return;
@@ -245,7 +256,8 @@ export default function App({
         reviewDirty ||
         domainDirty ||
         mcpDirty ||
-        workshopDirty
+        workshopDirty ||
+        profileDirty
       ) {
         e.preventDefault();
         e.returnValue = '';
@@ -264,6 +276,7 @@ export default function App({
     domainDirty,
     mcpDirty,
     workshopDirty,
+    profileDirty,
   ]);
   useEffect(() => {
     if (!selected || !enabled('official.markdown')) {
@@ -332,7 +345,7 @@ export default function App({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        if (view === 'domains' || view === 'mcp' || view === 'plugin-lab' || view === 'workshop') {
+        if (independentView) {
           e.preventDefault();
           return;
         }
@@ -348,7 +361,7 @@ export default function App({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [view]);
+  }, [view, independentView]);
   useEffect(() => {
     if (!notice) return;
     const timer = window.setTimeout(() => setNotice(''), 4200);
@@ -551,7 +564,8 @@ export default function App({
         reviewDirty ||
         domainDirty ||
         mcpDirty ||
-        workshopDirty) &&
+        workshopDirty ||
+        profileDirty) &&
       !window.confirm('新建页面将离开当前未保存的内容，确定继续吗？')
     )
       return;
@@ -597,7 +611,8 @@ export default function App({
           reviewDirty ||
           domainDirty ||
           mcpDirty ||
-          workshopDirty) &&
+          workshopDirty ||
+          profileDirty) &&
         !window.confirm(
           mcpDirty
             ? '离开后将清除仅展示一次的令牌明文，且无法再次查看。请确认已安全保存，继续吗？'
@@ -770,14 +785,25 @@ export default function App({
             </div>
           )}
           <div className="profile">
-            <span className="profile-avatar">{user.username.slice(0, 1) || '我'}</span>
-            <div>
-              <strong>{user.username}</strong>
-              <small>
-                <span />
-                {sessionMode === 'local' ? '本地模式' : '安全会话'}
-              </small>
-            </div>
+            <button
+              type="button"
+              className="profile-settings-trigger"
+              aria-label="个人设置"
+              aria-current={view === 'profile' ? 'page' : undefined}
+              disabled={!!busy || logoutBusy}
+              onClick={() => nav('profile')}
+            >
+              <span className="profile-avatar" aria-hidden="true">
+                {Array.from(user.username.trim())[0] || '我'}
+              </span>
+              <span className="profile-settings-identity">
+                <strong>{user.username}</strong>
+                <small>
+                  <span />
+                  {sessionMode === 'local' ? '本地模式' : '安全会话'}
+                </small>
+              </span>
+            </button>
             <button
               className="text-btn"
               disabled={!!busy || logoutBusy}
@@ -803,27 +829,29 @@ export default function App({
             <span>{independentView ? '跨空间协作' : '我的工作空间'}</span>
             <ChevronRight size={13} />
             <strong>
-              {view === 'workshop'
-                ? '组件工坊'
-                : view === 'plugin-lab'
-                  ? '插件实验室'
-                  : view === 'mcp'
-                    ? 'Agent 连接'
-                    : view === 'domains'
-                      ? '知识域'
-                      : view === 'home'
-                        ? '首页'
-                        : view === 'wiki'
-                          ? '知识空间'
-                          : view === 'market'
-                            ? '插件市场'
-                            : view === 'knowledge'
-                              ? '资料工作台'
-                              : view === 'reviews'
-                                ? '组件审核'
-                                : view === 'proposals'
-                                  ? '写入提议'
-                                  : '我的组件'}
+              {view === 'profile'
+                ? '个人设置'
+                : view === 'workshop'
+                  ? '组件工坊'
+                  : view === 'plugin-lab'
+                    ? '插件实验室'
+                    : view === 'mcp'
+                      ? 'Agent 连接'
+                      : view === 'domains'
+                        ? '知识域'
+                        : view === 'home'
+                          ? '首页'
+                          : view === 'wiki'
+                            ? '知识空间'
+                            : view === 'market'
+                              ? '插件市场'
+                              : view === 'knowledge'
+                                ? '资料工作台'
+                                : view === 'reviews'
+                                  ? '组件审核'
+                                  : view === 'proposals'
+                                    ? '写入提议'
+                                    : '我的组件'}
             </strong>
           </div>
           <div className="topbar-actions">
@@ -856,7 +884,16 @@ export default function App({
             >
               <RefreshCw size={16} />
             </button>
-            <span className="top-avatar">我</span>
+            <button
+              type="button"
+              className="top-avatar profile-settings-avatar"
+              aria-label="个人设置"
+              aria-current={view === 'profile' ? 'page' : undefined}
+              disabled={!!busy || logoutBusy}
+              onClick={() => nav('profile')}
+            >
+              {Array.from(user.username.trim())[0] || '我'}
+            </button>
           </div>
         </header>
         {logoutError && (
@@ -890,7 +927,14 @@ export default function App({
             {notice}
           </div>
         )}
-        {view === 'workshop' ? (
+        {view === 'profile' ? (
+          <ProfileView
+            sessionMode={sessionMode}
+            onUserUpdated={onUserUpdated}
+            onDirtyChange={setProfileDirty}
+            onBusyChange={childBusy}
+          />
+        ) : view === 'workshop' ? (
           <WorkshopView
             key={workspace?.id ?? 'no-workspace'}
             workspaceId={workspace?.id ?? null}
