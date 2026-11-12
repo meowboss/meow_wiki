@@ -6,6 +6,7 @@
 
 ## 文档
 
+- [页面画布基础增量](<canvas-foundation.md>)
 - [内容优先的跨页层级](<compact-content-hierarchy.md>)
 - [Markdown长文空间与阅读改进](<markdown-reading-layout.md>)
 - [知识空间内部结构](<space-navigation.md>)

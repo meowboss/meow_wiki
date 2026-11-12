@@ -148,7 +148,13 @@ export async function api<T>(
   const workspaceManagement = /^\/workspaces(?:\/|\?|$)/.test(path);
   const url = new URL(`/api${path}`, window.location.origin);
   const profile = /^\/profile(?:\/|\?|$)/.test(path);
-  if (workspaceId && !auth && !workspaceManagement && !profile)
+  if (
+    workspaceId &&
+    !auth &&
+    !workspaceManagement &&
+    !profile &&
+    !url.searchParams.has('workspaceId')
+  )
     url.searchParams.set('workspaceId', workspaceId);
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';

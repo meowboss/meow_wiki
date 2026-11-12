@@ -32,7 +32,12 @@ test('browser features depend on shared contracts, never server internals or app
       const destination = relative(resolve('web'), target).replaceAll('\\', '/');
       const sdkPath = relative(resolve('packages/plugin-sdk'), target).replaceAll('\\', '/');
       const sdkImport = sdkPath === 'index' || sdkPath === 'index.ts';
-      if (sdkImport) continue; // Reviewed browser-safe public SDK, never server source.
+      const canvasPath = relative(resolve('packages/canvas-contract'), target).replaceAll(
+        '\\',
+        '/',
+      );
+      const canvasImport = canvasPath === 'index' || canvasPath === 'index.ts';
+      if (sdkImport || canvasImport) continue; // Explicit browser-safe public contracts, never server source.
       assert.ok(
         !destination.startsWith('../'),
         `Browser import escapes boundary: ${source} -> ${specifier}`,

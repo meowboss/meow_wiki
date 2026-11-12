@@ -20,9 +20,11 @@
 
 两条配置互不自动联动；首批协议是OpenAI-compatible，不能推断支持原生Anthropic/Responses等。真实商业模型质量、费用和语义引用没有独立验收证据；可控HTTP fixture只证明协议链路。
 
-## 正在设计、尚未实现
+## 插件画布实施进度
 
-[全站插件画布](<../architecture/plugin-canvas.md>)拟替代仅首页纵向块：统一组合文档、实例、自由布局/样式、背景/媒体/桌宠和跨页面生命周期。现有首页、知识空间与协作UI仍固定装配；不能以当前声明式组件或固定iframe示例宣称已完成这一愿景。实施与迁移见[路线](<../plans/plugin-canvas-roadmap.md>)。
+[基础增量](<../features/canvas-foundation.md>)已接入首页/知识空间/知识域，共享组合CAS、固定12逻辑列grid/flow/free、实例定位/尺寸/样式/隐藏、文本/搜索和私有/安装组件的独立放置。知识域header/目录/详情已分离共享状态；首页旧布局仍兼容adapter，不修改旧release快照。
+
+[全站插件画布](<../architecture/plugin-canvas.md>)完整目标尚未达成：嵌套布局、媒体/桌宠/背景层、跨页面常驻、动态包registry、事件连线与工坊v2仍待实施，不能把本批当完整C0–C2。实施与迁移见[路线](<../plans/plugin-canvas-roadmap.md>)。
 
 ## 工程与运行边界
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   api,
   ApiError,
@@ -80,17 +80,27 @@ function ProfileFields({
   );
 }
 
+export type DomainsCompositionParts = {
+  header: ReactNode;
+  list: ReactNode;
+  detail: ReactNode;
+};
+
+export type DomainsViewProps = {
+  workspace: Workspace | null;
+  userId: string;
+  onDirtyChange: (value: boolean) => void;
+  onBusyChange: (value: boolean) => void;
+  composition?: (parts: DomainsCompositionParts) => ReactNode;
+};
+
 export default function DomainsView({
   workspace,
   userId,
   onDirtyChange,
   onBusyChange,
-}: {
-  workspace: Workspace | null;
-  userId: string;
-  onDirtyChange: (value: boolean) => void;
-  onBusyChange: (value: boolean) => void;
-}) {
+  composition,
+}: DomainsViewProps) {
   const [domains, setDomains] = useState<Domain[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [creating, setCreating] = useState(false);
@@ -180,8 +190,8 @@ export default function DomainsView({
       if (mounted.current) setBusy(false);
     }
   }
-  return (
-    <section className="domains-view" aria-label="知识域">
+  const header = (
+    <>
       <header className="domains-heading">
         <div>
           <h1>知识域</h1>
@@ -216,60 +226,72 @@ export default function DomainsView({
           {error}
         </p>
       )}
-      <div className="domains-layout">
-        <aside className="domains-list" aria-label="我的成员域">
-          <h2>我的成员域</h2>
-          {loading && <p role="status">正在加载域列表…</p>}
-          {!loading && !domains.length && !error && (
-            <p>尚未加入任何域。可以创建域，或由域所有者通过邮箱邀请。</p>
-          )}
-          {domains.map((domain) => (
-            <button
-              key={domain.id}
-              disabled={working}
-              aria-pressed={domain.id === selectedId}
-              onClick={() => navigate(domain.id)}
-            >
-              <strong>{domain.name}</strong>
-              <span>
-                {profiles[domain.buildProfile]} · {roles[domain.role]}
-              </span>
-              <small>{domain.description}</small>
+    </>
+  );
+  const list = (
+    <aside className="domains-list" aria-label="我的成员域">
+      <h2>我的成员域</h2>
+      {loading && <p role="status">正在加载域列表…</p>}
+      {!loading && !domains.length && !error && (
+        <p>尚未加入任何域。可以创建域，或由域所有者通过邮箱邀请。</p>
+      )}
+      {domains.map((domain) => (
+        <button
+          key={domain.id}
+          disabled={working}
+          aria-pressed={domain.id === selectedId}
+          onClick={() => navigate(domain.id)}
+        >
+          <strong>{domain.name}</strong>
+          <span>
+            {profiles[domain.buildProfile]} · {roles[domain.role]}
+          </span>
+          <small>{domain.description}</small>
+        </button>
+      ))}
+    </aside>
+  );
+  const detail = (
+    <div className="domains-detail">
+      {creating ? (
+        <form onSubmit={create}>
+          <h2>创建知识域</h2>
+          <p>绑定当前所有者工作空间：{workspace?.name}。域成员不会获得该空间的私人内容。</p>
+          <fieldset disabled={working}>
+            <ProfileFields value={draft} onChange={setDraft} />
+            <button className="primary-btn" disabled={!workspace || !draft.name.trim()}>
+              {busy ? '创建中…' : '创建域'}
             </button>
-          ))}
-        </aside>
-        <div className="domains-detail">
-          {creating ? (
-            <form onSubmit={create}>
-              <h2>创建知识域</h2>
-              <p>绑定当前所有者工作空间：{workspace?.name}。域成员不会获得该空间的私人内容。</p>
-              <fieldset disabled={working}>
-                <ProfileFields value={draft} onChange={setDraft} />
-                <button className="primary-btn" disabled={!workspace || !draft.name.trim()}>
-                  {busy ? '创建中…' : '创建域'}
-                </button>
-                <button type="button" className="text-btn" onClick={() => navigate('')}>
-                  取消
-                </button>
-              </fieldset>
-            </form>
-          ) : selectedId ? (
-            <DomainDetail
-              key={selectedId}
-              id={selectedId}
-              userId={userId}
-              onDirtyChange={setDetailDirty}
-              onBusyChange={setDetailBusy}
-              onUpdated={(domain) =>
-                setDomains((current) =>
-                  current.map((item) => (item.id === domain.id ? domain : item)),
-                )
-              }
-            />
-          ) : (
-            <p>选择知识域查看成员与贡献，或创建一个新域。</p>
-          )}
-        </div>
+            <button type="button" className="text-btn" onClick={() => navigate('')}>
+              取消
+            </button>
+          </fieldset>
+        </form>
+      ) : selectedId ? (
+        <DomainDetail
+          key={selectedId}
+          id={selectedId}
+          userId={userId}
+          onDirtyChange={setDetailDirty}
+          onBusyChange={setDetailBusy}
+          onUpdated={(domain) =>
+            setDomains((current) => current.map((item) => (item.id === domain.id ? domain : item)))
+          }
+        />
+      ) : (
+        <p>选择知识域查看成员与贡献，或创建一个新域。</p>
+      )}
+    </div>
+  );
+
+  if (composition) return composition({ header, list, detail });
+
+  return (
+    <section className="domains-view" aria-label="知识域">
+      {header}
+      <div className="domains-layout">
+        {list}
+        {detail}
       </div>
     </section>
   );

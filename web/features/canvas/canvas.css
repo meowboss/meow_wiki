@@ -1,0 +1,302 @@
+.canvas-surface {
+  width: 100%;
+  min-width: 0;
+}
+.canvas-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.canvas-toolbar button,
+.canvas-inspector button,
+.canvas-error button,
+.canvas-view-error button {
+  border: 1px solid #d9dee7;
+  border-radius: 7px;
+  padding: 7px 11px;
+  background: #fff;
+  color: #334155;
+  font-size: 13px;
+}
+.canvas-toolbar button:hover:not(:disabled),
+.canvas-inspector button:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+.canvas-status {
+  color: #64748b;
+  font-size: 12px;
+}
+.canvas-workspace {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  min-width: 0;
+}
+.canvas-board {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: 1800px;
+}
+.canvas-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--canvas-columns), minmax(0, 1fr));
+  grid-auto-rows: minmax(48px, auto);
+  gap: var(--canvas-gap);
+  align-items: stretch;
+}
+@media (min-width: 1101px) {
+  .canvas-layout-grid:has(.space-navigator-wide) > .canvas-instance[data-view-id='wiki.directory'] {
+    grid-column: 1 / span 5 !important;
+  }
+  .canvas-layout-grid:has(.space-navigator-wide) > .canvas-instance[data-view-id='wiki.document'] {
+    grid-column: 6 / span 7 !important;
+  }
+}
+.canvas-layout-flow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--canvas-gap);
+}
+.canvas-layout-free {
+  height: var(--canvas-height);
+  min-height: 160px;
+}
+.canvas-instance {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  position: relative;
+}
+.canvas-layout-free > .canvas-instance {
+  position: absolute;
+  left: calc(var(--canvas-x) * ((100% + var(--canvas-gap)) / var(--canvas-columns)));
+  top: calc(var(--canvas-y) * (48px + var(--canvas-gap)));
+  width: calc(
+    var(--canvas-w) * ((100% + var(--canvas-gap)) / var(--canvas-columns)) - var(--canvas-gap)
+  );
+  min-height: calc(var(--canvas-h) * (48px + var(--canvas-gap)) - var(--canvas-gap));
+}
+.canvas-instance[hidden] {
+  display: none;
+}
+.canvas-select-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.canvas-business-content[inert] {
+  pointer-events: none;
+  user-select: none;
+}
+body:is(.wiki-focus-active, .wiki-reader-focus-active) .canvas-toolbar,
+body:is(.wiki-focus-active, .wiki-reader-focus-active) .canvas-inspector,
+body:is(.wiki-focus-active, .wiki-reader-focus-active)
+  .canvas-instance[data-view-id='wiki.directory'] {
+  display: none;
+}
+body:is(.wiki-focus-active, .wiki-reader-focus-active) .canvas-board {
+  height: auto;
+  min-height: 0;
+  max-width: none;
+}
+body:is(.wiki-focus-active, .wiki-reader-focus-active)
+  .canvas-instance[data-view-id='wiki.document'] {
+  position: relative;
+  grid-column: 1 / -1 !important;
+  grid-row: auto !important;
+  left: auto;
+  top: auto;
+  width: 100%;
+  min-height: 0;
+}
+.canvas-instance.is-selected {
+  outline: 2px solid #6384d5;
+  outline-offset: 3px;
+}
+.is-editing .canvas-instance {
+  outline: 1px dashed #aab7cc;
+  outline-offset: 2px;
+}
+.is-editing .canvas-instance.is-selected {
+  outline: 2px solid #6384d5;
+}
+.is-editing .canvas-instance.is-hidden {
+  opacity: 0.48;
+}
+.canvas-instance-tools {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  margin-bottom: 6px;
+}
+.canvas-drag-handle {
+  touch-action: none;
+  cursor: grab;
+  color: #405473;
+  background: #edf2fa;
+  border: 1px solid #cfd9e9;
+  padding: 4px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.canvas-drag-handle:active {
+  cursor: grabbing;
+}
+.canvas-inspector {
+  width: 260px;
+  flex: 0 0 260px;
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 60px);
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid #dce2ea;
+  border-radius: 10px;
+  background: #fafbfe;
+}
+.canvas-inspector fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 22px;
+  min-width: 0;
+}
+.canvas-inspector legend {
+  font-size: 14px;
+  font-weight: 650;
+  margin-bottom: 12px;
+}
+.canvas-inspector label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #475569;
+}
+.canvas-inspector input,
+.canvas-inspector select,
+.canvas-inspector textarea {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #ccd5e1;
+  border-radius: 5px;
+  padding: 6px 8px;
+  background: white;
+  color: #25324b;
+}
+.canvas-inspector input[type='color'] {
+  height: 32px;
+  padding: 3px;
+}
+.canvas-inspector .canvas-checkbox {
+  flex-direction: row;
+  align-items: center;
+}
+.canvas-checkbox input[type='checkbox'] {
+  width: auto;
+}
+.canvas-number-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 10px;
+}
+.canvas-color-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.canvas-color-field input[type='color'] {
+  width: 34px;
+  flex: 0 0 34px;
+}
+.canvas-color-field button {
+  margin-left: auto;
+  padding: 4px 7px;
+}
+.canvas-inspector-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.canvas-view-name {
+  font: 11px monospace;
+  color: #64748b;
+  overflow-wrap: anywhere;
+}
+.canvas-inspector .muted {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #64748b;
+}
+.canvas-text {
+  white-space: pre-wrap;
+}
+.canvas-error,
+.canvas-view-error {
+  padding: 12px;
+  background: #fff4ed;
+  border: 1px solid #f1ceb9;
+  border-radius: 7px;
+  color: #8a3e23;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.canvas-error button,
+.canvas-view-error button {
+  margin-left: 10px;
+}
+.canvas-empty {
+  grid-column: 1 / -1;
+  color: #64748b;
+  padding: 24px;
+  text-align: center;
+}
+@media (max-width: 1100px) {
+  .canvas-inspector {
+    width: 220px;
+    flex-basis: 220px;
+  }
+}
+@media (max-width: 760px) {
+  .canvas-workspace {
+    flex-direction: column;
+  }
+  .canvas-layout-grid,
+  .canvas-layout-free {
+    display: flex;
+    flex-direction: column;
+    gap: var(--canvas-gap);
+    height: auto;
+  }
+  .canvas-layout-free > .canvas-instance {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: 100%;
+    min-height: 0;
+  }
+  .canvas-inspector {
+    position: static;
+    width: 100%;
+    flex-basis: auto;
+    max-height: none;
+  }
+  .canvas-toolbar {
+    gap: 6px;
+  }
+  .canvas-toolbar button {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+}

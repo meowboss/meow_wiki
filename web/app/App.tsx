@@ -57,6 +57,7 @@ import PrimaryNavigation from './navigation/PrimaryNavigation';
 import type { AppView as View } from './navigation/types';
 import useSidebarCompact from './navigation/useSidebarCompact';
 import './navigation/compact-sidebar.css';
+import WorkspaceCanvas from './WorkspaceCanvas';
 const message = (error: unknown) =>
   error instanceof Error ? error.message : '发生未知错误，请重试。';
 
@@ -108,7 +109,11 @@ export default function App({
   const [rendering, setRendering] = useState(false);
   const [renderError, setRenderError] = useState('');
   const [previewVersion, setPreviewVersion] = useState(0);
-  const [busy, setBusy] = useState('');
+  const [externalBusy, setBusy] = useState('');
+  const [canvasBusy, setCanvasBusy] = useState(false);
+  const [canvasDirty, setCanvasDirty] = useState(false);
+  // Keep canvas saves in global guards without disabling their own controls.
+  const busy = externalBusy || (canvasBusy ? 'canvas' : '');
   useEffect(() => {
     setBusy((current) => (logoutBusy ? 'logout' : current === 'logout' ? '' : current));
   }, [logoutBusy]);
@@ -153,6 +158,7 @@ export default function App({
     !logoutBusy &&
     (!(
       dirty ||
+      canvasDirty ||
       homeDirty ||
       knowledgeDirty ||
       proposalDirty ||
@@ -175,6 +181,7 @@ export default function App({
     if (
       !force &&
       (dirty ||
+        canvasDirty ||
         homeDirty ||
         knowledgeDirty ||
         proposalDirty ||
@@ -251,6 +258,7 @@ export default function App({
       if (
         busy ||
         dirty ||
+        canvasDirty ||
         homeDirty ||
         knowledgeDirty ||
         proposalDirty ||
@@ -271,6 +279,7 @@ export default function App({
     busy,
     dirty,
     homeDirty,
+    canvasDirty,
     knowledgeDirty,
     proposalDirty,
     componentDirty,
@@ -590,6 +599,7 @@ export default function App({
   function createPage() {
     if (
       (dirty ||
+        canvasDirty ||
         homeDirty ||
         knowledgeDirty ||
         proposalDirty ||
@@ -638,6 +648,7 @@ export default function App({
       busy ||
       (view !== next &&
         (dirty ||
+          canvasDirty ||
           homeDirty ||
           knowledgeDirty ||
           proposalDirty ||
@@ -916,13 +927,52 @@ export default function App({
             onBusyChange={childBusy}
           />
         ) : view === 'domains' ? (
-          <DomainsView
-            key={workspace?.id ?? 'no-workspace'}
-            workspace={workspace}
-            userId={user.id}
-            onDirtyChange={setDomainDirty}
-            onBusyChange={childBusy}
-          />
+          workspace?.id ? (
+            <DomainsView
+              key={`domains:${workspace.id}`}
+              workspace={workspace}
+              userId={user.id}
+              onDirtyChange={setDomainDirty}
+              onBusyChange={childBusy}
+              composition={({ header, list, detail }) => (
+                <div className="domains-view">
+                  <WorkspaceCanvas
+                    key={`collaboration:${workspace.id}`}
+                    surface="collaboration"
+                    data={data ?? undefined}
+                    onOpen={openSource}
+                    workspaceId={workspace.id}
+                    contentDirty={domainDirty}
+                    disabled={!!externalBusy || logoutBusy}
+                    onDirtyChange={setCanvasDirty}
+                    onBusyChange={setCanvasBusy}
+                    slots={{
+                      'collaboration.header': header,
+                      'collaboration.directory': list,
+                      'collaboration.detail': detail,
+                      'collaboration.content': (
+                        <>
+                          {header}
+                          <div className="domains-layout">
+                            {list}
+                            {detail}
+                          </div>
+                        </>
+                      ),
+                    }}
+                  />
+                </div>
+              )}
+            />
+          ) : (
+            <DomainsView
+              key={workspace?.id ?? 'no-workspace'}
+              workspace={workspace}
+              userId={user.id}
+              onDirtyChange={setDomainDirty}
+              onBusyChange={childBusy}
+            />
+          )
         ) : loading ? (
           <div className="loading-screen">
             <LoaderCircle className="spin" size={30} />
@@ -957,71 +1007,86 @@ export default function App({
                 onCreatePage={createPage}
                 onAsk={() => setAskOpen(true)}
               >
-                <div className="knowledge-space-layout">
-                  <SpaceNavigator
-                    workspaceName={data.workspace.name}
-                    pages={data.pages}
-                    selectedId={selected}
-                    plugins={data.plugins}
-                    trash={data.trash}
-                    onRestore={(id) => {
-                      const trashed = data.trash.find((p) => p.id === id);
-                      if (trashed) void undeletePage(trashed);
-                    }}
-                    busy={!!busy}
-                    onOpen={openSource}
-                    onCreate={createPage}
-                    onTogglePlugin={(id, value) => void toggleSpacePlugin(id, value)}
-                  />
-                  <div className="knowledge-space-document">
-                    {page &&
-                      (documentMode === 'read' ? (
-                        <WikiReader
-                          page={page}
-                          pages={data.pages}
-                          html={html}
-                          rendering={rendering}
-                          renderError={renderError}
-                          markdownEnabled={enabled('official.markdown')}
-                          busy={busy}
-                          onEdit={() => setDocumentMode('edit')}
-                          onOpenHistory={() => setHistoryOpen(true)}
-                          onDelete={() => void deletePage()}
-                          onOpenMarket={() => nav('market')}
-                          onRetryPreview={() => setPreviewVersion((version) => version + 1)}
-                          onOpen={openSource}
-                        />
-                      ) : (
-                        <WikiEditor
-                          page={page}
-                          pages={data.pages}
-                          title={title}
-                          markdown={markdown}
-                          parentId={parentId}
-                          baseRevision={baseRevision}
-                          dirty={dirty}
-                          conflict={conflict}
-                          busy={busy}
-                          mode={mode}
-                          markdownEnabled={enabled('official.markdown')}
-                          html={html}
-                          rendering={rendering}
-                          renderError={renderError}
-                          onTitleChange={setTitle}
-                          onMarkdownChange={setMarkdown}
-                          onParentIdChange={setParentId}
-                          onModeChange={setMode}
-                          onOpenHistory={() => setHistoryOpen(true)}
-                          onLoadLatest={() => void loadLatest()}
-                          onDelete={() => void deletePage()}
-                          onSave={() => void savePage()}
-                          onCancel={cancelEdit}
-                          onOpenMarket={() => nav('market')}
-                          onRetryPreview={() => setPreviewVersion((version) => version + 1)}
-                        />
-                      ))}
-                  </div>
-                </div>
+                <WorkspaceCanvas
+                  key={`wiki:${data.workspace.id}`}
+                  surface="wiki"
+                  data={data}
+                  onOpen={openSource}
+                  contentDirty={dirty}
+                  workspaceId={data.workspace.id}
+                  disabled={!!externalBusy || logoutBusy}
+                  onDirtyChange={setCanvasDirty}
+                  onBusyChange={setCanvasBusy}
+                  slots={{
+                    'wiki.directory': (
+                      <SpaceNavigator
+                        workspaceName={data.workspace.name}
+                        pages={data.pages}
+                        selectedId={selected}
+                        plugins={data.plugins}
+                        trash={data.trash}
+                        onRestore={(id) => {
+                          const trashed = data.trash.find((p) => p.id === id);
+                          if (trashed) void undeletePage(trashed);
+                        }}
+                        busy={!!busy}
+                        onOpen={openSource}
+                        onCreate={createPage}
+                        onTogglePlugin={(id, value) => void toggleSpacePlugin(id, value)}
+                      />
+                    ),
+                    'wiki.document': (
+                      <div className="knowledge-space-document">
+                        {page &&
+                          (documentMode === 'read' ? (
+                            <WikiReader
+                              page={page}
+                              pages={data.pages}
+                              html={html}
+                              rendering={rendering}
+                              renderError={renderError}
+                              markdownEnabled={enabled('official.markdown')}
+                              busy={busy}
+                              onEdit={() => setDocumentMode('edit')}
+                              onOpenHistory={() => setHistoryOpen(true)}
+                              onDelete={() => void deletePage()}
+                              onOpenMarket={() => nav('market')}
+                              onRetryPreview={() => setPreviewVersion((version) => version + 1)}
+                              onOpen={openSource}
+                            />
+                          ) : (
+                            <WikiEditor
+                              page={page}
+                              pages={data.pages}
+                              title={title}
+                              markdown={markdown}
+                              parentId={parentId}
+                              baseRevision={baseRevision}
+                              dirty={dirty}
+                              conflict={conflict}
+                              busy={busy}
+                              mode={mode}
+                              markdownEnabled={enabled('official.markdown')}
+                              html={html}
+                              rendering={rendering}
+                              renderError={renderError}
+                              onTitleChange={setTitle}
+                              onMarkdownChange={setMarkdown}
+                              onParentIdChange={setParentId}
+                              onModeChange={setMode}
+                              onOpenHistory={() => setHistoryOpen(true)}
+                              onLoadLatest={() => void loadLatest()}
+                              onDelete={() => void deletePage()}
+                              onSave={() => void savePage()}
+                              onCancel={cancelEdit}
+                              onOpenMarket={() => nav('market')}
+                              onRetryPreview={() => setPreviewVersion((version) => version + 1)}
+                            />
+                          ))}
+                      </div>
+                    ),
+                  }}
+                />
               </WikiWorkspaceView>
             )}
             {view === 'proposals' && (
@@ -1042,11 +1107,27 @@ export default function App({
               />
             )}
             {view === 'home' && (
-              <HomeView
+              <WorkspaceCanvas
+                key={`home:${data.workspace.id}`}
+                surface="home"
                 data={data}
                 onOpen={openSource}
-                onDirtyChange={setHomeDirty}
-                onBusyChange={childBusy}
+                contentDirty={homeDirty}
+                workspaceId={data.workspace.id}
+                disabled={!!externalBusy || logoutBusy}
+                onDirtyChange={setCanvasDirty}
+                onBusyChange={setCanvasBusy}
+                slots={{
+                  // Legacy adapter: HomeView retains its own content/layout save flow.
+                  'home.content': (
+                    <HomeView
+                      data={data}
+                      onOpen={openSource}
+                      onDirtyChange={setHomeDirty}
+                      onBusyChange={childBusy}
+                    />
+                  ),
+                }}
               />
             )}
             {(view === 'market' || view === 'components') && (
