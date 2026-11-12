@@ -146,9 +146,8 @@ export default function WorkspacePicker({
               </button>
             </div>
             <h2 id="workspace-dialog-title">
-              {editing === 'create' ? '新的空间，新的可能' : '工作空间设置'}
+              {editing === 'create' ? '创建工作空间' : '工作空间设置'}
             </h2>
-            <p className="dialog-description">用名称与说明，让知识各得其所。</p>
             <form onSubmit={(e) => void save(e)}>
               <label className="field">
                 工作空间名称

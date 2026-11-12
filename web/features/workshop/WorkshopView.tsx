@@ -337,9 +337,12 @@ export default function WorkshopView({
   return (
     <section className="workshop-view" aria-label="对话式组件工坊">
       <header className="workshop-heading">
-        <span className="workshop-eyebrow">CONVERSATIONAL COMPONENT WORKSHOP</span>
         <h1>组件工坊</h1>
-        <p>描述需求 → 对话追问与受限工具执行 → 安全预览 → 明确保存私有组件。</p>
+        <details className="workshop-intro">
+          <summary>使用说明</summary>
+          <p>描述需求 → 对话追问与受限工具执行 → 安全预览 → 明确保存私有组件。</p>
+          <p>只生成声明式组件，不执行自定义代码。密钥不能放进对话或文件。</p>
+        </details>
       </header>
       {error && (
         <p className="form-error" role="alert">
@@ -496,14 +499,15 @@ export default function WorkshopView({
         onNotice={setNotice}
       />
       <aside className="workshop-boundary" aria-label="工坊能力边界">
-        <strong>受控 Agent，不是通用代码 IDE</strong>
-        <p>
-          只读虚拟 SDK：/sdk/README.md 和 /sdk/component.schema.json。唯一可写文件 {FILE}（最多
-          30000 字符）；最多 8 轮受限工具执行。不提供 shell、任意网络或主机文件访问，不执行自定义
-          JavaScript。工具事件只显示服务端安全摘要，不呈现原始敏感输出或模型思考。
-        </p>
         <details>
-          <summary>只读 SDK / 声明式组件契约</summary>
+          <summary>开发边界</summary>
+          <p>
+            受控 Agent，不是通用代码 IDE。只读虚拟 SDK：/sdk/README.md 和
+            /sdk/component.schema.json。唯一可写文件 {FILE}（最多 30000 字符）；最多 8
+            轮受限工具执行。不提供 shell、任意网络或主机文件访问，不执行自定义
+            JavaScript。工具事件只显示服务端安全摘要，不呈现原始敏感输出或模型思考。
+          </p>
+          <strong>只读 SDK / 声明式组件契约</strong>
           <p>
             name（1–160 字符）、description（最多 500 字符）、template（惰性文本或 Markdown，最多
             10000 字符）；可选 blocks 最多 20 项，仅支持 markdown/text、page-list/title 和

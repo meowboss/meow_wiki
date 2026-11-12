@@ -84,7 +84,6 @@ export default function ReviewView({
     <div className="catalog-view">
       <div className="section-heading">
         <div>
-          <div className="eyebrow">PLATFORM REVIEW</div>
           <h1>
             组件审核<span className="heading-dot">.</span>
           </h1>

@@ -1,3 +1,35 @@
+.knowledge-view > .section-heading {
+  margin-bottom: 16px;
+  align-items: center;
+}
+.knowledge-view > .section-heading h1 {
+  margin: 4px 0 8px;
+}
+.knowledge-view > .section-heading p {
+  margin: 0;
+  font-size: 13px;
+}
+.knowledge-help {
+  margin: 12px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #536359;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.knowledge-help summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.knowledge-help summary:focus-visible,
+.knowledge-jobs summary:focus-visible {
+  outline: 2px solid #5a9174;
+  outline-offset: 4px;
+}
+.knowledge-help p:last-child {
+  margin-bottom: 0;
+}
 .knowledge-actions {
   display: flex;
   align-items: center;

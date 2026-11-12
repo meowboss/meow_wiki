@@ -73,7 +73,7 @@ export default function WorkshopPreview({
   return (
     <section className="workshop-panel workshop-preview" aria-labelledby="workshop-preview-title">
       <h2 id="workshop-preview-title">安全预览</h2>
-      <p>使用与首页相同的声明式渲染器，只读取当前授权工作空间。预览不等于保存或发布。</p>
+      <p>只读取当前授权工作空间；预览不等于保存或发布。</p>
       {stale && (
         <p className="workshop-warning">
           当前展示最近保存的文件；运行结束后会刷新，未保存 JSON 不进入预览。

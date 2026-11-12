@@ -217,10 +217,10 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
     <section className="mcp-view" aria-label="Agent 连接">
       <header>
         <h1>Agent 连接</h1>
-        <p>为 Agent 签发单个知识域的只读或提交待审贡献 MCP 凭据；默认只读。</p>
+        <p>签发与管理知识域连接凭据。</p>
       </header>
-      <aside className="mcp-boundary">
-        <h2>连接与访问边界</h2>
+      <details className="mcp-boundary">
+        <summary>使用说明 / 权限说明</summary>
         <ul>
           <li>
             端点：<code>/mcp</code>，传输方式：<strong>Streamable HTTP</strong>。
@@ -236,7 +236,7 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
           <li>服务器仍仅监听 localhost，只能在本机连接；签发凭据不会开启远程访问。</li>
           <li>当前接口不支持 OAuth；没有 OAuth 登录或授权流程。</li>
         </ul>
-      </aside>
+      </details>
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -273,9 +273,9 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
               </option>
             </select>
           </label>
-          <p>
-            仅贡献者、维护者或所有者可签发 contribute；只读成员不可签发。contribute
-            只能提交待审，不能发布或审核。
+          <p className="mcp-scope-notice">
+            授权仅限所选知识域的已发布内容，不包含私人页面或资料。仅贡献者、维护者或所有者可签发
+            contribute；只读成员不可签发。contribute 只能提交待审，不能发布或审核。
           </p>
           <label>
             凭据名称
@@ -331,7 +331,7 @@ export default function McpCredentialsView({ onDirtyChange, onBusyChange }: Prop
       )}
       <section className="mcp-panel" aria-label="已签发凭据">
         <h2>已签发凭据</h2>
-        <p>仅展示名称、域、权限范围和生命周期信息，不展示令牌或其哈希。关闭明文不会撤销凭据。</p>
+        <p>关闭明文不会撤销凭据；可在下方撤销访问。</p>
         {!loading && !credentials.length && <p>暂无凭据。</p>}
         <ul className="mcp-credentials">
           {credentials.map((record) => {

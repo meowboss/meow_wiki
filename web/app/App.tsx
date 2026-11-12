@@ -35,6 +35,7 @@ import {
   type WorkspaceData,
 } from '../shared/api';
 import Modal from '../shared/ui/Modal';
+import '../shared/compact-layout.css';
 import PageHistory from '../features/wiki/PageHistory';
 import PageTransfer from '../features/wiki/PageTransfer';
 import WikiEditor, { type WikiEditorMode } from '../features/wiki/WikiEditor';

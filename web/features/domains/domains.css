@@ -19,12 +19,39 @@
   gap: 12px;
   flex-wrap: wrap;
 }
-.domains-boundary {
-  padding: 16px;
-  background: #eef6f0;
-  border: 1px solid #c5dfcf;
-  border-radius: 10px;
+.domains-view > .domains-heading {
+  margin-bottom: 16px;
+}
+.domains-heading p {
+  margin: 0;
+  color: #65736c;
+  font-size: 13px;
+}
+.domains-help {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid #dce5df;
+  border-radius: 8px;
+  color: #536359;
+  font-size: 13px;
   line-height: 1.7;
+}
+.domains-help summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.domains-help summary:focus-visible {
+  outline: 2px solid #5a9174;
+  outline-offset: 4px;
+}
+.domains-help p:last-child {
+  margin-bottom: 0;
+}
+.domains-detail > form + section,
+.domains-detail > section + form,
+.domains-detail > form + form {
+  border-top: 1px solid #dce5df;
+  padding-top: 20px;
 }
 .domains-muted {
   color: #65736c;

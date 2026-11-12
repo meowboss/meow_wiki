@@ -356,7 +356,7 @@ export default function KnowledgeView({
           <h1>
             资料工作台<span className="heading-dot">.</span>
           </h1>
-          <p>导入原文，手动处理，基于可核验的资料问答。</p>
+          <p>整理原文，核验问答。</p>
         </div>
         <div className="knowledge-actions">
           <button
@@ -396,7 +396,6 @@ export default function KnowledgeView({
       <div className="knowledge-grid">
         <section className="knowledge-list" aria-label="资料列表">
           <h2>资料来源 · {sources.length}</h2>
-          <p className="knowledge-hint">刷新只更新状态，不替换当前草稿。</p>
           {loading && <p role="status">正在刷新资料…</p>}
           {!loading && !sources.length && <p>暂无资料。新建或导入文本开始。</p>}
           {sources.map((s) => (
@@ -470,10 +469,17 @@ export default function KnowledgeView({
                 placeholder="粘贴资料原文，或导入文本 / Markdown 文件。"
               />
             </label>
-            <p className="knowledge-hint">
-              {draft.content.length.toLocaleString()} / 200000 字符 · 原文按纯文本显示，不执行
-              HTML。草稿暂存当前会话，刷新或切换后可恢复；退出登录后清除。
-            </p>
+            <p className="knowledge-hint">{draft.content.length.toLocaleString()} / 200000 字符</p>
+            <details className="knowledge-help">
+              <summary>使用说明</summary>
+              <p>
+                原文按纯文本显示，不执行
+                HTML。草稿暂存当前会话，刷新或切换后可恢复；退出登录后清除。
+              </p>
+              <p>
+                刷新只更新状态，不替换当前草稿。保存后需手动处理，只有已就绪的当前版本参与问答。
+              </p>
+            </details>
             {draft.id && source && source.revision !== draft.base.revision && (
               <p className="form-error">
                 服务器已是 v{source.revision}，编辑仍基于 v{draft.base.revision}
@@ -560,11 +566,15 @@ export default function KnowledgeView({
                 </>
               )}
             </div>
-            <p className="knowledge-hint">
-              保存会进入 queued（待处理），不会自动建立索引。编辑后请先保存，再手动处理；只有
-              ready（已就绪）的当前版本参与问答。
-            </p>
+            <p className="knowledge-hint">保存后请点击“处理资料”，建立可检索内容。</p>
           </form>
+          {jobs
+            .filter((job) => job.sourceId === draft.id && job.error)
+            .map((job) => (
+              <p key={job.id} className="form-error" role="alert">
+                处理错误 · v{job.revision} · 第 {job.attempt} 次：{job.error}
+              </p>
+            ))}
           {draft.id && (
             <details className="knowledge-jobs">
               <summary>处理记录</summary>
@@ -585,7 +595,7 @@ export default function KnowledgeView({
         <div className="local-notice">
           <span>
             {model?.configured
-              ? `宿主已配置模型${model.model ? `：${model.model}` : ''}。模型模式会向宿主配置的模型发送问题及检索片段。`
+              ? `宿主已配置模型${model.model ? `：${model.model}` : ''}。模型模式会发送问题及检索片段，可能产生调用费用。`
               : modelError
                 ? `无法确认模型状态，已禁用模型模式：${modelError}`
                 : model === null

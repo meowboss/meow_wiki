@@ -68,7 +68,7 @@ export default function WorkshopChat({
   return (
     <section className="workshop-panel workshop-chat" aria-labelledby="workshop-chat-title">
       <h2 id="workshop-chat-title">{project?.name || '和 AI 一起创建组件'}</h2>
-      <p>描述你需要的组件，助手可追问并调用受限工具。生成后仍需你明确保存，不会自动发布。</p>
+      <p className="workshop-chat-hint">生成后需明确保存为私有组件，不会自动发布。</p>
       {project && (
         <div className="workshop-session-status">
           <p role="status">
@@ -113,9 +113,7 @@ export default function WorkshopChat({
         ))}
       </ol>
       {!project && !messages.length && (
-        <p className="workshop-empty">
-          例如：创建一个团队知识导航，包含欢迎说明、页面列表和搜索。无需填写 JSON 即可开始。
-        </p>
+        <p className="workshop-empty">描述需求即可开始，例如“创建团队知识导航”。</p>
       )}
       {running && (
         <p role="status">
@@ -152,12 +150,12 @@ export default function WorkshopChat({
             required
           />
         </label>
-        {!canSend && (
-          <p>
-            请在“Provider 设置”新增供应商或选择已配置的 Provider，无需管理员预设端点；不会模拟
-            Agent。
-          </p>
-        )}
+        {!canSend && <p>请先配置或选择 Provider。</p>}
+        <p className="workshop-request-warning">
+          发送会向所选 Provider 提交对话与组件内容，可能产生费用。请勿输入密钥。
+          {providers.find((provider) => provider.id === providerId)?.baseURL?.startsWith('http:') &&
+            ' 当前 Provider 使用 HTTP，传输不加密，请仅用于可信网络。'}
+        </p>
         <div className="workshop-actions">
           <button
             className="primary-btn"

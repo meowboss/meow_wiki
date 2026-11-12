@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, type WikiPage } from '../../shared/api';
+import './proposals.css';
 
 export interface Props {
   pages: WikiPage[];
@@ -314,16 +315,14 @@ export default function ProposalView({ pages, onDirtyChange, onBusyChange, onApp
   }
 
   return (
-    <div className="catalog-view">
+    <div className="catalog-view proposals-view">
       <div className="section-heading">
         <div>
           <div className="eyebrow">MANUAL PROPOSALS</div>
           <h1>
             页面变更提议<span className="heading-dot">.</span>
           </h1>
-          <p>
-            可手动整理证据提议，或在模型已配置时生成草稿。两者都必须人工确认，提交不会修改页面正文。
-          </p>
+          <p>整理变更，核对后应用。</p>
         </div>
         <button className="secondary-btn" disabled={working} onClick={() => void load()}>
           刷新提议列表
@@ -386,6 +385,9 @@ export default function ProposalView({ pages, onDirtyChange, onBusyChange, onApp
           >
             从资料生成模型提议
           </button>
+          {modelReady && (
+            <p>生成会发送写作要求及检索资料给模型，可能产生费用；提议需确认后才写入正文。</p>
+          )}
           {!modelReady && <p>模型未配置，此入口禁用；仍可手动整理提议。</p>}
         </section>
         <form onSubmit={(event) => void submit(event)}>
@@ -425,14 +427,17 @@ export default function ProposalView({ pages, onDirtyChange, onBusyChange, onApp
               }
             />
           </label>
-          <p id="proposal-evidence-help">
-            从问答复制引用数组，保留真实的 sourceId / revision /
-            chunkId；不要编造引用。示例结构（请替换为实际值）：
-          </p>
-          <pre className="template-preview" style={plainTextStyle}>
-            {'[{"sourceId":"来源 UUID","revision":1,"chunkId":"片段 UUID"}]'}
-          </pre>
-          <p>预览为纯文本对比，不渲染或执行 HTML。左侧为当前页面，并非历史版本快照。</p>
+          <details className="proposal-help">
+            <summary>使用说明</summary>
+            <p id="proposal-evidence-help">
+              从问答复制引用数组，保留真实的 sourceId / revision /
+              chunkId；不要编造引用。示例结构（请替换为实际值）：
+            </p>
+            <pre className="template-preview" style={plainTextStyle}>
+              {'[{"sourceId":"来源 UUID","revision":1,"chunkId":"片段 UUID"}]'}
+            </pre>
+            <p>预览为纯文本对比，不渲染或执行 HTML。左侧为当前页面，并非历史版本快照。</p>
+          </details>
           <Comparison current={currentPage} title={draft.title} markdown={draft.markdown} />
           <div className="dialog-actions">
             <span role="status">{dirty ? '有未提交的草稿更改' : '没有未提交的草稿更改'}</span>
@@ -510,6 +515,11 @@ export default function ProposalView({ pages, onDirtyChange, onBusyChange, onApp
                   {JSON.stringify(proposal.evidence, null, 2)}
                 </pre>
               </details>
+              {proposal.status === 'pending' && (
+                <p className="proposal-write-notice">
+                  接受后将以拟议标题和正文替换目标页面，并创建新版本。请先核对内容及证据。
+                </p>
+              )}
               {proposal.status === 'pending' && (
                 <div className="dialog-actions">
                   <button

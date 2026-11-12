@@ -92,25 +92,26 @@ export default function PluginLabView({ workspaceId, pages, ready }: Props) {
         <Puzzle size={27} aria-hidden="true" />
         <div>
           <h1 id="plugin-lab-title">插件实验室</h1>
-          <p>仅运行应用内置的受信示例，不支持上传、粘贴或执行用户任意代码。</p>
+          <p>运行内置受信示例，查看插件与宿主的交互。</p>
         </div>
       </header>
       <div className="plugin-lab-boundary">
         <ShieldCheck size={21} aria-hidden="true" />
         <div>
           <strong>隔离边界与最小权限</strong>
-          <p>
-            iframe 仅允许脚本，不允许同源、网络、弹窗或访问宿主 DOM。网络限制由示例响应的 CSP
-            强制实施。
-          </p>
-          <p>
-            固定清单仅授权 pages.list：只返回当前工作空间最多 50 个页面的 id
-            和标题，不提供正文、令牌或其它凭据。workspace.summary 未授权，未知方法一律拒绝。
-          </p>
-          <p>
-            每条消息最多 8000 字节，每次挂载最多 30 条。nonce
-            仅关联握手，不是权限凭据；离开或切换空间会关闭通道并移除 iframe。
-          </p>
+          <p>仅授权 pages.list：读取当前空间最多 50 个页面的 id 和标题，不提供正文或凭据。</p>
+          <details>
+            <summary>开发边界</summary>
+            <p>仅运行应用内置的受信示例，不支持上传、粘贴或执行用户任意代码。</p>
+            <p>
+              iframe 仅允许脚本，不允许同源、网络、弹窗或访问宿主 DOM。网络限制由示例响应的 CSP
+              强制实施。workspace.summary 未授权，未知方法一律拒绝。
+            </p>
+            <p>
+              每条消息最多 8000 字节，每次挂载最多 30 条。nonce
+              仅关联握手，不是权限凭据；离开或切换空间会关闭通道并移除 iframe。
+            </p>
+          </details>
         </div>
       </div>
       {!workspaceId ? (

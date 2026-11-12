@@ -294,15 +294,14 @@ export default function ComponentCatalog({
     <div className="catalog-view">
       <div className="section-heading">
         <div>
-          <div className="eyebrow">DECLARATIVE COMPONENTS</div>
           <h1>
             {view === 'market' ? '插件市场' : '我的组件'}
             <span className="heading-dot">.</span>
           </h1>
           <p>
             {view === 'market'
-              ? '仅展示审核通过的不可变发行版。安装后可添加到首页。'
-              : '私有草稿支持动态区块；编辑创建新版本，提交后可继续更新再审。'}
+              ? '安装审核通过的组件，添加到首页。'
+              : '创建与管理私有草稿，保存不会公开发布。'}
           </p>
         </div>
         {view === 'components' && (
@@ -398,7 +397,11 @@ export default function ComponentCatalog({
             <h2 id="component-edit-title">
               {editing === 'new' ? '创建私有组件' : `编辑组件 · 基于 v${editing.version}`}
             </h2>
-            <p>保存完整声明式定义，不执行脚本。更新不会修改已发布快照。</p>
+            <p>保存为私有草稿，不会公开发布。</p>
+            <details>
+              <summary>使用说明</summary>
+              <p>保存完整声明式定义，不执行脚本。编辑创建新版本，更新不会修改已发布快照。</p>
+            </details>
             {error && (
               <p className="form-error" role="alert">
                 {error}

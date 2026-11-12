@@ -129,11 +129,9 @@ export default function HomeView({ data, onOpen, onDirtyChange, onBusyChange }: 
     <div className="catalog-view home-view">
       <div className="section-heading">
         <div>
-          <div className="eyebrow">YOUR WORKSPACE HOME</div>
           <h1>
             首页<span className="heading-dot">.</span>
           </h1>
-          <p>用私有组件和已安装发行版，安排当前空间的知识入口。</p>
         </div>
         <button
           className="primary-btn"

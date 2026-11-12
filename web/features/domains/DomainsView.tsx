@@ -185,7 +185,7 @@ export default function DomainsView({
       <header className="domains-heading">
         <div>
           <h1>知识域</h1>
-          <p>跨工作空间的成员域 · 独立成员、治理与贡献快照</p>
+          <p>管理成员与共享贡献快照。</p>
         </div>
         <div className="domains-actions">
           <button className="text-btn" disabled={working} onClick={() => void refresh()}>
@@ -200,13 +200,16 @@ export default function DomainsView({
           </button>
         </div>
       </header>
-      <p className="domains-boundary">
-        加入知识域不授予其所属工作空间的页面或资料访问权。这里仅展示独立提交的域快照，不自动共享私人内容。
-      </p>
-      <p className="domains-muted">
-        构建方案用于确定性资料汇编（非 LLM）；Agent
-        连接支持域范围只读或提交待审贡献，绝不授予审核或发布权限。
-      </p>
+      <details className="domains-help">
+        <summary>使用说明 / 权限说明</summary>
+        <p>
+          加入知识域不授予其所属工作空间的页面或资料访问权。这里仅展示独立提交的域快照，不自动共享私人内容。
+        </p>
+        <p>
+          构建方案用于确定性资料汇编（非 LLM）；Agent
+          连接支持域范围只读或提交待审贡献，绝不授予审核或发布权限。
+        </p>
+      </details>
       {!workspace && <p>当前没有工作空间；仍可访问已加入的域。创建域前请先创建自己的工作空间。</p>}
       {error && (
         <p role="alert" className="form-error">
@@ -711,11 +714,13 @@ function DomainDetail({
           {writable && (
             <form onSubmit={build} aria-label="确定性资料汇编">
               <h3>确定性资料汇编（非 LLM）</h3>
-              <p>
-                按“{profiles[domain.buildProfile]}”方案汇编 1–10 条已发布快照，未调用语言模型。
-                基于域版本 {buildRevision ?? domain.revision}；仅生成
-                pending（待审核）贡献，不会自动发布，作者不能审核自己的贡献。
-              </p>
+              <details className="domains-help">
+                <summary>使用说明</summary>
+                <p>
+                  按“{profiles[domain.buildProfile]}”方案汇编 1–10 条已发布快照，未调用语言模型。
+                </p>
+              </details>
+              <p className="domains-muted">基于域版本 {buildRevision ?? domain.revision}</p>
               <fieldset disabled={working}>
                 <label>
                   构建标题
@@ -764,16 +769,20 @@ function DomainDetail({
                 >
                   {busy ? '处理中…' : '确定性汇编并提交待审（非 LLM）'}
                 </button>
+                <p>仅生成待审核贡献，不会自动发布；作者不能审核自己的贡献。</p>
               </fieldset>
             </form>
           )}
           <section aria-label="域贡献">
             <h3>{domain.role === 'reader' ? '已发布快照' : '贡献与审核'}</h3>
-            <p>
-              {domain.role === 'reader'
-                ? '只读成员仅能查看已发布快照。'
-                : '作者可查看自己的待审贡献；所有者和维护者可审核其他人的待审贡献。'}
-            </p>
+            <details className="domains-help">
+              <summary>权限说明</summary>
+              <p>
+                {domain.role === 'reader'
+                  ? '只读成员仅能查看已发布快照。'
+                  : '作者可查看自己的待审贡献；所有者和维护者可审核其他人的待审贡献。'}
+              </p>
+            </details>
             {(domain.role === 'owner' || domain.role === 'maintainer') && (
               <button
                 className="text-btn"

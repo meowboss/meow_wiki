@@ -1,13 +1,28 @@
 .workshop-view {
-  padding: 32px;
+  padding: 20px 24px;
   max-width: 1240px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
 }
+.workshop-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
 .workshop-heading h1 {
-  margin: 8px 0;
-  font-size: 30px;
+  margin: 0;
+  font-size: 24px;
+}
+.workshop-intro {
+  font-size: 13px;
+}
+.workshop-intro[open] {
+  flex-basis: 100%;
+}
+.workshop-intro p {
+  margin: 6px 0;
 }
 .workshop-heading p,
 .workshop-panel p,
@@ -22,7 +37,7 @@
   color: #527562;
 }
 .workshop-boundary {
-  padding: 18px 22px;
+  padding: 12px 16px;
   border: 1px solid #c8ded0;
   background: #f1f7f3;
   border-radius: 12px;
@@ -145,20 +160,40 @@
 .workshop-project-picker {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px 16px;
   flex-wrap: wrap;
-  margin: 24px 0 20px;
+  margin: 14px 0;
+  padding: 10px 14px;
 }
 .workshop-project-picker label {
   flex: 1;
   min-width: 220px;
   margin: 0;
+  flex-direction: row;
+  align-items: center;
+  white-space: nowrap;
+}
+.workshop-project-picker select {
+  min-width: 0;
+  padding: 7px 10px;
 }
 .workshop-conversation-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  gap: 16px;
   align-items: start;
+}
+.workshop-chat {
+  padding: 20px;
+}
+.workshop-chat .workshop-chat-hint {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+.workshop-chat .workshop-request-warning {
+  font-size: 13px;
+  color: #795827;
+  line-height: 1.6;
 }
 .workshop-session-status,
 .workshop-message-heading {

@@ -1,0 +1,60 @@
+/* Shared non-Wiki hierarchy: compact headings, readable controls, content first. */
+.catalog-view {
+  max-width: 1480px;
+  padding: 24px clamp(16px, 2.5vw, 36px) 28px;
+}
+.catalog-view .section-heading {
+  margin-bottom: 20px;
+  align-items: center;
+}
+.catalog-view .section-heading h1 {
+  font-size: 28px;
+  line-height: 1.25;
+  margin: 0;
+}
+.catalog-view .section-heading p {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 6px 0 0;
+}
+.catalog-view .eyebrow {
+  display: none;
+}
+.catalog-view .empty-state {
+  padding: 28px 20px;
+  min-height: 0;
+}
+.catalog-view .empty-state h3 {
+  font-size: 18px;
+}
+.catalog-view .empty-state p {
+  font-size: 14px;
+}
+.catalog-view details > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted, #647260);
+  padding: 7px 0;
+}
+.catalog-view details[open] > summary {
+  color: var(--text, #344336);
+}
+.home-view .home-controls {
+  padding: 16px;
+  margin-bottom: 20px;
+}
+@media (max-width: 680px) {
+  .catalog-view {
+    padding: 18px 14px 24px;
+  }
+  .catalog-view .section-heading {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .catalog-view .section-heading h1 {
+    font-size: 25px;
+  }
+  .catalog-view .section-heading p {
+    font-size: 13px;
+  }
+}
