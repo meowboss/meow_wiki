@@ -76,6 +76,62 @@ export function addContainer(
   return checked(append(tree), ids);
 }
 
+type ContainerPatch = { gap?: number; columns?: number; direction?: 'row' | 'column' };
+
+/** Only the path to the edited node is copied; all other references stay stable. */
+function replaceNode(tree: LayoutTree, id: string, replacement: LayoutTree): LayoutTree {
+  if (tree.id === id) return replacement;
+  if (tree.kind === 'view') return tree;
+  const children = tree.children?.map((child) => replaceNode(child, id, replacement));
+  return children?.some((child, index) => child !== tree.children?.[index])
+    ? { ...tree, children }
+    : tree;
+}
+
+/** Container properties are strict: fields belonging to another kind are never ignored. */
+export function updateContainer(tree: LayoutTree, id: string, patch: ContainerPatch): LayoutTree {
+  const ids = instanceIds(tree);
+  const target = find(tree, id);
+  if (!target || target.kind === 'view') throw new Error('Target must be an existing container');
+  const allowed = target.kind === 'grid' ? ['gap', 'columns'] : ['gap', 'direction'];
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch))
+    throw new Error('Container patch must be an object');
+  for (const key of Object.keys(patch)) {
+    if (!allowed.includes(key)) throw new Error(`Invalid ${target.kind} container field: ${key}`);
+  }
+  const replacement = { ...target, ...patch };
+  const next = checked(replaceNode(tree, id, replacement), ids);
+  return Object.entries(patch).every(([key, value]) => Reflect.get(target, key) === value)
+    ? tree
+    : next;
+}
+
+/** Reorder within the current parent only; the flat instances order is never involved. */
+export function reorderLeaf(tree: LayoutTree, instanceId: string, delta: number): LayoutTree {
+  const ids = instanceIds(tree);
+  if (!Number.isSafeInteger(delta)) throw new Error('Reorder delta must be a safe integer');
+  if (!ids.includes(instanceId)) throw new Error('Selected instance has no view leaf');
+  let parent: Exclude<LayoutTree, { kind: 'view' }> | undefined;
+  function locate(node: LayoutTree) {
+    if (node.kind === 'view') return;
+    if (node.children?.some((child) => child.kind === 'view' && child.instanceId === instanceId))
+      parent = node;
+    else node.children?.forEach(locate);
+  }
+  locate(tree);
+  if (!parent) return checked(tree, ids);
+  const original = parent.children!;
+  const index = original.findIndex(
+    (child) => child.kind === 'view' && child.instanceId === instanceId,
+  );
+  const destination = Math.max(0, Math.min(original.length - 1, index + delta));
+  if (destination === index) return checked(tree, ids);
+  const children = [...original];
+  const [leaf] = children.splice(index, 1);
+  children.splice(destination, 0, leaf!);
+  return checked(replaceNode(tree, parent.id, { ...parent, children }), ids);
+}
+
 /** Only leaves move: containers never become their own descendants. */
 export function moveLeaf(tree: LayoutTree, instanceId: string, targetId: string): LayoutTree {
   const ids = instanceIds(tree);

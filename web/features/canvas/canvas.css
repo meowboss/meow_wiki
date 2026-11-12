@@ -172,6 +172,12 @@ body:is(.wiki-focus-active, .wiki-reader-focus-active)
   .canvas-instance[data-view-id='wiki.directory'] {
   display: none;
 }
+body:is(.wiki-focus-active, .wiki-reader-focus-active) .canvas-tree-flow {
+  flex-direction: column !important;
+}
+body:is(.wiki-focus-active, .wiki-reader-focus-active) .canvas-tree-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
 body:is(.wiki-focus-active, .wiki-reader-focus-active) .canvas-board {
   height: auto;
   min-height: 0;
@@ -340,6 +346,18 @@ body:is(.wiki-focus-active, .wiki-reader-focus-active)
 @media (max-width: 760px) {
   .canvas-workspace {
     flex-direction: column;
+  }
+  .canvas-tree-flow {
+    flex-direction: column !important;
+  }
+  .canvas-tree-flow > * {
+    flex: 0 0 auto;
+  }
+  .canvas-tree-node {
+    min-height: min-content;
+  }
+  .canvas-tree-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
   .canvas-layout-grid,
   .canvas-layout-free {

@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { compositionSchema, type Composition } from '../../../packages/canvas-contract/index';
 import { validateLayoutTree, type LayoutTree } from '../../../packages/canvas-contract/layout-tree';
-import { addContainer, createTree, moveLeaf } from './tree-operations';
+import {
+  addContainer,
+  createTree,
+  moveLeaf,
+  reorderLeaf,
+  updateContainer,
+} from './tree-operations';
 
 type TreeComposition = Composition & { tree?: LayoutTree };
 type Props = {
@@ -64,6 +70,11 @@ export default function CanvasTreeInspector({
     ? destination
     : (tree?.id ?? '');
 
+  const activeContainer = containers.find(({ node }) => node.id === activeId)?.node;
+  const selectedLeaf = items.find(
+    ({ node }) => node.kind === 'view' && node.instanceId === selectedId,
+  );
+
   function change(operation: () => TreeComposition) {
     if (disabled) return;
     try {
@@ -125,6 +136,66 @@ export default function CanvasTreeInspector({
                   </li>
                 ))}
               </ul>
+              {activeContainer && activeContainer.kind !== 'view' && (
+                <div role="group" aria-label="容器属性">
+                  <label>
+                    容器间距
+                    <input
+                      type="number"
+                      min={0}
+                      max={48}
+                      step={1}
+                      value={activeContainer.gap ?? composition.gap}
+                      onChange={(event) =>
+                        change(() => ({
+                          ...composition,
+                          tree: updateContainer(tree, activeId, {
+                            gap: event.target.valueAsNumber,
+                          }),
+                        }))
+                      }
+                    />
+                  </label>
+                  {activeContainer.kind === 'grid' ? (
+                    <label>
+                      网格列数
+                      <input
+                        type="number"
+                        min={1}
+                        max={12}
+                        step={1}
+                        value={activeContainer.columns ?? 1}
+                        onChange={(event) =>
+                          change(() => ({
+                            ...composition,
+                            tree: updateContainer(tree, activeId, {
+                              columns: event.target.valueAsNumber,
+                            }),
+                          }))
+                        }
+                      />
+                    </label>
+                  ) : (
+                    <label>
+                      排列方向
+                      <select
+                        value={activeContainer.direction ?? 'column'}
+                        onChange={(event) =>
+                          change(() => ({
+                            ...composition,
+                            tree: updateContainer(tree, activeId, {
+                              direction: event.target.value as 'row' | 'column',
+                            }),
+                          }))
+                        }
+                      >
+                        <option value="row">横向</option>
+                        <option value="column">纵向</option>
+                      </select>
+                    </label>
+                  )}
+                </div>
+              )}
               <div role="group" aria-label="添加容器">
                 {(['row', 'column', 'grid'] as const).map((kind) => (
                   <button
@@ -167,6 +238,24 @@ export default function CanvasTreeInspector({
               >
                 移动选中组件到容器
               </button>
+              {selectedLeaf && (
+                <div role="group" aria-label="嵌套组件顺序">
+                  {([-1, 1] as const).map((delta) => (
+                    <button
+                      key={delta}
+                      type="button"
+                      onClick={() =>
+                        change(() => ({
+                          ...composition,
+                          tree: reorderLeaf(tree, selectedId!, delta),
+                        }))
+                      }
+                    >
+                      {delta === -1 ? '嵌套前移' : '嵌套后移'}
+                    </button>
+                  ))}
+                </div>
+              )}
               {!selectedId && <p className="muted">请先在画布中选择组件；只能移动组件叶节点。</p>}
             </>
           )}
