@@ -1,3 +1,4 @@
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   ArrowRight,
   Check,
@@ -15,6 +16,7 @@ import {
   Sprout,
 } from 'lucide-react';
 import type { WikiPage } from '../../shared/api';
+import './editor-experience.css';
 
 export type WikiEditorMode = 'split' | 'edit' | 'preview';
 
@@ -84,8 +86,89 @@ export default function WikiEditor({
   onOpenMarket,
   onRetryPreview,
 }: WikiEditorProps) {
+  const [focused, setFocused] = useState(false);
+  const [fontSize, setFontSize] = useState(18);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const focusButtonRef = useRef<HTMLButtonElement>(null);
+  const pendingSelection = useRef<{ start: number; end: number; scrollTop: number } | null>(null);
+
+  useEffect(() => {
+    if (!focused) return;
+    document.body.classList.add('wiki-focus-active');
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key !== 'Escape' ||
+        event.defaultPrevented ||
+        document.querySelector('[role="dialog"], dialog[open]')
+      ) {
+        return;
+      }
+      setFocused(false);
+      focusButtonRef.current?.focus({ preventScroll: true });
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.classList.remove('wiki-focus-active');
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [focused]);
+
+  // Restore the selection after the controlled value has committed, not before React updates it.
+  useLayoutEffect(() => {
+    const selection = pendingSelection.current;
+    const textarea = textareaRef.current;
+    if (!selection || !textarea) return;
+    pendingSelection.current = null;
+    textarea.focus({ preventScroll: true });
+    textarea.setSelectionRange(selection.start, selection.end);
+    textarea.scrollTop = selection.scrollTop;
+  }, [markdown]);
+
+  const insertMarkdown = (kind: 'heading' | 'bold' | 'link' | 'code' | 'indent') => {
+    const textarea = textareaRef.current;
+    if (!textarea || busy) return;
+    let start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = markdown.slice(start, end);
+    let replacement: string;
+    let selectionStart: number;
+    let selectionEnd: number;
+    if (kind === 'heading') {
+      start = start === 0 ? 0 : markdown.lastIndexOf('\n', start - 1) + 1;
+      replacement = `## ${markdown.slice(start, end) || '标题'}`;
+      selectionStart = start + 3;
+      selectionEnd = start + replacement.length;
+    } else if (kind === 'indent') {
+      replacement = '  ';
+      selectionStart = selectionEnd = start + 2;
+    } else {
+      const [prefix, content, suffix] =
+        kind === 'bold'
+          ? ['**', selected || '粗体文字', '**']
+          : kind === 'link'
+            ? ['[', selected || '链接文字', '](https://example.com)']
+            : [
+                start > 0 && markdown[start - 1] !== '\n' ? '\n```\n' : '```\n',
+                selected || '代码',
+                '\n```\n',
+              ];
+      replacement = prefix + content + suffix;
+      selectionStart = start + prefix.length;
+      selectionEnd = selectionStart + content.length;
+    }
+    pendingSelection.current = {
+      start: selectionStart,
+      end: selectionEnd,
+      scrollTop: textarea.scrollTop,
+    };
+    onMarkdownChange(markdown.slice(0, start) + replacement + markdown.slice(end));
+  };
+
   return (
-    <section className="editor-card">
+    <section
+      className={`editor-card editor-experience${focused ? ' editor-focused' : ''}`}
+      style={{ '--wiki-editor-font-size': `${fontSize}px` } as CSSProperties}
+    >
       <div className="document-heading">
         <div className="document-path">
           <span className="document-icon">
@@ -168,13 +251,38 @@ export default function WikiEditor({
           </button>
           <button
             className={mode === 'preview' ? 'active' : ''}
+            title="阅读预览"
             onClick={() => onModeChange('preview')}
           >
             <Eye size={14} />
             预览
           </button>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+        <div className="editor-experience-controls">
+          <label className="editor-font-control">
+            字号
+            <select
+              aria-label="编辑和阅读字号"
+              value={fontSize}
+              onChange={(event) => setFontSize(Number(event.target.value))}
+            >
+              {[16, 18, 20].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            ref={focusButtonRef}
+            type="button"
+            className="text-btn editor-focus-toggle"
+            aria-pressed={focused}
+            title={focused ? '退出专注模式（Esc）' : '收起导航，专注编辑与阅读'}
+            onClick={() => setFocused((value) => !value)}
+          >
+            {focused ? '退出专注' : '专注模式'}
+          </button>
           <button className="text-btn" disabled={!!busy} onClick={onOpenHistory}>
             历史
           </button>
@@ -204,12 +312,46 @@ export default function WikiEditor({
               </span>
               <span>纯文本，专注表达</span>
             </div>
+            <div className="markdown-insert-toolbar" role="group" aria-label="Markdown 格式工具">
+              {(
+                [
+                  ['heading', '标题'],
+                  ['bold', '粗体'],
+                  ['link', '链接'],
+                  ['code', '代码块'],
+                ] as const
+              ).map(([kind, label]) => (
+                <button
+                  key={kind}
+                  type="button"
+                  disabled={!!busy}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => insertMarkdown(kind)}
+                >
+                  {label}
+                </button>
+              ))}
+              <span>Tab 插入两个空格</span>
+            </div>
             <textarea
+              ref={textareaRef}
               aria-label="Markdown 内容"
               disabled={!!busy}
               spellCheck={false}
               value={markdown}
               onChange={(e) => onMarkdownChange(e.target.value)}
+              onKeyDown={(event) => {
+                if (
+                  event.key === 'Tab' &&
+                  !event.shiftKey &&
+                  !event.ctrlKey &&
+                  !event.metaKey &&
+                  !event.altKey
+                ) {
+                  event.preventDefault();
+                  insertMarkdown('indent');
+                }
+              }}
               placeholder="# 从一个想法开始…"
             />
           </div>

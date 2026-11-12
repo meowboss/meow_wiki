@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import './workspace-layout.css';
 import { ArrowRight, FileText, LoaderCircle, Plus, Puzzle, Sparkles, Sprout } from 'lucide-react';
 
 export type WikiWorkspaceViewProps = {

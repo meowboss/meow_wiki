@@ -1,0 +1,49 @@
+/* Reading/writing takes precedence over dashboard chrome in the knowledge workspace. */
+.wiki-view {
+  max-width: 1680px;
+  padding: 24px clamp(16px, 2.4vw, 38px) 28px;
+}
+.wiki-view .section-heading {
+  margin-bottom: 14px;
+}
+.wiki-view .section-heading h1 {
+  font-size: 28px;
+}
+.wiki-view .section-heading p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.wiki-view .workspace-stats {
+  margin-bottom: 18px;
+}
+.wiki-view .document-title {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+.wiki-view .document-title > input {
+  font-size: clamp(23px, 2vw, 32px);
+}
+.wiki-view .document-meta {
+  font-size: 12px;
+}
+.wiki-view .document-path,
+.wiki-view .save-status {
+  font-size: 12px;
+}
+.wiki-view .ask-banner {
+  margin-top: 24px;
+}
+@media (max-width: 680px) {
+  .wiki-view {
+    padding: 16px 12px 24px;
+  }
+  .wiki-view .section-heading p {
+    display: none;
+  }
+  .wiki-view .section-heading h1 {
+    font-size: 24px;
+  }
+  .wiki-view .workspace-stats {
+    margin-bottom: 12px;
+  }
+}
