@@ -40,7 +40,7 @@ test('revoking an old MCP credential preserves another currently displayed one-t
 test('component Escape cancellation asks before discarding local edit', async ({ page }) => {
   await signup(page);
   await page.getByRole('button', { name: '我的组件', exact: true }).click();
-  await page.getByRole('button', { name: '创建组件', exact: true }).click();
+  await page.getByRole('button', { name: '高级手动创建', exact: true }).click();
   await page.getByLabel('组件名称', { exact: true }).fill('未保存组件');
   await page.getByRole('textbox', { name: '区块文本', exact: true }).fill('不可误丢的草稿');
   page.once('dialog', (d) => d.dismiss());

@@ -15,6 +15,7 @@ type Props = {
   user: SessionUser;
   refresh: () => Promise<unknown>;
   onOpen: (id: string) => void;
+  onCreateWithAgent: () => void;
   onBusyChange: (busy: boolean) => void;
   onDirtyChange: (dirty: boolean) => void;
 };
@@ -65,6 +66,7 @@ export default function ComponentCatalog({
   user,
   refresh,
   onOpen,
+  onCreateWithAgent,
   onBusyChange,
   onDirtyChange,
 }: Props) {
@@ -304,9 +306,14 @@ export default function ComponentCatalog({
           </p>
         </div>
         {view === 'components' && (
-          <button className="primary-btn" disabled={busy} onClick={() => edit('new')}>
-            创建组件
-          </button>
+          <div className="catalog-card-actions">
+            <button className="primary-btn" disabled={busy} onClick={onCreateWithAgent}>
+              创建组件
+            </button>
+            <button className="text-btn" disabled={busy} onClick={() => edit('new')}>
+              高级手动创建
+            </button>
+          </div>
         )}
       </div>
       {error && (

@@ -894,6 +894,8 @@ export default function App({
           <WorkshopView
             key={workspace?.id ?? 'no-workspace'}
             workspaceId={workspace?.id ?? null}
+            pages={data && data.workspace.id === workspace?.id && !loading ? data.pages : []}
+            onOpen={openSource}
             onDirtyChange={setWorkshopDirty}
             onBusyChange={childBusy}
             onInstalled={load}
@@ -1022,6 +1024,7 @@ export default function App({
                 onOpen={openSource}
                 onBusyChange={childBusy}
                 onDirtyChange={setComponentDirty}
+                onCreateWithAgent={() => nav('workshop')}
               />
             )}
             {view === 'reviews' && user.role === 'admin' && (

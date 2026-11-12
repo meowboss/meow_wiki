@@ -16,6 +16,7 @@
     "check": "tsc --noEmit",
     "test:e2e": "node scripts/system-tests.mjs",
     "test:e2e:shared": "playwright test",
+    "test:conversation": "playwright test --config playwright.conversation.config.ts",
     "format": "prettier --write src web packages tests e2e",
     "format:check": "prettier --check src web packages tests e2e",
     "test:architecture": "tsx --test tests/architecture.test.ts"

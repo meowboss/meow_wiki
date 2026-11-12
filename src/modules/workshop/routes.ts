@@ -4,6 +4,7 @@ import type { HttpContext } from '../../http/context.ts';
 import { ProviderVault } from './providers.ts';
 import { WorkshopProjects } from './projects.ts';
 import { WorkshopEngine } from './engine.ts';
+import { ConversationStore } from './conversation.ts';
 export type WorkshopOptions = {
   masterSecret: string;
   allowedEndpoints: Record<string, string>;
@@ -17,7 +18,8 @@ export function registerWorkshop(
   const vault = new ProviderVault(context.store.db, options.masterSecret, options.allowedEndpoints);
   const projects = new WorkshopProjects(context.store.db, context.components);
   projects.recoverInterruptedRuns(); // Single-instance startup reconciliation, not a multi-replica lease.
-  const engine = new WorkshopEngine(projects, vault, options.fetcher);
+  const conversation = new ConversationStore(context.store.db, projects);
+  const engine = new WorkshopEngine(projects, vault, options.fetcher, conversation);
   app.get('/api/workshop/config', async () => ({
     endpoints: Object.keys(options.allowedEndpoints).map((id) => ({ id, label: id })),
     configured: Object.keys(options.allowedEndpoints).length > 0,
@@ -61,6 +63,19 @@ export function registerWorkshop(
   app.post<{ Params: { id: string } }>('/api/workshop/projects/:id/validate', async (request) =>
     projects.validate(context.caller(request), request.params.id),
   );
+  app.get<{ Params: { id: string } }>('/api/workshop/projects/:id/messages', async (request) => ({
+    messages: conversation.list(context.caller(request), request.params.id),
+  }));
+  app.post<{ Params: { id: string } }>('/api/workshop/projects/:id/chat', async (request) => {
+    const { providerId, message } = z
+      .object({
+        providerId: z.string().uuid(),
+        message: z.string().trim().min(1).max(3000),
+      })
+      .strict()
+      .parse(request.body);
+    return engine.chat(context.caller(request), request.params.id, providerId, message);
+  });
   app.post<{ Params: { id: string } }>('/api/workshop/projects/:id/run', async (request) => {
     const { providerId } = z.object({ providerId: z.string().uuid() }).strict().parse(request.body);
     return engine.run(context.caller(request), request.params.id, providerId);

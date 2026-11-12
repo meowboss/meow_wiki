@@ -203,6 +203,17 @@ export class WorkshopProjects {
     return this.components.create(owner, project.workspaceId, JSON.parse(content));
   }
 
+  /** Atomic project lock shared by engines using this database, acquired before any history writes. */
+  claimRun(owner: string, id: string): void {
+    this.get(owner, id);
+    const result = this.db
+      .prepare(
+        "UPDATE mw_workshop_projects SET state = 'running', iterations = 0, error = NULL WHERE owner = ? AND id = ? AND state != 'running'",
+      )
+      .run(owner, id);
+    if (Number(result.changes) !== 1) throw conflict();
+  }
+
   setRunState(
     owner: string,
     id: string,

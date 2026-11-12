@@ -10,9 +10,17 @@ test('virtual workshop validates declaration and imports private component witho
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
   await expect(page.getByLabel('页面标题')).toBeVisible();
   await page.getByRole('button', { name: '组件工坊', exact: true }).click();
-  await page.getByLabel('项目名称', { exact: true }).fill('读书组件项目');
-  await page.getByLabel('组件需求', { exact: true }).fill('创建可复用读书卡');
-  await page.getByRole('button', { name: '创建项目', exact: true }).click();
+  const me = await (await page.request.get('/api/auth/me')).json();
+  await page.request.post('/api/workshop/projects', {
+    headers: { 'x-csrf-token': me.csrfToken },
+    data: { name: '读书组件项目', instruction: '创建可复用读书卡' },
+  });
+  await page.reload();
+  await page.getByRole('button', { name: '组件工坊', exact: true }).click();
+  await page
+    .getByRole('combobox', { name: '选择项目', exact: true })
+    .selectOption({ label: '读书组件项目' });
+  await page.getByText('高级：声明式 JSON 编辑', { exact: true }).click();
   const editor = page
     .getByRole('textbox', { name: /component.json|组件 JSON|JSON 内容|项目文件/ })
     .first();
@@ -26,7 +34,7 @@ test('virtual workshop validates declaration and imports private component witho
   );
   await page.getByRole('button', { name: '保存 JSON', exact: true }).click();
   await page.getByRole('button', { name: '校验组件', exact: true }).click();
-  await page.getByRole('button', { name: '导入私有组件', exact: true }).click();
+  await page.getByRole('button', { name: '保存为私有组件', exact: true }).click();
   await page.screenshot({ path: 'artifacts/visual/workshop-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'artifacts/visual/workshop-mobile.png', fullPage: true });

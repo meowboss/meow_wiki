@@ -20,7 +20,7 @@ test('ordinary author submits a pending component without review navigation or m
   const nav = page.getByRole('navigation', { name: '主导航' });
   await expect(nav.getByRole('button', { name: '组件审核', exact: true })).toHaveCount(0);
   await nav.getByRole('button', { name: '我的组件', exact: true }).click();
-  await page.getByRole('button', { name: '创建组件', exact: true }).click();
+  await page.getByRole('button', { name: '高级手动创建', exact: true }).click();
   const name = '等待审核的知识入口';
   await page.getByLabel('组件名称', { exact: true }).fill(name);
   await page
