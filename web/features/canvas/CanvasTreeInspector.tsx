@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import TreeLayerList, { type TreeLayerItem } from './TreeLayerList';
 import { compositionSchema, type Composition } from '../../../packages/canvas-contract/index';
 import { validateLayoutTree, type LayoutTree } from '../../../packages/canvas-contract/layout-tree';
 import {
@@ -16,10 +17,8 @@ type Props = {
   disabled: boolean;
   onChange: (composition: Composition) => void;
 };
-type Row = { node: LayoutTree; depth: number; label: string };
-
-function rows(tree: LayoutTree, composition: Composition): Row[] {
-  const result: Row[] = [];
+function rows(tree: LayoutTree, composition: Composition): TreeLayerItem[] {
+  const result: TreeLayerItem[] = [];
   function visit(node: LayoutTree, depth: number) {
     const label =
       node.kind === 'view'
@@ -118,24 +117,18 @@ export default function CanvasTreeInspector({
               <p className="muted">
                 最多 6 层、80 个节点；空容器也占用节点预算，每个容器最多 40 个子节点。
               </p>
-              <ul aria-label="布局层列表">
-                {items.map(({ node, depth, label }) => (
-                  <li key={node.id}>
-                    {`第 ${depth} 层 · `}
-                    {node.kind === 'view' ? (
-                      label
-                    ) : (
-                      <button
-                        type="button"
-                        aria-pressed={activeId === node.id}
-                        onClick={() => setSelectedContainer(node.id)}
-                      >
-                        {node.id === tree.id ? `根 · ${label}` : label}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              <TreeLayerList
+                items={items}
+                activeId={activeId}
+                disabled={disabled}
+                onSelectContainer={setSelectedContainer}
+                onMoveLeaf={(instanceId, containerId) =>
+                  change(() => ({
+                    ...composition,
+                    tree: moveLeaf(tree, instanceId, containerId),
+                  }))
+                }
+              />
               {activeContainer && activeContainer.kind !== 'view' && (
                 <div role="group" aria-label="容器属性">
                   <label>

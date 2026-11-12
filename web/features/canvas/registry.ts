@@ -13,6 +13,12 @@ type ViewMetadata = CanvasCatalogEntry & {
 const views: readonly ViewMetadata[] = [
   { label: '文本', viewId: 'builtin.text', config: { text: '在此输入文本' }, repeatable: true },
   { label: '搜索', viewId: 'builtin.search', config: {}, repeatable: true },
+  {
+    label: '可重复笔记目录',
+    viewId: 'builtin.directory',
+    config: { text: '笔记目录' },
+    repeatable: true,
+  },
   { label: '图片 / 背景', viewId: 'builtin.image', config: { alt: '图片' }, repeatable: true },
   {
     label: '视频播放器',

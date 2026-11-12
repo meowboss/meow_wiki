@@ -12,6 +12,12 @@ test('nested row and column groups save with complete instance coverage', async 
   await page.getByRole('combobox', { name: '排列方向', exact: true }).selectOption('row');
   await page.getByRole('spinbutton', { name: '容器间距', exact: true }).fill('24');
   await page.getByRole('button', { name: '添加行容器', exact: true }).click();
+  const target = page
+    .getByRole('list', { name: '布局层列表' })
+    .getByRole('button')
+    .filter({ hasText: '行容器' })
+    .last();
+  await page.getByRole('button', { name: '移动组件 wiki.document', exact: true }).dragTo(target);
   await page.getByRole('button', { name: '保存布局', exact: true }).click();
   await expect(page.locator('.canvas-tree-root')).toBeVisible();
   await page.reload();

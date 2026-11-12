@@ -2,6 +2,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import CanvasSurface from '../features/canvas/CanvasSurface';
 import HomeComponentView, { homeCanvasEntries } from '../features/home/HomeComponentView';
 import CanvasSearchView from '../shared/components/CanvasSearchView';
+import CanvasDirectoryView from '../shared/components/CanvasDirectoryView';
 import type { WorkspaceData } from '../shared/api';
 import type { CanvasCatalogEntry } from '../features/canvas/CanvasCatalog';
 
@@ -70,6 +71,14 @@ export default function WorkspaceCanvas({
               <HomeComponentView data={data} reference={instance.config} onOpen={onOpen} />
             ) : (
               <p>当前空间数据未就绪</p>
+            );
+          case 'builtin.directory':
+            return (
+              <CanvasDirectoryView
+                pages={data?.pages ?? []}
+                config={instance.config}
+                onOpen={onOpen}
+              />
             );
           case 'builtin.search':
             return <CanvasSearchView onOpen={onOpen} />;

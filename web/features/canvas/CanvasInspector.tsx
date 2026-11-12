@@ -159,7 +159,7 @@ export default function CanvasInspector({
               />
             ))}
           </div>
-          {selected.viewId === 'builtin.text' && (
+          {['builtin.text', 'builtin.directory'].includes(selected.viewId) && (
             <label>
               文本内容
               <textarea

@@ -1,0 +1,20 @@
+import { test, expect } from '@playwright/test';
+test('two directory instances retain independent queries and survive reorder', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '注册', exact: true }).click();
+  await page.getByLabel('你的名字').fill('双目录');
+  await page.getByLabel('邮箱', { exact: true }).fill(`directories-${Date.now()}@example.test`);
+  await page.getByLabel('密码', { exact: true }).fill('directories-password-123');
+  await page.getByRole('button', { name: '创建我的知识花园' }).click();
+  await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '编辑布局', exact: true }).click();
+  await page.getByLabel('添加功能视图').selectOption({ label: '可重复笔记目录' });
+  await page.getByRole('button', { name: '复制组件', exact: true }).click();
+  await page.getByRole('button', { name: '保存布局', exact: true }).click();
+  const dirs = page.locator('.canvas-directory-view');
+  await expect(dirs).toHaveCount(2);
+  await dirs.first().getByLabel('目录筛选').fill('欢迎');
+  await expect(dirs.first().getByRole('button')).toHaveCount(1);
+  await expect(dirs.last().getByRole('button')).toHaveCount(2);
+  await expect(dirs.last().getByLabel('目录筛选')).toHaveValue('');
+});
