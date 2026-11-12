@@ -27,8 +27,24 @@ test('history cleanup requires exported snapshot acknowledgement and preserves c
   await (await download).saveAs('test-results/page-history-export.json');
   await page.getByLabel('我已检查并安全保存导出文件').check();
   await page.getByRole('combobox', { name: /保留最近版本数/ }).selectOption('10');
+  let intercepted!: () => void, release!: () => void;
+  const requestHeld = new Promise<void>((resolve) => {
+    intercepted = resolve;
+  });
+  const proceed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/history/archive?*', async (route) => {
+    intercepted();
+    await proceed;
+    await route.continue();
+  });
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: '永久清理最旧历史' }).click();
+  await requestHeld;
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('heading', { name: '页面版本历史', exact: true })).toBeVisible();
+  release();
   await expect(page.getByText(/历史清理成功/)).toBeVisible();
   const history = await (await page.request.get(`/api/pages/${target.id}/history`)).json();
   expect(history.revisions).toHaveLength(10);
