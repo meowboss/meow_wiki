@@ -1,19 +1,20 @@
 .workshop-workspace {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(420px, 1.15fr) minmax(0, 1fr);
-  align-items: start;
-  gap: 18px;
+  grid-template-columns: minmax(0, var(--workshop-left, 50fr)) 6px minmax(
+      0,
+      var(--workshop-right, 50fr)
+    );
+  grid-template-rows: 40px minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .workshop-workspace-preview-hidden {
   grid-template-columns: minmax(0, 1fr);
-}
-
-.workshop-workspace-preview-hidden .workshop-workspace-chat {
-  width: 100%;
-  max-width: 1000px;
-  margin-inline: auto;
 }
 
 .workshop-workspace-chat,
@@ -21,41 +22,64 @@
 .workshop-workspace-panel,
 .workshop-workspace-editor {
   min-width: 0;
+  min-height: 0;
+}
+
+.workshop-workspace-chat {
+  grid-row: 2;
+  height: 100%;
+  overflow: hidden;
+  padding: 16px;
+  box-sizing: border-box;
 }
 
 .workshop-workspace-pane {
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   overflow: hidden;
   border: 1px solid var(--border, #dce2e8);
-  border-radius: 14px;
+  border-radius: 0;
+  box-sizing: border-box;
   background: var(--surface, #fff);
 }
 
 .workshop-workspace-heading {
   grid-column: 1 / -1;
+  grid-row: 1;
   min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 0 2px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border, #dce2e8);
+  overflow: hidden;
 }
 
-.workshop-workspace-controls {
+.workshop-workspace-controls,
+.workshop-workspace-header-tools,
+.workshop-workspace-actions {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
-.workshop-workspace-preview-toggle {
+.workshop-workspace-controls {
+  margin-left: auto;
+}
+
+.workshop-workspace .workshop-workspace-preview-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
   padding: 0;
   border: 1px solid var(--border, #dce2e8);
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--surface, #fff);
   color: var(--text-muted, #64748b);
   cursor: pointer;
@@ -66,7 +90,7 @@
   color: var(--accent, #2563eb);
 }
 
-.workshop-workspace-heading h2 {
+.workshop-workspace .workshop-workspace-heading h2 {
   min-width: 0;
   margin: 0;
   overflow: hidden;
@@ -81,19 +105,39 @@
   font-size: 0.8rem;
 }
 
+.workshop-workspace-separator {
+  grid-row: 2;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  background: var(--surface-hover, #f1f5f9);
+}
+
+.workshop-workspace-separator:hover,
+.workshop-workspace-separator:active {
+  background: var(--accent, #2563eb);
+}
+
 .workshop-workspace-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
+  min-width: 0;
   padding: 0 12px;
+  overflow-x: auto;
   border-bottom: 1px solid var(--border, #dce2e8);
 }
 
 .workshop-workspace-tabs {
   display: flex;
+  flex: 0 0 auto;
   gap: 4px;
+}
+
+.workshop-workspace-actions {
+  margin-left: auto;
 }
 
 .workshop-workspace-tabs > button,
@@ -110,6 +154,7 @@
   padding: 11px 14px;
   border-bottom: 2px solid transparent;
   color: var(--text-muted, #64748b);
+  white-space: nowrap;
 }
 
 .workshop-workspace-tabs > button[aria-selected='true'] {
@@ -119,13 +164,16 @@
 }
 
 .workshop-workspace-files-toggle {
+  flex: 0 0 auto;
   padding: 7px 8px;
   border-radius: 6px;
   font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .workshop-workspace button:focus-visible,
-.workshop-workspace-panel:focus-visible {
+.workshop-workspace-panel:focus-visible,
+.workshop-workspace-separator:focus-visible {
   outline: 2px solid var(--accent, #2563eb);
   outline-offset: -2px;
 }
@@ -135,12 +183,17 @@
   background: var(--surface-hover, #f1f5f9);
 }
 
+.workshop-workspace-panel {
+  flex: 1 1 0;
+}
+
 .workshop-workspace-preview {
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 18px;
-  max-height: min(78vh, 960px);
   container-type: inline-size;
 }
+
 @container (max-width: 620px) {
   .workshop-workspace-preview .canvas-layout-grid {
     display: flex;
@@ -160,9 +213,10 @@
 .workshop-workspace-source {
   display: flex;
   align-items: stretch;
+  overflow: hidden;
 }
 
-/* Explicitly preserve native hidden behavior even on flex/grid containers. */
+/* Slots remain mounted; native hidden must still win over their flex/grid rules. */
 .workshop-workspace [hidden] {
   display: none !important;
 }
@@ -170,7 +224,9 @@
 .workshop-workspace-files {
   flex: 0 0 180px;
   min-width: 0;
+  min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 14px 10px;
   border-right: 1px solid var(--border, #dce2e8);
 }
@@ -212,6 +268,7 @@
 .workshop-workspace-editor {
   flex: 1 1 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 16px;
 }
 
@@ -228,12 +285,37 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .workshop-workspace-pane {
+    position: absolute;
+    inset: 40px 0 0;
+    z-index: 2;
+    height: auto;
+  }
+
+  .workshop-workspace-preview-visible .workshop-workspace-chat {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .workshop-workspace-separator {
+    display: none;
+  }
+
+  .workshop-workspace-status {
+    display: none;
+  }
+
+  .workshop-workspace-chat {
+    padding: 12px;
+  }
+
   .workshop-workspace-source {
     flex-direction: column;
   }
 
   .workshop-workspace-files {
-    flex-basis: auto;
+    flex: 0 1 auto;
+    max-height: 30%;
     border-right: 0;
     border-bottom: 1px solid var(--border, #dce2e8);
   }

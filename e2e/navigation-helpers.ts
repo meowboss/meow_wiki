@@ -14,7 +14,16 @@ const navigationGroups: Record<string, string> = {
 
 export async function navigate(page: Page, label: string) {
   if (label === '个人设置') {
-    await page.locator('.topbar').getByRole('button', { name: '个人设置', exact: true }).click();
+    const sidebarProfile = page
+      .locator('.sidebar')
+      .getByRole('button', { name: '个人设置', exact: true });
+    if (!(await sidebarProfile.isVisible())) {
+      const expand = page.getByRole('button', { name: '展开导航', exact: true });
+      if (await expand.isVisible()) await expand.click();
+    }
+    if (await sidebarProfile.isVisible()) await sidebarProfile.click();
+    else
+      await page.locator('.topbar').getByRole('button', { name: '个人设置', exact: true }).click();
     return;
   }
   const navigation = page.getByRole('navigation', { name: '主导航', includeHidden: true });

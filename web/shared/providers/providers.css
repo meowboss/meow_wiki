@@ -1,0 +1,136 @@
+/* Shared Provider controls: independent of workshop layout and theme selectors. */
+.shared-provider-settings {
+  --provider-ink: #20313f;
+  --provider-muted: #52636f;
+  --provider-line: #dce4e2;
+  --provider-primary: #124b59;
+  min-width: 0;
+  color: var(--provider-ink);
+}
+.shared-provider-settings h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  line-height: 1.4;
+}
+.shared-provider-settings summary {
+  cursor: pointer;
+  font-weight: 600;
+  line-height: 1.7;
+}
+.shared-provider-settings p {
+  color: var(--provider-muted);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.shared-provider-settings .provider-settings {
+  margin: 0;
+  padding: 16px 0;
+  border: 0;
+  border-bottom: 1px solid var(--provider-line);
+  border-radius: 0;
+  background: transparent;
+}
+.shared-provider-settings .provider-settings > form {
+  max-width: 980px;
+  margin-top: 16px;
+}
+.shared-provider-settings fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.shared-provider-settings label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 14px 0;
+  color: var(--provider-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+.shared-provider-settings input,
+.shared-provider-settings select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #b9c9cb;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--provider-ink);
+  font: inherit;
+  font-weight: 400;
+}
+.shared-provider-settings :is(input, select, button, summary):focus-visible {
+  outline: 2px solid #247487;
+  outline-offset: 3px;
+}
+.shared-provider-settings button {
+  min-height: 38px;
+  font-size: 14px;
+}
+.shared-provider-settings button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.shared-provider-settings .primary-btn {
+  padding: 10px 18px;
+  border: 1px solid var(--provider-primary);
+  border-radius: 6px;
+  background: var(--provider-primary);
+  color: #fff;
+  font-weight: 600;
+}
+.shared-provider-settings .primary-btn:hover:not(:disabled) {
+  background: #0c3945;
+  border-color: #0c3945;
+}
+.shared-provider-settings .secondary-btn {
+  padding: 9px 15px;
+  border: 1px solid #aebfc2;
+  border-radius: 6px;
+  background: #fff;
+  color: #204d59;
+}
+.shared-provider-settings .text-btn {
+  padding: 7px 9px;
+  color: #225766;
+}
+.shared-provider-settings .provider-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+.shared-provider-settings .provider-list {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+}
+.shared-provider-settings .provider-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--provider-line);
+}
+.shared-provider-settings .provider-list li span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.shared-provider-settings .provider-list small {
+  display: block;
+  margin-top: 5px;
+  color: var(--provider-muted);
+}
+@media (max-width: 520px) {
+  .shared-provider-settings input,
+  .shared-provider-settings select {
+    font-size: 16px;
+  }
+  .shared-provider-settings .provider-list li {
+    flex-wrap: wrap;
+  }
+}

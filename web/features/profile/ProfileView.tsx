@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, type SessionInfo, type UserProfile } from '../../shared/api';
+import ProviderSettingsPanel from '../../shared/providers/ProviderSettingsPanel';
+import './profile-settings.css';
 import './profile.css';
 
 type Props = {
@@ -51,6 +53,9 @@ export default function ProfileView({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [attempt, setAttempt] = useState(0);
+  const [providerSelection, setProviderSelection] = useState('');
+  const [providerDirty, setProviderDirty] = useState(false);
+  const [providerBusy, setProviderBusy] = useState(false);
   const callbacks = useRef({ onUserUpdated, onDirtyChange, onBusyChange });
   callbacks.current = { onUserUpdated, onDirtyChange, onBusyChange };
   const lifecycle = useRef<AbortController | null>(null);
@@ -87,11 +92,11 @@ export default function ProfileView({
     };
   }, [editable, attempt]);
   useEffect(() => {
-    callbacks.current.onDirtyChange(dirty);
-  }, [dirty]);
+    callbacks.current.onDirtyChange(dirty || providerDirty);
+  }, [dirty, providerDirty]);
   useEffect(() => {
-    callbacks.current.onBusyChange(working);
-  }, [working]);
+    callbacks.current.onBusyChange(working || providerBusy);
+  }, [working, providerBusy]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -230,13 +235,38 @@ export default function ProfileView({
             <button
               type="submit"
               className="primary-btn"
-              disabled={working || !dirty || invalidName}
+              disabled={working || providerBusy || !dirty || invalidName}
             >
               {saving ? '正在保存昵称…' : '保存昵称'}
             </button>
           </footer>
         </form>
       )}
+      <ProviderSettingsPanel
+        usageNotes={
+          <>
+            {' '}
+            <ul>
+              <li>
+                Agent 发送的对话会提交给你选择的
+                Provider，可能产生费用；不要把密钥写进对话或页面源码。
+              </li>
+              <li>
+                Provider API Key
+                仅在此页面配置并由服务端加密保存；修改供应商或地址需按表单要求重新提交密钥。
+              </li>
+              <li>优先使用 HTTPS；明文 HTTP 只应连接可信网络中的本地或内网服务。</li>
+              <li>
+                工坊页面源码为受限声明式 JSON，不执行任意 JavaScript；应用页面前会执行版本冲突检查。
+              </li>
+            </ul>
+          </>
+        }
+        selectedId={providerSelection}
+        onSelected={setProviderSelection}
+        onDirtyChange={setProviderDirty}
+        onBusyChange={setProviderBusy}
+      />
     </section>
   );
 }

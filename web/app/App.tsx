@@ -683,7 +683,9 @@ export default function App({
   };
 
   return (
-    <div className={`app-shell${sidebarCompact ? ' sidebar-compact' : ''}`}>
+    <div
+      className={`app-shell${sidebarCompact ? ' sidebar-compact' : ''}${view === 'workshop' ? ' app-workshop-active' : ''}`}
+    >
       {sidebar && (
         <button className="sidebar-scrim" aria-label="收起导航" onClick={() => setSidebar(false)} />
       )}
@@ -939,6 +941,7 @@ export default function App({
           />
         ) : view === 'workshop' ? (
           <WorkshopView
+            onToggleNavigation={() => setSidebar((value) => !value)}
             key={`${workspace?.id ?? 'no-workspace'}:${workshopTarget?.workspaceId === workspace?.id ? (workshopTarget?.projectId ?? 'new') : 'new'}`}
             initialProjectId={
               workshopTarget?.workspaceId === workspace?.id ? workshopTarget?.projectId : undefined

@@ -1,0 +1,93 @@
+.app-workshop-active {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+.app-workshop-active .main-shell {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.app-workshop-active .topbar {
+  display: none;
+}
+.app-workshop-active .workshop-view {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  max-width: none;
+  padding: 12px 18px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.app-workshop-active .workshop-workspace {
+  flex: 1;
+  min-height: 0;
+}
+.app-workshop-active .workshop-view > .form-error,
+.app-workshop-active .workshop-view > .workshop-notice {
+  position: absolute;
+  bottom: 12px;
+  right: 24px;
+  left: auto;
+  width: min(420px, calc(100% - 48px));
+  pointer-events: none;
+  z-index: 12;
+  font-size: 12px;
+  margin: 0;
+  padding: 8px 12px;
+  max-height: 76px;
+  overflow: auto;
+  box-shadow: 0 3px 10px #0001;
+}
+.workshop-workspace-actions {
+  display: flex;
+  align-items: center;
+}
+.workshop-workspace-actions .workshop-editor {
+  padding: 0;
+  border: 0;
+}
+.workshop-workspace-actions .workshop-actions {
+  margin: 0;
+  gap: 4px;
+}
+.workshop-workspace-actions .workshop-editor p,
+.workshop-workspace-actions .workshop-validation-success {
+  display: none;
+}
+.workshop-workspace-actions button {
+  font-size: 11px;
+  padding: 5px 8px;
+  min-height: 30px;
+}
+.workshop-workspace-actions .workshop-validation-error {
+  position: absolute;
+  right: 8px;
+  top: 80px;
+  z-index: 5;
+  max-width: 380px;
+  max-height: 160px;
+  overflow: auto;
+  background: #fff;
+}
+.workshop-view > .workshop-secondary-information,
+.workshop-view > .workshop-configuration {
+  display: none;
+}
+@media (max-width: 900px) {
+  .app-workshop-active .workshop-view {
+    padding: 8px;
+  }
+  .workshop-workspace-actions {
+    max-width: 100%;
+    overflow: auto;
+  }
+  .app-workshop-active .sidebar {
+    height: 100dvh;
+  }
+}

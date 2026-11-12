@@ -1,0 +1,20 @@
+.profile-usage-notice,
+.workshop-provider-settings {
+  margin-top: 24px;
+  padding-block: 16px;
+  border-top: 1px solid var(--border, #dce2e8);
+}
+.profile-usage-notice summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+.profile-usage-notice ul {
+  padding-left: 22px;
+  line-height: 1.8;
+}
+.workshop-provider-settings > h2 {
+  font-size: 18px;
+}
+.workshop-provider-settings .workshop-settings {
+  margin-top: 12px;
+}

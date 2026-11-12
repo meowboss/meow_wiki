@@ -12,7 +12,7 @@ test('user and Agent clarify, create, iterate and explicitly save a private comp
   await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   await navigate(page, '我的组件');
   await page.getByRole('button', { name: '创建组件', exact: true }).click();
-  await expect(page.getByRole('heading', { name: /组件工坊/ })).toBeVisible();
+  await expect(page.getByRole('region', { name: '对话式组件工坊', exact: true })).toBeVisible();
   // Trusted local HTTP fixture uses the legacy host-mapped API; user URLs correctly forbid loopback.
   const me = await (await page.request.get('/api/auth/me')).json();
   await page.request.post('/api/workshop/providers', {
@@ -57,6 +57,7 @@ test('user and Agent clarify, create, iterate and explicitly save a private comp
     .click();
   await page.screenshot({ path: 'artifacts/visual/workshop-chat-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: '显示预览工作区', exact: true }).click();
   await page.screenshot({ path: 'artifacts/visual/workshop-chat-mobile.png', fullPage: true });
   await page.getByRole('button', { name: '保存为私有组件', exact: true }).click();
   const workspace = await (await page.request.get('/api/workspace')).json();

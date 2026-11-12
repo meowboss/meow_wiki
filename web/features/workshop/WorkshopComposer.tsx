@@ -1,4 +1,4 @@
-import { ArrowUp, Info, Square } from 'lucide-react';
+import { ArrowUp, Square } from 'lucide-react';
 import { useLayoutEffect, useRef, type FormEvent } from 'react';
 import type { Provider } from './types';
 
@@ -74,18 +74,6 @@ export default function WorkshopComposer({
             </option>
           ))}
         </select>
-        <details className="workshop-request-warning">
-          <summary title="发送提示" aria-label="发送提示">
-            <Info size={15} aria-hidden="true" />
-          </summary>
-          <p>
-            发送会向所选 Provider 提交对话与项目内容，可能产生费用。请勿输入密钥。
-            {providers
-              .find((provider) => provider.id === providerId)
-              ?.baseURL?.startsWith('http:') &&
-              ' 当前 Provider 使用 HTTP，传输不加密，请仅用于可信网络。'}
-          </p>
-        </details>
         {running ? (
           <button
             type="button"
@@ -108,7 +96,6 @@ export default function WorkshopComposer({
           </button>
         )}
       </div>
-      {!canSend && <p className="workshop-composer-notice">请先配置或选择 Provider。</p>}
     </form>
   );
 }

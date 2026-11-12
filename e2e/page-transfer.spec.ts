@@ -27,7 +27,7 @@ test('page package UI exports current pages and imports new identifiers without 
   await expect(page.getByRole('button', { name: '以新 ID 追加导入' })).toBeVisible();
   page.once('dialog', (d) => d.accept());
   await page.getByRole('button', { name: '以新 ID 追加导入' }).click();
-  await expect(page.getByRole('status')).toContainText(/导入/);
+  await expect(page.getByText(/已导入 \d+ 个页面/, { exact: false })).toBeVisible();
   await page.getByRole('button', { name: '关闭', exact: true }).click();
   await expect(
     page

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { PanelLeftOpen } from 'lucide-react';
 import WorkshopWorkspace from './WorkshopWorkspace';
 import WorkshopSourceWorkspace from './WorkshopSourceWorkspace';
-import WorkshopProjectPicker from './WorkshopProjectPicker';
+import WorkshopProjectMenu from './WorkshopProjectMenu';
 import WorkbenchActions from './WorkbenchActions';
 import useWorkshopPageActions, { type CreatedPageTarget } from './useWorkshopPageActions';
 import { api, type WikiPage } from '../../shared/api';
-import ProviderSettings from './ProviderSettings';
 import WorkshopChat from './WorkshopChat';
 import WorkshopPreview from './WorkshopPreview';
 import WorkshopPagePreview from './WorkshopPagePreview';
@@ -15,13 +15,14 @@ import {
   type PageSurface,
   errorMessage,
   providerMetadata,
-  type Config,
   type Project,
   type Provider,
   type Validation,
   type WorkshopMessage,
 } from './types';
 import './workshop.css';
+import './workbench-viewport.css';
+import './mobile-nav.css';
 
 type Props = {
   workspaceId: string | null;
@@ -30,6 +31,7 @@ type Props = {
   pages?: WikiPage[];
   renderPagePreview?: (content: string) => ReactNode;
   onOpen?: (id: string) => void;
+  onToggleNavigation?: () => void;
   onDirtyChange: (value: boolean) => void;
   onBusyChange: (value: boolean) => void;
   onInstalled: () => Promise<unknown>;
@@ -41,11 +43,11 @@ export default function WorkshopView({
   pages = [],
   renderPagePreview,
   onOpen = () => {},
+  onToggleNavigation,
   onDirtyChange,
   onBusyChange,
   onInstalled,
 }: Props) {
-  const [config, setConfig] = useState<Config>({ endpoints: [], configured: false });
   const [providers, setProviders] = useState<Provider[]>([]);
   const [providerId, setProviderId] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -53,7 +55,6 @@ export default function WorkshopView({
   const [messages, setMessages] = useState<WorkshopMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [content, setContent] = useState('');
-  const [providerDirty, setProviderDirty] = useState(false);
   const [validation, setValidation] = useState<Validation | null>(null);
   const [loading, setLoading] = useState(true);
   const [openingInitial, setOpeningInitial] = useState(false);
@@ -64,6 +65,7 @@ export default function WorkshopView({
   const [notice, setNotice] = useState('');
   const [pollingError, setPollingError] = useState('');
   const [newKind, setNewKind] = useState<'component' | 'page'>('component');
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [surface, setSurface] = useState<PageSurface>('home');
   const [fromCurrent, setFromCurrent] = useState(true);
   const [selectedFile, setSelectedFile] = useState('');
@@ -85,7 +87,7 @@ export default function WorkshopView({
     surface,
     fromCurrent,
   });
-  const dirty = fileDirty || !!draft || providerDirty;
+  const dirty = fileDirty || !!draft;
   const projectRunning = project?.state === 'running';
   const running = projectRunning || busy === 'chat';
   const working = loading || openingInitial || !!busy || projectRunning;
@@ -137,7 +139,6 @@ export default function WorkshopView({
     lifecycle.current = controller;
     setLoading(true);
     void Promise.all([
-      api<Config>('/workshop/config', undefined, 'GET', controller.signal),
       api<{ providers: Provider[] }>('/workshop/providers', undefined, 'GET', controller.signal),
       workspaceId
         ? api<{ projects: Project[] }>(
@@ -148,9 +149,8 @@ export default function WorkshopView({
           )
         : Promise.resolve({ projects: [] as Project[] }),
     ])
-      .then(([configuration, providerResult, projectResult]) => {
+      .then(([providerResult, projectResult]) => {
         if (controller.signal.aborted) return;
-        setConfig(configuration);
         const records = providerResult.providers.map(providerMetadata);
         setProviders(records);
         setProviderId(records.find((item) => item.configured)?.id ?? '');
@@ -470,14 +470,6 @@ export default function WorkshopView({
   });
   return (
     <section className="workshop-view" aria-label="对话式组件工坊">
-      <header className="workshop-heading">
-        <h1>组件工坊</h1>
-        <details className="workshop-intro">
-          <summary>使用说明</summary>
-          <p>描述需求 → 对话追问与受限工具执行 → 安全预览 → 明确保存私有组件。</p>
-          <p>只生成声明式组件，不执行自定义代码。密钥不能放进对话或文件。</p>
-        </details>
-      </header>
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -490,46 +482,84 @@ export default function WorkshopView({
       )}
       {loading && <p role="status">正在加载工坊配置…</p>}
       {!workspaceId && <p className="workshop-warning">请先选择工作空间，再开始组件对话。</p>}
-      <WorkshopProjectPicker
-        project={project}
-        projects={projects}
-        working={working}
-        workspaceId={workspaceId}
-        kind={newKind}
-        surface={surface}
-        fromCurrent={fromCurrent}
-        onKindChange={setNewKind}
-        onSurfaceChange={setSurface}
-        onFromCurrentChange={setFromCurrent}
-        onSelect={selectProject}
-        onNew={() => {
-          if (dirty && !window.confirm('新建对话将放弃未发送消息或未保存编辑，确定继续吗？'))
-            return;
-          projectRef.current = null;
-          setProject(null);
-          setMessages([]);
-          setDraft('');
-          setContent('');
-          setSelectedFile('');
-          setValidation(null);
-          setPollingError('');
-          setError('');
-          setNotice('');
-        }}
-        onRefresh={() =>
-          void action('refresh-projects', async (signal) => {
-            const result = await api<{ projects: Project[] }>(
-              `/workshop/projects?workspaceId=${encodeURIComponent(workspaceId || '')}`,
-              undefined,
-              'GET',
-              signal,
-            );
-            if (!signal.aborted)
-              setProjects(result.projects.filter((item) => item.workspaceId === workspaceId));
-          })
-        }
-      />
       <WorkshopWorkspace
+        actions={
+          <>
+            {' '}
+            {project && (
+              <WorkbenchActions
+                project={project}
+                validation={validation}
+                working={working}
+                fileDirty={fileDirty}
+                onValidate={validate}
+                onInstall={install}
+                onApply={applyPage}
+                onCreatePage={createPage}
+                onUpdatePage={targetPage ? updatePage : undefined}
+                targetTitle={targetPage?.title}
+                dirty={dirty || (!!targetCreatedPage && project.id !== initialProjectId)}
+              />
+            )}
+          </>
+        }
+        headerTools={
+          <>
+            <button
+              type="button"
+              className="workshop-project-menu-trigger workshop-mobile-nav"
+              aria-label="展开导航"
+              onClick={onToggleNavigation}
+            >
+              <PanelLeftOpen size={18} />
+            </button>{' '}
+            <WorkshopProjectMenu
+              open={projectMenuOpen}
+              onOpen={() => setProjectMenuOpen(true)}
+              onClose={() => setProjectMenuOpen(false)}
+              project={project}
+              projects={projects}
+              working={working}
+              workspaceId={workspaceId}
+              kind={newKind}
+              surface={surface}
+              fromCurrent={fromCurrent}
+              onKindChange={setNewKind}
+              onSurfaceChange={setSurface}
+              onFromCurrentChange={setFromCurrent}
+              onSelect={(id) => {
+                selectProject(id);
+                setProjectMenuOpen(false);
+              }}
+              onNew={() => {
+                if (dirty && !window.confirm('新建对话将放弃未发送消息或未保存编辑，确定继续吗？'))
+                  return;
+                projectRef.current = null;
+                setProject(null);
+                setMessages([]);
+                setDraft('');
+                setContent('');
+                setSelectedFile('');
+                setValidation(null);
+                setPollingError('');
+                setError('');
+                setNotice('');
+              }}
+              onRefresh={() =>
+                void action('refresh-projects', async (signal) => {
+                  const result = await api<{ projects: Project[] }>(
+                    `/workshop/projects?workspaceId=${encodeURIComponent(workspaceId || '')}`,
+                    undefined,
+                    'GET',
+                    signal,
+                  );
+                  if (!signal.aborted)
+                    setProjects(result.projects.filter((item) => item.workspaceId === workspaceId));
+                })
+              }
+            />
+          </>
+        }
         chat={
           <WorkshopChat
             project={project}
@@ -595,51 +625,6 @@ export default function WorkshopView({
         title={project?.name ?? (newKind === 'page' ? '页面工作区' : '组件工作区')}
         busy={working}
       />
-      <div className="workshop-configuration" aria-label="组件保存与工坊设置">
-        {project && (
-          <WorkbenchActions
-            project={project}
-            validation={validation}
-            working={working}
-            fileDirty={fileDirty}
-            onValidate={validate}
-            onInstall={install}
-            onApply={applyPage}
-            onCreatePage={createPage}
-            onUpdatePage={targetPage ? updatePage : undefined}
-            targetTitle={targetPage?.title}
-            dirty={dirty || (!!targetCreatedPage && project.id !== initialProjectId)}
-          />
-        )}
-        <ProviderSettings
-          config={config}
-          providers={providers}
-          disabled={working}
-          onProvidersChange={setProviders}
-          onSelected={setProviderId}
-          onDirtyChange={setProviderDirty}
-          action={action}
-          onNotice={setNotice}
-        />
-        <aside className="workshop-boundary" aria-label="工坊能力边界">
-          <details>
-            <summary>开发边界</summary>
-            <p>
-              受控 Agent，不是通用代码 IDE。只读虚拟 SDK：/sdk/README.md 和 对应项目
-              schema。唯一可写文件 {file}（最多 30000
-              字符）。对话没有八轮上限；后台保留超时、取消和异常循环保护。不提供
-              shell、任意网络或主机文件访问，不执行自定义
-              JavaScript。工具事件只显示服务端安全摘要，不呈现原始敏感输出或模型思考。
-            </p>
-            <strong>只读 SDK / 声明式组件契约</strong>
-            <p>
-              name（1–160 字符）、description（最多 500 字符）、template（惰性文本或 Markdown，最多
-              10000 字符）；可选 blocks 最多 20 项，仅支持 markdown/text、page-list/title 和
-              search/title。最终以服务端校验为准。密钥不能放进对话或文件。刷新、断开与请求超时不等于取消运行；请核对服务端真实状态。
-            </p>
-          </details>
-        </aside>
-      </div>
     </section>
   );
 }

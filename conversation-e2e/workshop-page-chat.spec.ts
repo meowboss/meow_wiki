@@ -21,8 +21,11 @@ test('Agent creates page draft through real HTTP tool loop and user explicitly a
     },
   });
   await navigate(page, '组件工坊');
+  await expect(page.getByRole('region', { name: '对话式组件工坊', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '项目与页面', exact: true }).click();
   await page.getByRole('combobox', { name: '新建类型', exact: true }).selectOption('page');
   await page.getByRole('combobox', { name: '目标页面', exact: true }).selectOption('wiki');
+  await page.getByRole('button', { name: '关闭项目菜单', exact: true }).click();
   await page
     .getByRole('combobox', { name: '对话使用的 Provider', exact: true })
     .selectOption({ label: '页面验收模型 · acceptance-model' });

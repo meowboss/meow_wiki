@@ -1,0 +1,54 @@
+.workshop-project-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.workshop-project-menu-trigger:hover {
+  background: #f3f5f7;
+}
+.workshop-project-modal {
+  width: min(680px, calc(100vw - 32px));
+  max-height: 80dvh;
+  overflow: auto;
+  padding: 24px;
+  background: white;
+  border-radius: 16px;
+}
+.workshop-project-modal > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.workshop-project-modal > header button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.workshop-project-modal .workshop-project-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.workshop-project-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.workshop-project-modal select {
+  padding: 10px;
+  border: 1px solid #dce2e8;
+  border-radius: 8px;
+  background: white;
+  max-width: 100%;
+}
+.workshop-project-modal button {
+  align-self: flex-start;
+}

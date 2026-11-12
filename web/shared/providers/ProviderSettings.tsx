@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { api, ApiError } from '../../shared/api';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { api, ApiError } from '../api';
 import { providerMetadata, type Config, type Provider, type ProviderVendor } from './types';
 
 type Props = {
@@ -47,9 +47,14 @@ export default function ProviderSettings({
     model !== (editing?.model ?? '') ||
     vendor !== (editing?.vendor ?? 'openai') ||
     baseURL !== (editing?.baseURL ?? presets.openai);
+  const dirtyCallback = useRef(onDirtyChange);
   useEffect(() => {
-    onDirtyChange(dirty);
-  }, [dirty, onDirtyChange]);
+    dirtyCallback.current = onDirtyChange;
+  });
+  useEffect(() => {
+    dirtyCallback.current(dirty);
+  }, [dirty]);
+  useEffect(() => () => dirtyCallback.current(false), []);
   useEffect(() => {
     setModels([]);
   }, [vendor, baseURL, apiKey, editing?.id]);
@@ -212,21 +217,8 @@ export default function ProviderSettings({
     });
   }
   return (
-    <details className="workshop-panel workshop-settings" open={!!editing}>
+    <details className="provider-settings" open={!!editing}>
       <summary id="workshop-providers">Provider 设置</summary>
-      <details>
-        <summary>使用说明</summary>
-        <p>
-          协议：OpenAI-compatible（非原生 Anthropic）。供应商预设仅填写 URL，不依赖管理员配置的 host
-          端点。密钥由服务端加密存储；API Key
-          仅在内存输入，不写入对话，保存发起时立即清空，获取模型或测试失败时保留。
-        </p>
-        <p>
-          填写 API 前缀（例如 /v1），不要填完整的 /chat/completions 或 /models
-          地址；系统会自动追加请求路径。支持具体本机/内网 IP（例如 http://127.0.0.1:11434/v1）。
-        </p>
-        <p>获取模型列表仅证明可列模型，不等同推理连接。未保存也可测试。</p>
-      </details>
       <form onSubmit={save}>
         <fieldset disabled={disabled}>
           <legend>{editing ? `编辑 Provider：${editing.label}` : '新增 Provider'}</legend>
@@ -266,7 +258,6 @@ export default function ProviderSettings({
               autoComplete="off"
             />
           </label>
-          <p className="form-hint">HTTP不加密，请仅用于可信网络；127.0.0.1指后端所在机器。</p>
           <label>
             模型名称（可从列表选择或手动填写）
             <input
@@ -295,12 +286,7 @@ export default function ProviderSettings({
               }
             />
           </label>
-          {credentialsChanged && <p>更换供应商或 Base URL 必须输入新密钥，不能复用原凭据。</p>}
-          <p>
-            获取模型列表和测试会向填写的地址发送 API
-            Key；推理连接测试会发送真实请求，可能产生少量费用。
-          </p>
-          <div className="workshop-actions">
+          <div className="provider-actions">
             <button
               type="button"
               className="secondary-btn"
@@ -337,7 +323,7 @@ export default function ProviderSettings({
           </div>
         </fieldset>
       </form>
-      <ul className="workshop-providers">
+      <ul className="provider-list">
         {providers.map((provider) => (
           <li key={provider.id}>
             <span>

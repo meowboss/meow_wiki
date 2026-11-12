@@ -4,19 +4,8 @@ export type PageSurface = 'home' | 'wiki' | 'collaboration';
 export function projectFile(project: Pick<Project, 'kind'> | null): string {
   return project?.kind === 'page' ? PAGE_FILE : FILE;
 }
-export type Endpoint = { id: string; label: string };
-export type Config = { endpoints: Endpoint[]; configured: boolean };
-export type ProviderVendor = 'openai' | 'deepseek' | 'custom';
-export type Provider = {
-  id: string;
-  label: string;
-  endpointId: string;
-  model: string;
-  configured: boolean;
-  vendor?: ProviderVendor;
-  baseURL?: string;
-  source?: string;
-};
+export type { Endpoint, Config, ProviderVendor, Provider } from '../../shared/providers/types';
+export { providerMetadata } from '../../shared/providers/types';
 export type Project = {
   id: string;
   name: string;
@@ -58,16 +47,3 @@ export type WorkshopMessage = {
 export type Validation = { valid: boolean; issues?: unknown[] };
 export const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : '请求失败，请重试。';
-// Keep public metadata only; never retain unexpected credential response fields.
-export function providerMetadata(provider: Provider): Provider {
-  return {
-    id: provider.id,
-    label: provider.label,
-    endpointId: provider.endpointId,
-    model: provider.model,
-    configured: provider.configured === true,
-    ...(provider.vendor ? { vendor: provider.vendor } : {}),
-    ...(provider.baseURL ? { baseURL: provider.baseURL } : {}),
-    ...(provider.source ? { source: provider.source } : {}),
-  };
-}

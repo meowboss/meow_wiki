@@ -19,7 +19,7 @@ test('compact icon sidebar persists desktop preference and keeps grouped links a
   await expect(page.getByRole('button', { name: '创建工作空间', exact: true })).toBeVisible();
   await page.getByRole('button', { name: '选择或管理工作空间', exact: true }).click();
   await navigate(page, '组件工坊');
-  await expect(page.getByRole('heading', { name: '组件工坊', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: '对话式组件工坊', exact: true })).toBeVisible();
   await page.reload();
   await expect(page.locator('.app-shell')).toHaveClass(/sidebar-compact/);
   await navigate(page, '个人设置');

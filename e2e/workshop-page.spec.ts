@@ -18,9 +18,12 @@ test('page project previews real canvas, edits source and applies only on explic
   expect(response.status()).toBe(201);
   const project = await response.json();
   await navigate(page, '组件工坊');
+  await expect(page.getByRole('region', { name: '对话式组件工坊', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '项目与页面', exact: true }).click();
   await page
     .getByRole('combobox', { name: '选择项目', exact: true })
     .selectOption({ label: '我的页面工作副本' });
+  await expect(page.getByRole('dialog', { name: '项目与页面', exact: true })).toBeHidden();
   await expect(page.getByRole('region', { name: '页面实时预览', exact: true })).toBeVisible();
   await expect(page.locator('.workshop-workspace')).toBeVisible();
   await page.getByRole('tab', { name: '源码', exact: true }).click();
