@@ -5,7 +5,7 @@
 ## 用户可用流程
 
 - 邮箱注册/登录/注销、可撤销数据库会话、CSRF、双用户隔离与多工作空间；[个人设置](<../history/personal-settings-delivery.md>)可查看资料与修改昵称，邮箱/角色只读。
-- 知识空间[默认阅读、显式编辑](<../features/wiki-reading-first.md>)；保存回阅读、取消确认；[目录/概览/插件配置](<../features/space-navigation.md>)与父级路径。[长文专注与字号](<../features/markdown-reading-layout.md>)支持桌面/移动。
+- 知识空间[默认阅读、显式编辑](<../features/wiki-reading-first.md>)；保存回阅读、取消确认；[扩大目录/空间管理（概览、插件、隐藏回收站）](<../features/space-navigation.md>)与父级路径。[长文专注与字号](<../features/markdown-reading-layout.md>)支持桌面/移动。
 - 页面revision/CAS、历史恢复、软删除、防环父页；[历史导出和显式归档](<../history/history-archive-delivery.md>)已实现。每页200版、账号跨空间历史50MiB UTF8预算；不是全局磁盘配额。
 - [JSON活页包](<../architecture/page-transfer-design.md>)100页/5MiB，新ID追加、父ID重映射；不含历史/附件/权限/密钥，不重写正文内部链接，不等于完整Markdown迁移。
 - 私有声明式组件、不可变审核release、固定快照安装、首页布局CAS；宿主CLI管理员授权、禁止自审、批准/退回/撤架与审计。

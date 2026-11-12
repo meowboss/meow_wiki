@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { navigate } from './navigation-helpers';
 test('create a domain and keep self-authored contribution pending without self-approval', async ({
   page,
 }) => {
@@ -9,7 +10,7 @@ test('create a domain and keep self-authored contribution pending without self-a
   await page.getByLabel('密码', { exact: true }).fill('domain-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
   await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '知识域', exact: true }).click();
+  await navigate(page, '知识域');
   await page.getByRole('button', { name: '创建知识域', exact: true }).click();
   await page.getByLabel('域名称', { exact: true }).fill('项目协作知识');
   await page.getByRole('button', { name: '创建域', exact: true }).click();

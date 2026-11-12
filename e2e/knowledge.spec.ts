@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { navigate } from './navigation-helpers';
 test('source processing and honest extractive citations', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: '注册', exact: true }).click();
@@ -7,7 +8,7 @@ test('source processing and honest extractive citations', async ({ page }) => {
   await page.getByLabel('密码', { exact: true }).fill('knowledge-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
   await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '资料工作台', exact: true }).click();
+  await navigate(page, '资料工作台');
   await page.getByLabel('资料标题', { exact: true }).fill('猫咪百科');
   await page.getByLabel('资料原文', { exact: true }).fill('猫咪需要清洁饮水，也喜欢温暖阳光。');
   await page.getByRole('button', { name: '保存资料', exact: true }).click();

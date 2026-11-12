@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { navigate } from './navigation-helpers';
 async function signup(page: import('@playwright/test').Page) {
   await page.goto('/');
   await page.getByRole('button', { name: '注册', exact: true }).click();
@@ -17,7 +18,7 @@ test('revoking an old MCP credential preserves another currently displayed one-t
     headers: { 'x-csrf-token': me.csrfToken },
     data: { name: '双凭据域' },
   });
-  await page.getByRole('button', { name: 'Agent 连接', exact: true }).click();
+  await navigate(page, 'Agent 连接');
   await page
     .getByRole('combobox', { name: '成员域', exact: true })
     .selectOption({ label: '双凭据域' });
@@ -39,7 +40,7 @@ test('revoking an old MCP credential preserves another currently displayed one-t
 });
 test('component Escape cancellation asks before discarding local edit', async ({ page }) => {
   await signup(page);
-  await page.getByRole('button', { name: '我的组件', exact: true }).click();
+  await navigate(page, '我的组件');
   await page.getByRole('button', { name: '高级手动创建', exact: true }).click();
   await page.getByLabel('组件名称', { exact: true }).fill('未保存组件');
   await page.getByRole('textbox', { name: '区块文本', exact: true }).fill('不可误丢的草稿');

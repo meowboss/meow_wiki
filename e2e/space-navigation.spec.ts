@@ -13,9 +13,12 @@ test('space directory switches notes, overview exposes structure and plugin conf
   await expect(navigator.getByRole('tab', { name: '笔记目录', exact: true })).toBeVisible();
   await navigator.getByRole('button', { name: '插件与自己的组件', exact: true }).click();
   await expect(page.locator('.wiki-reader-heading h1')).toHaveText('插件与自己的组件');
-  await navigator.getByRole('tab', { name: '空间概览', exact: true }).click();
+  await navigator.getByRole('tab', { name: '空间管理', exact: true }).click();
+  await expect(
+    navigator.getByRole('heading', { name: '空间概览', exact: true, level: 3 }),
+  ).toBeVisible();
   await expect(navigator.getByText('2', { exact: true }).first()).toBeVisible();
-  await navigator.getByRole('tab', { name: '插件配置', exact: true }).click();
+  await navigator.locator('summary').filter({ hasText: '插件配置' }).click();
   const toggle = navigator.getByRole('switch').last();
   const was = await toggle.getAttribute('aria-checked');
   await toggle.click();
@@ -26,7 +29,7 @@ test('space directory switches notes, overview exposes structure and plugin conf
   await expect(page.locator('.wiki-reader .markdown-body')).toBeVisible();
   await page.screenshot({ path: 'artifacts/visual/space-navigation-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
-  await navigator.locator('summary').click();
+  await navigator.locator('.space-navigator-summary').click();
   await navigator.getByRole('tab', { name: '笔记目录', exact: true }).click();
   await navigator.getByRole('button', { name: '欢迎来到 Meow Wiki', exact: true }).click();
   await expect(page.locator('.wiki-reader-heading h1')).toHaveText('欢迎来到 Meow Wiki');

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { navigate } from '../e2e/navigation-helpers';
 test('user and Agent clarify, create, iterate and explicitly save a private component', async ({
   page,
 }) => {
@@ -9,7 +10,7 @@ test('user and Agent clarify, create, iterate and explicitly save a private comp
   await page.getByLabel('密码', { exact: true }).fill('chat-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
   await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '我的组件', exact: true }).click();
+  await navigate(page, '我的组件');
   await page.getByRole('button', { name: '创建组件', exact: true }).click();
   await expect(page.getByRole('heading', { name: /组件工坊/ })).toBeVisible();
   // Trusted local HTTP fixture uses the legacy host-mapped API; user URLs correctly forbid loopback.
@@ -24,7 +25,7 @@ test('user and Agent clarify, create, iterate and explicitly save a private comp
     },
   });
   await page.reload();
-  await page.getByRole('button', { name: '组件工坊', exact: true }).click();
+  await navigate(page, '组件工坊');
   await page.locator('#workshop-message').fill('帮我创建一个组件');
   await page.getByRole('button', { name: '发送并创建组件项目', exact: true }).click();
   await expect(

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { navigate } from './navigation-helpers';
 test('user can configure custom Provider without host endpoints and edit metadata without reading back key', async ({
   page,
 }) => {
@@ -9,7 +10,7 @@ test('user can configure custom Provider without host endpoints and edit metadat
   await page.getByLabel('密码', { exact: true }).fill('provider-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
   await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '组件工坊', exact: true }).click();
+  await navigate(page, '组件工坊');
   await page.getByLabel('Provider 名称', { exact: true }).fill('我的模型');
   await page.getByRole('combobox', { name: '供应商', exact: true }).selectOption('custom');
   await page.getByLabel(/Base URL/).fill('http://192.168.1.50:8000/v1');

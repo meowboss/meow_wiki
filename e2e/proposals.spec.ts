@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { navigate } from './navigation-helpers';
 
 test('real evidence proposal leaves the page unchanged until explicit browser acceptance', async ({
   page,
@@ -57,7 +58,7 @@ test('real evidence proposal leaves the page unchanged until explicit browser ac
   const title = '猫咪饮水照护提议';
   const markdown = '# 猫咪饮水照护\n\n每日更换清洁饮水，并定期清洁饮水碗。';
 
-  await page.getByRole('button', { name: '写入提议', exact: true }).click();
+  await navigate(page, '写入提议');
   await page.getByRole('combobox', { name: '目标页面', exact: true }).selectOption(target.id);
   await page.getByLabel('拟议标题', { exact: true }).fill(title);
   await page
@@ -108,7 +109,8 @@ test('real evidence proposal leaves the page unchanged until explicit browser ac
   await expect(proposal.getByRole('button', { name: '接受并应用到正文', exact: true })).toHaveCount(
     0,
   );
-  await page.getByRole('button', { name: title, exact: true }).click();
+  await navigate(page, '知识空间');
+  await page.locator('.space-navigator').getByRole('button', { name: title, exact: true }).click();
   await expect(
     page
       .locator('.wiki-reader-heading')
@@ -119,7 +121,8 @@ test('real evidence proposal leaves the page unchanged until explicit browser ac
   await expect(page.getByLabel('Markdown 内容')).toHaveValue(markdown);
   await expect(page.locator('.document-tag')).toHaveText(`Markdown · v${target.revision + 1}`);
   await page.reload();
-  await page.getByRole('button', { name: title, exact: true }).click();
+  await navigate(page, '知识空间');
+  await page.locator('.space-navigator').getByRole('button', { name: title, exact: true }).click();
   await expect(
     page
       .locator('.wiki-reader-heading')

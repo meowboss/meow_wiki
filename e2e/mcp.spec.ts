@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { navigate } from './navigation-helpers';
 test('MCP credential is displayed once, lists without secret, and revokes immediately', async ({
   page,
 }) => {
@@ -15,7 +16,7 @@ test('MCP credential is displayed once, lists without secret, and revokes immedi
     data: { name: 'Agent测试域' },
   });
   expect(created.ok()).toBeTruthy();
-  await page.getByRole('button', { name: 'Agent 连接', exact: true }).click();
+  await navigate(page, 'Agent 连接');
   await page
     .getByRole('combobox', { name: '成员域', exact: true })
     .selectOption({ label: 'Agent测试域' });

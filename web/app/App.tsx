@@ -5,14 +5,10 @@ import {
   CheckCheck,
   ChevronRight,
   CircleHelp,
-  Compass,
   FileText,
-  FolderClosed,
-  Layers3,
   LoaderCircle,
   Menu,
   MessageCircle,
-  PencilLine,
   Plus,
   Puzzle,
   RefreshCw,
@@ -54,19 +50,8 @@ import PluginLabView from '../features/plugin-lab/PluginLabView';
 import WorkshopView from '../features/workshop/WorkshopView';
 import ProfileView from '../features/profile/ProfileView';
 
-type View =
-  | 'profile'
-  | 'home'
-  | 'wiki'
-  | 'market'
-  | 'components'
-  | 'reviews'
-  | 'knowledge'
-  | 'proposals'
-  | 'domains'
-  | 'mcp'
-  | 'plugin-lab'
-  | 'workshop';
+import PrimaryNavigation from './navigation/PrimaryNavigation';
+import type { AppView as View } from './navigation/types';
 const message = (error: unknown) =>
   error instanceof Error ? error.message : '发生未知错误，请重试。';
 
@@ -705,117 +690,8 @@ export default function App({
             <kbd>Ctrl K</kbd>
           </button>
         )}
-        <nav className="main-nav" aria-label="主导航">
-          <button className={view === 'domains' ? 'active' : ''} onClick={() => nav('domains')}>
-            <Layers3 size={18} />
-            知识域
-          </button>
-          <button className={view === 'mcp' ? 'active' : ''} onClick={() => nav('mcp')}>
-            <ShieldCheck size={18} />
-            Agent 连接
-          </button>
-          <button className={view === 'proposals' ? 'active' : ''} onClick={() => nav('proposals')}>
-            <PencilLine size={18} />
-            写入提议
-          </button>
-          <button className={view === 'home' ? 'active' : ''} onClick={() => nav('home')}>
-            <Sprout size={18} />
-            首页
-          </button>
-          <button className={view === 'wiki' ? 'active' : ''} onClick={() => nav('wiki')}>
-            <BookOpen size={18} />
-            知识空间<span className="nav-count">{data?.pages.length || 0}</span>
-          </button>
-          <button className={view === 'knowledge' ? 'active' : ''} onClick={() => nav('knowledge')}>
-            <FileText size={18} />
-            资料工作台
-          </button>
-          <button className={view === 'market' ? 'active' : ''} onClick={() => nav('market')}>
-            <Compass size={18} />
-            插件市场
-            <span className="small-dot" />
-          </button>
-          <button
-            className={view === 'plugin-lab' ? 'active' : ''}
-            onClick={() => nav('plugin-lab')}
-          >
-            <Puzzle size={18} />
-            插件实验室
-          </button>
-          <button className={view === 'workshop' ? 'active' : ''} onClick={() => nav('workshop')}>
-            <Puzzle size={18} />
-            组件工坊
-          </button>
-          <button
-            className={view === 'components' ? 'active' : ''}
-            onClick={() => nav('components')}
-          >
-            <Layers3 size={18} />
-            我的组件
-          </button>
-          {user.role === 'admin' && (
-            <button className={view === 'reviews' ? 'active' : ''} onClick={() => nav('reviews')}>
-              <ShieldCheck size={18} />
-              组件审核
-            </button>
-          )}
-        </nav>
-        {!independentView && (
-          <>
-            <div className="sidebar-label">
-              <span>我的页面</span>
-              <button
-                title="新建页面"
-                aria-label="新建页面"
-                disabled={!!busy || !data}
-                onClick={createPage}
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-            <div className="page-tree">
-              <div className="tree-folder">
-                <FolderClosed size={15} />
-                <span>知识笔记</span>
-                <span>{data?.pages.length || 0}</span>
-              </div>
-              {view === 'wiki' ? (
-                <p className="sidebar-empty">在右侧空间导航中查看笔记目录</p>
-              ) : (
-                data?.pages.map((p) => (
-                  <button key={p.id} className="tree-page" onClick={() => selectPage(p)}>
-                    <FileText size={15} />
-                    <span>{p.title || '无标题页面'}</span>
-                  </button>
-                ))
-              )}
-              {!loading && !data?.pages.length && (
-                <p className="sidebar-empty">还没有页面，种下第一颗知识种子吧。</p>
-              )}
-            </div>
-            <details style={{ padding: '8px 20px', maxHeight: 200, overflowY: 'auto' }}>
-              <summary style={{ cursor: 'pointer' }}>回收站 · {data?.trash?.length || 0}</summary>
-              {data?.trash?.map((p) => (
-                <div
-                  key={p.id}
-                  style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 0' }}
-                >
-                  <span style={{ flex: 1, overflowWrap: 'anywhere' }}>
-                    {p.title || '无标题页面'}
-                  </span>
-                  <button
-                    className="text-btn"
-                    disabled={!!busy}
-                    onClick={() => void undeletePage(p)}
-                  >
-                    恢复
-                  </button>
-                </div>
-              ))}
-              {!data?.trash?.length && <p className="sidebar-empty">回收站为空</p>}
-            </details>
-          </>
-        )}
+        <PrimaryNavigation view={view} role={user.role} onNavigate={nav} />
+
         <div className="sidebar-bottom">
           {!independentView && (
             <div className="garden-card">
@@ -1052,6 +928,11 @@ export default function App({
                     pages={data.pages}
                     selectedId={selected}
                     plugins={data.plugins}
+                    trash={data.trash}
+                    onRestore={(id) => {
+                      const trashed = data.trash.find((p) => p.id === id);
+                      if (trashed) void undeletePage(trashed);
+                    }}
                     busy={!!busy}
                     onOpen={openSource}
                     onCreate={createPage}

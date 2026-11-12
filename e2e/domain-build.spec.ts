@@ -1,4 +1,5 @@
 import { test, expect, type Page, type APIResponse, type Response } from '@playwright/test';
+import { navigate } from './navigation-helpers';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { Domain, DomainContribution, SessionInfo } from '../web/shared/api';
@@ -20,7 +21,7 @@ async function register(page: Page, name: string, email: string) {
 }
 
 async function openDomain(page: Page, name: string) {
-  await page.getByRole('button', { name: '知识域', exact: true }).click();
+  await navigate(page, '知识域');
   await page
     .getByRole('complementary', { name: '我的成员域' })
     .getByRole('button', { name: new RegExp(name) })
@@ -163,7 +164,7 @@ test('author builds published evidence in UI and a UI-issued MCP grant only subm
       publishedDomain.revision,
     );
 
-    await author.getByRole('button', { name: 'Agent 连接', exact: true }).click();
+    await navigate(author, 'Agent 连接');
     await author.getByRole('combobox', { name: '成员域', exact: true }).selectOption(domain.id);
     await author
       .getByRole('combobox', { name: '权限范围（scope）', exact: true })

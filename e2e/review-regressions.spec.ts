@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { navigate } from './navigation-helpers';
 test('renaming a component preserves ordered duplicate blocks and dialogs suppress global search', async ({
   page,
 }) => {
@@ -24,7 +25,7 @@ test('renaming a component preserves ordered duplicate blocks and dialogs suppre
     })
   ).json();
   await page.reload();
-  await page.getByRole('button', { name: '我的组件', exact: true }).click();
+  await navigate(page, '我的组件');
   await page.getByRole('button', { name: '编辑新版本', exact: true }).click();
   await page.keyboard.press('Control+k');
   await expect(page.getByRole('dialog')).toHaveCount(1);

@@ -1,9 +1,14 @@
 /* Reading/writing takes precedence over dashboard chrome in the knowledge workspace. */
 .knowledge-space-layout {
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr);
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: 20px;
   align-items: start;
+}
+@media (min-width: 1101px) {
+  .knowledge-space-layout:has(> .space-navigator-wide) {
+    grid-template-columns: 420px minmax(0, 1fr);
+  }
 }
 .knowledge-space-document {
   min-width: 0;

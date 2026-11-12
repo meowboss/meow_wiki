@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './conversation-e2e',
+  outputDir: 'test-results/conversation',
   workers: 1,
   timeout: 45000,
   use: {

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { navigate } from './navigation-helpers';
 test('secondary explanations stay discoverable without dominating page content', async ({
   page,
 }) => {
@@ -18,7 +19,7 @@ test('secondary explanations stay discoverable without dominating page content',
     '我的组件',
     '组件工坊',
   ]) {
-    await page.getByRole('button', { name, exact: true }).click();
+    await navigate(page, name);
     await expect(page.locator('main')).toBeVisible();
     if (name === '知识域') {
       const help = page

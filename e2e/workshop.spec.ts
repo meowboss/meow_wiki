@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { navigate } from './navigation-helpers';
 test('virtual workshop validates declaration and imports private component without a configured model', async ({
   page,
 }) => {
@@ -9,14 +10,14 @@ test('virtual workshop validates declaration and imports private component witho
   await page.getByLabel('密码', { exact: true }).fill('workshop-password-123');
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
   await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '组件工坊', exact: true }).click();
+  await navigate(page, '组件工坊');
   const me = await (await page.request.get('/api/auth/me')).json();
   await page.request.post('/api/workshop/projects', {
     headers: { 'x-csrf-token': me.csrfToken },
     data: { name: '读书组件项目', instruction: '创建可复用读书卡' },
   });
   await page.reload();
-  await page.getByRole('button', { name: '组件工坊', exact: true }).click();
+  await navigate(page, '组件工坊');
   await page
     .getByRole('combobox', { name: '选择项目', exact: true })
     .selectOption({ label: '读书组件项目' });
@@ -45,6 +46,6 @@ test('virtual workshop validates declaration and imports private component witho
     ),
   ).toBeTruthy();
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.getByRole('button', { name: '我的组件', exact: true }).click();
+  await navigate(page, '我的组件');
   await expect(page.getByRole('heading', { name: '工坊读书卡', exact: true })).toBeVisible();
 });
