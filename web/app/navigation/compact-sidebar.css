@@ -1,0 +1,166 @@
+.sidebar-compact-toggle,
+.sidebar-logout > svg {
+  display: none;
+}
+
+@media (min-width: 781px) {
+  .sidebar-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    padding-bottom: 28px;
+  }
+
+  .sidebar-heading .brand {
+    flex: 1;
+    min-width: 0;
+    gap: 8px;
+    padding: 0;
+    font-size: 24px;
+  }
+
+  .sidebar-heading .brand-mark {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+  }
+
+  .sidebar-heading .brand small {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+
+  .sidebar-heading .sidebar-compact-toggle {
+    display: grid;
+    flex-shrink: 0;
+    width: 28px;
+    height: 36px;
+    padding: 4px;
+  }
+
+  .sidebar-compact-toggle:focus-visible,
+  .sidebar-logout:focus-visible {
+    outline: 2px solid #527447;
+    outline-offset: 2px;
+  }
+
+  .app-shell.sidebar-compact > .sidebar {
+    width: 72px;
+    padding: 20px 10px 0;
+  }
+
+  body:not(.wiki-focus-active):not(.wiki-reader-focus-active) .sidebar-compact > .main-shell {
+    margin-left: 72px;
+    width: calc(100% - 72px);
+  }
+
+  .sidebar-compact .sidebar-heading {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 16px;
+  }
+
+  .sidebar-compact .sidebar-heading .brand {
+    flex: none;
+  }
+
+  .sidebar-compact .sidebar-heading .sidebar-compact-toggle {
+    width: 44px;
+    height: 32px;
+  }
+
+  /* Keep the text available to assistive technology while showing an icon rail. */
+  .sidebar-compact .brand-copy,
+  .sidebar-compact .workspace-switch > div,
+  .sidebar-compact .search-trigger > span,
+  .sidebar-compact .primary-navigation__item > span,
+  .sidebar-compact .primary-navigation__summary > span,
+  .sidebar-compact .profile-settings-identity,
+  .sidebar-compact .sidebar-logout > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .sidebar-compact .workspace-switch > svg,
+  .sidebar-compact .search-trigger > kbd,
+  .sidebar-compact .garden-card,
+  .sidebar-compact .primary-navigation__summary > .primary-navigation__chevron {
+    display: none;
+  }
+
+  .sidebar-compact .workspace-picker > .workspace-switch {
+    justify-content: center;
+    padding: 8px 0;
+    margin-bottom: 12px;
+  }
+
+  /* Fixed positioning escapes the scrolling sidebar's clipping boundary. */
+  .sidebar-compact .workspace-menu {
+    position: fixed;
+    top: 136px;
+    left: 78px;
+    width: min(280px, calc(100vw - 94px));
+    max-height: calc(100dvh - 152px);
+  }
+
+  .sidebar-compact .search-trigger {
+    justify-content: center;
+    min-height: 44px;
+    margin-bottom: 14px;
+  }
+
+  .sidebar-compact .main-nav.primary-navigation .primary-navigation__item,
+  .sidebar-compact .main-nav.primary-navigation .primary-navigation__summary {
+    justify-content: center;
+    gap: 0;
+    min-height: 44px;
+    padding: 10px 0;
+  }
+
+  .sidebar-compact .main-nav.primary-navigation .primary-navigation__children {
+    position: static;
+    margin: 4px 0 0;
+    padding: 3px;
+    border-left: 0;
+    border-radius: 8px;
+    background: #e8ecdf;
+  }
+
+  .sidebar-compact .sidebar-bottom {
+    padding-top: 12px;
+  }
+
+  .sidebar-compact .profile {
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 12px 0;
+  }
+
+  .sidebar-compact .sidebar .profile .profile-settings-trigger {
+    flex: none;
+    justify-content: center;
+    width: 44px;
+    min-height: 44px;
+    gap: 0;
+  }
+
+  .sidebar-compact .profile .sidebar-logout {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    min-height: 44px;
+  }
+
+  .sidebar-compact .sidebar-logout > svg {
+    display: block;
+  }
+}

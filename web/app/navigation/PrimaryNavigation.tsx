@@ -7,7 +7,6 @@ import {
   Layers3,
   PencilLine,
   Puzzle,
-  Settings,
   ShieldCheck,
   Sprout,
 } from 'lucide-react';
@@ -42,7 +41,6 @@ export const primaryNavigation: readonly NavigationEntry[] = [
       { view: 'reviews', label: '组件审核', icon: ShieldCheck, adminOnly: true },
     ],
   },
-  { view: 'profile', label: '个人设置', icon: Settings },
 ];
 
 function NavigationButton({
@@ -55,6 +53,8 @@ function NavigationButton({
     <button
       type="button"
       className="primary-navigation__item"
+      title={item.label}
+      aria-label={item.label}
       aria-current={view === item.view ? 'page' : undefined}
       onClick={() => onNavigate(item.view)}
     >
@@ -82,7 +82,12 @@ function NavigationGroup({
 
   return (
     <details ref={details} className="primary-navigation__group">
-      <summary className="primary-navigation__summary" data-active={active || undefined}>
+      <summary
+        className="primary-navigation__summary"
+        data-active={active || undefined}
+        title={entry.label}
+        aria-label={entry.label}
+      >
         <Icon size={18} aria-hidden="true" />
         <span>{entry.label}</span>
         <ChevronDown size={16} className="primary-navigation__chevron" aria-hidden="true" />

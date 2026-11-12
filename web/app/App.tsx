@@ -7,7 +7,10 @@ import {
   CircleHelp,
   FileText,
   LoaderCircle,
+  LogOut,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   MessageCircle,
   Plus,
   Puzzle,
@@ -52,6 +55,8 @@ import ProfileView from '../features/profile/ProfileView';
 
 import PrimaryNavigation from './navigation/PrimaryNavigation';
 import type { AppView as View } from './navigation/types';
+import useSidebarCompact from './navigation/useSidebarCompact';
+import './navigation/compact-sidebar.css';
 const message = (error: unknown) =>
   error instanceof Error ? error.message : '发生未知错误，请重试。';
 
@@ -108,6 +113,7 @@ export default function App({
     setBusy((current) => (logoutBusy ? 'logout' : current === 'logout' ? '' : current));
   }, [logoutBusy]);
   const [sidebar, setSidebar] = useState(false);
+  const { sidebarCompact, toggleSidebarCompact } = useSidebarCompact();
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -653,38 +659,63 @@ export default function App({
   };
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${sidebarCompact ? ' sidebar-compact' : ''}`}>
       {sidebar && (
         <button className="sidebar-scrim" aria-label="收起导航" onClick={() => setSidebar(false)} />
       )}
       <aside className={`sidebar ${sidebar ? 'is-open' : ''}`}>
-        <a
-          className="brand"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            nav('home');
-          }}
-        >
-          <span className="brand-mark">
-            <BookOpen size={24} />
-            <span />
-          </span>
-          <span>
-            meow<span className="brand-light">wiki</span>
-            <small>让知识，自由生长</small>
-          </span>
-        </a>
-        <WorkspacePicker
-          workspace={workspace}
-          workspaces={workspaces}
-          guard={guardWorkspaceExit}
-          onChange={onWorkspaceChange}
-          disabled={!!busy || logoutBusy}
-          onBusyChange={(value) => setBusy(value ? 'workspace' : '')}
-        />
+        <div className="sidebar-heading">
+          <a
+            className="brand"
+            href="#"
+            aria-label="meow wiki 首页"
+            title="meow wiki 首页"
+            onClick={(e) => {
+              e.preventDefault();
+              nav('home');
+            }}
+          >
+            <span className="brand-mark" aria-hidden="true">
+              <BookOpen size={24} />
+              <span />
+            </span>
+            <span className="brand-copy">
+              meow<span className="brand-light">wiki</span>
+              <small>让知识，自由生长</small>
+            </span>
+          </a>
+          <button
+            type="button"
+            className="sidebar-compact-toggle icon-btn"
+            aria-label={sidebarCompact ? '展开侧栏' : '收起侧栏'}
+            title={sidebarCompact ? '展开侧栏' : '收起侧栏'}
+            aria-pressed={sidebarCompact}
+            onClick={toggleSidebarCompact}
+          >
+            {sidebarCompact ? (
+              <PanelLeftOpen size={18} aria-hidden="true" />
+            ) : (
+              <PanelLeftClose size={18} aria-hidden="true" />
+            )}
+          </button>
+        </div>
+        <div className="sidebar-workspace" title={workspace?.name || '创建工作空间'}>
+          <WorkspacePicker
+            workspace={workspace}
+            workspaces={workspaces}
+            guard={guardWorkspaceExit}
+            onChange={onWorkspaceChange}
+            disabled={!!busy || logoutBusy}
+            onBusyChange={(value) => setBusy(value ? 'workspace' : '')}
+          />
+        </div>
         {!independentView && (
-          <button className="search-trigger" onClick={() => setSearchOpen(true)}>
+          <button
+            className="search-trigger"
+            aria-label="搜索你的知识"
+            title="搜索你的知识 (Ctrl K)"
+            onClick={() => setSearchOpen(true)}
+          >
             <Search size={16} />
             <span>搜索你的知识</span>
             <kbd>Ctrl K</kbd>
@@ -708,6 +739,7 @@ export default function App({
               type="button"
               className="profile-settings-trigger"
               aria-label="个人设置"
+              title="个人设置"
               aria-current={view === 'profile' ? 'page' : undefined}
               disabled={!!busy || logoutBusy}
               onClick={() => nav('profile')}
@@ -724,13 +756,16 @@ export default function App({
               </span>
             </button>
             <button
-              className="text-btn"
+              className="text-btn sidebar-logout"
+              aria-label={logoutBusy ? '退出中…' : '退出'}
+              title={logoutBusy ? '退出中…' : '退出'}
               disabled={!!busy || logoutBusy}
               onClick={() => {
                 if (guardWorkspaceExit()) onLogout();
               }}
             >
-              {logoutBusy ? '退出中…' : '退出'}
+              <LogOut size={17} aria-hidden="true" />
+              <span>{logoutBusy ? '退出中…' : '退出'}</span>
             </button>
           </div>
         </div>

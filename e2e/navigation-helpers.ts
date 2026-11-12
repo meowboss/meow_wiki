@@ -13,6 +13,10 @@ const navigationGroups: Record<string, string> = {
 };
 
 export async function navigate(page: Page, label: string) {
+  if (label === '个人设置') {
+    await page.locator('.topbar').getByRole('button', { name: '个人设置', exact: true }).click();
+    return;
+  }
   const navigation = page.getByRole('navigation', { name: '主导航', includeHidden: true });
   await navigation.waitFor({ state: 'attached' });
   const expandNavigation = page.getByRole('button', { name: '展开导航', exact: true });
