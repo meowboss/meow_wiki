@@ -10,6 +10,7 @@ type WorkspaceCanvasProps = Omit<ComponentProps<typeof CanvasSurface>, 'renderVi
   onOpen?: (id: string) => void;
   /** Old wiki documents predate the independently removable toolbar instance. */
   wikiDocumentFallbackToolbar?: ReactNode;
+  homeFallbackControls?: ReactNode;
   slots: Partial<
     Record<
       | 'wiki.directory'
@@ -20,6 +21,8 @@ type WorkspaceCanvasProps = Omit<ComponentProps<typeof CanvasSurface>, 'renderVi
       | 'wiki.footer'
       | 'wiki.toolbar'
       | 'home.content'
+      | 'home.header'
+      | 'home.controls'
       | 'collaboration.content'
       | 'collaboration.header'
       | 'collaboration.directory'
@@ -35,6 +38,7 @@ export default function WorkspaceCanvas({
   data,
   onOpen = () => {},
   wikiDocumentFallbackToolbar,
+  homeFallbackControls,
   ...props
 }: WorkspaceCanvasProps) {
   return (
@@ -56,7 +60,9 @@ export default function WorkspaceCanvas({
                   'wiki.ask': '知识问答入口',
                   'wiki.footer': '知识空间页脚',
                   'wiki.toolbar': '阅读工具栏',
-                  'home.content': '旧首页兼容视图',
+                  'home.content': '首页内容',
+                  'home.header': '首页工具栏',
+                  'home.controls': '首页组合设置',
                   'collaboration.content': '旧协作兼容视图',
                   'collaboration.header': '协作工具栏',
                   'collaboration.directory': '知识域目录',
@@ -64,7 +70,12 @@ export default function WorkspaceCanvas({
                 } as Record<string, string>
               )[viewId] ?? viewId,
             viewId: viewId as CanvasCatalogEntry['viewId'],
-            config: viewId === 'wiki.document' ? { splitToolbar: true } : {},
+            config:
+              viewId === 'wiki.document'
+                ? { splitToolbar: true }
+                : viewId === 'home.content'
+                  ? { splitHome: true }
+                  : {},
           })),
       ]}
       catalog={
@@ -84,6 +95,12 @@ export default function WorkspaceCanvas({
             onOpen,
             slots: {
               ...slots,
+              'home.content': (
+                <>
+                  {instance.config.splitHome !== true && homeFallbackControls}
+                  {slots['home.content']}
+                </>
+              ),
               'wiki.document': (
                 <>
                   {instance.config.splitToolbar !== true && wikiDocumentFallbackToolbar}

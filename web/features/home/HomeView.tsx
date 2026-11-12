@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   api,
   ApiError,
@@ -9,13 +9,26 @@ import {
 } from '../../shared/api';
 import ComponentRenderer from '../../shared/components/ComponentRenderer';
 
+export type HomeCompositionParts = {
+  header: ReactNode;
+  controls: ReactNode;
+  content: ReactNode;
+};
+
 type Props = {
   data: WorkspaceData;
   onOpen: (id: string) => void;
   onDirtyChange: (dirty: boolean) => void;
   onBusyChange: (busy: boolean) => void;
+  composition?: (parts: HomeCompositionParts) => ReactNode;
 };
-export default function HomeView({ data, onOpen, onDirtyChange, onBusyChange }: Props) {
+export default function HomeView({
+  data,
+  onOpen,
+  onDirtyChange,
+  onBusyChange,
+  composition,
+}: Props) {
   const [baseline, setBaseline] = useState<HomeData | null>(null);
   const [title, setTitle] = useState('我的首页');
   const [blocks, setBlocks] = useState<HomeBlock[]>([]);
@@ -125,8 +138,8 @@ export default function HomeView({ data, onOpen, onDirtyChange, onBusyChange }: 
       return next;
     });
   }
-  return (
-    <div className="catalog-view home-view">
+  const header = (
+    <>
       <div className="section-heading">
         <div>
           <h1>
@@ -147,112 +160,122 @@ export default function HomeView({ data, onOpen, onDirtyChange, onBusyChange }: 
         </p>
       )}
       {notice && <p role="status">{notice}</p>}
-      {!baseline ? (
+    </>
+  );
+  const controls = baseline ? (
+    <div className="home-controls">
+      <label className="field">
+        首页标题
+        <input
+          maxLength={160}
+          value={title}
+          disabled={busy}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+      </label>
+      <div className="home-add">
+        <select
+          aria-label="可添加组件"
+          value={choice}
+          disabled={busy || blocks.length >= 12}
+          onChange={(e) => setChoice(e.target.value)}
+        >
+          <option value="">选择私有或已安装组件</option>
+          {options.map((o) => (
+            <option key={o.key} value={o.key}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <button
+          className="secondary-btn"
+          disabled={busy || !choice || blocks.length >= 12}
+          onClick={() => {
+            const option = options.find((o) => o.key === choice);
+            if (option) setBlocks((current) => [...current, option.block]);
+          }}
+        >
+          添加组件
+        </button>
+        <button className="text-btn" disabled={busy} onClick={() => void reload()}>
+          加载最新布局
+        </button>
+      </div>
+      <small>
+        最多 12 个组件 · 基于布局版本 {baseline.revision}
+        {dirty ? ' · 有未保存更改' : ''}
+      </small>
+    </div>
+  ) : null;
+  const content = !baseline ? (
+    <div className="empty-state">
+      <p>正在加载首页…</p>
+      <button className="secondary-btn" onClick={() => void reload()}>
+        重新加载
+      </button>
+    </div>
+  ) : (
+    <>
+      <h2>{title || '我的首页'}</h2>
+      {!blocks.length && (
         <div className="empty-state">
-          <p>正在加载首页…</p>
-          <button className="secondary-btn" onClick={() => void reload()}>
-            重新加载
-          </button>
+          <h3>这里还没有组件</h3>
+          <p>从上方添加私有或已安装组件，然后保存布局。</p>
         </div>
-      ) : (
-        <>
-          <div className="home-controls">
-            <label className="field">
-              首页标题
-              <input
-                maxLength={160}
-                value={title}
-                disabled={busy}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </label>
-            <div className="home-add">
-              <select
-                aria-label="可添加组件"
-                value={choice}
-                disabled={busy || blocks.length >= 12}
-                onChange={(e) => setChoice(e.target.value)}
-              >
-                <option value="">选择私有或已安装组件</option>
-                {options.map((o) => (
-                  <option key={o.key} value={o.key}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="secondary-btn"
-                disabled={busy || !choice || blocks.length >= 12}
-                onClick={() => {
-                  const option = options.find((o) => o.key === choice);
-                  if (option) setBlocks((current) => [...current, option.block]);
-                }}
-              >
-                添加组件
-              </button>
-              <button className="text-btn" disabled={busy} onClick={() => void reload()}>
-                加载最新布局
-              </button>
-            </div>
-            <small>
-              最多 12 个组件 · 基于布局版本 {baseline.revision}
-              {dirty ? ' · 有未保存更改' : ''}
-            </small>
-          </div>
-          <h2>{title || '我的首页'}</h2>
-          {!blocks.length && (
-            <div className="empty-state">
-              <h3>这里还没有组件</h3>
-              <p>从上方添加私有或已安装组件，然后保存布局。</p>
-            </div>
-          )}
-          {blocks.map((block, index) => {
-            const component = resolve(block);
-            return (
-              <article
-                className="home-component"
-                key={`${block.componentId ?? block.releaseId}-${index}`}
-              >
-                <header>
-                  <strong>{component?.name ?? '组件已丢失或不可访问'}</strong>
-                  <div>
-                    <button
-                      className="text-btn"
-                      aria-label={`上移组件 ${index + 1}`}
-                      disabled={busy || index === 0}
-                      onClick={() => move(index, -1)}
-                    >
-                      上移
-                    </button>
-                    <button
-                      className="text-btn"
-                      aria-label={`下移组件 ${index + 1}`}
-                      disabled={busy || index === blocks.length - 1}
-                      onClick={() => move(index, 1)}
-                    >
-                      下移
-                    </button>
-                    <button
-                      className="text-btn"
-                      disabled={busy}
-                      onClick={() => setBlocks((current) => current.filter((_, i) => i !== index))}
-                    >
-                      删除
-                    </button>
-                  </div>
-                </header>
-                {component ? (
-                  <ComponentRenderer component={component} pages={data.pages} onOpen={onOpen} />
-                ) : (
-                  <p className="local-notice">
-                    找不到此布局引用。你可以删除此占位，不会自动改变已保存的布局。
-                  </p>
-                )}
-              </article>
-            );
-          })}
-        </>
       )}
+      {blocks.map((block, index) => {
+        const component = resolve(block);
+        return (
+          <article
+            className="home-component"
+            key={`${block.componentId ?? block.releaseId}-${index}`}
+          >
+            <header>
+              <strong>{component?.name ?? '组件已丢失或不可访问'}</strong>
+              <div>
+                <button
+                  className="text-btn"
+                  aria-label={`上移组件 ${index + 1}`}
+                  disabled={busy || index === 0}
+                  onClick={() => move(index, -1)}
+                >
+                  上移
+                </button>
+                <button
+                  className="text-btn"
+                  aria-label={`下移组件 ${index + 1}`}
+                  disabled={busy || index === blocks.length - 1}
+                  onClick={() => move(index, 1)}
+                >
+                  下移
+                </button>
+                <button
+                  className="text-btn"
+                  disabled={busy}
+                  onClick={() => setBlocks((current) => current.filter((_, i) => i !== index))}
+                >
+                  删除
+                </button>
+              </div>
+            </header>
+            {component ? (
+              <ComponentRenderer component={component} pages={data.pages} onOpen={onOpen} />
+            ) : (
+              <p className="local-notice">
+                找不到此布局引用。你可以删除此占位，不会自动改变已保存的布局。
+              </p>
+            )}
+          </article>
+        );
+      })}
+    </>
+  );
+  if (composition) return composition({ header, controls, content });
+  return (
+    <div className="catalog-view home-view">
+      {header}
+      {controls}
+      {content}
     </div>
   );
 }

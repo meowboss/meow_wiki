@@ -85,10 +85,12 @@
   align-items: stretch;
 }
 @media (min-width: 1101px) {
-  .canvas-layout-grid:has(.space-navigator-wide) > .canvas-instance[data-view-id='wiki.directory'] {
+  .canvas-layout-grid.canvas-default-wiki:has(.space-navigator-wide)
+    > .canvas-instance[data-view-id='wiki.directory'] {
     grid-column: 1 / span 5 !important;
   }
-  .canvas-layout-grid:has(.space-navigator-wide) > .canvas-instance[data-view-id='wiki.document'] {
+  .canvas-layout-grid.canvas-default-wiki:has(.space-navigator-wide)
+    > .canvas-instance[data-view-id='wiki.document'] {
     grid-column: 6 / span 7 !important;
   }
 }

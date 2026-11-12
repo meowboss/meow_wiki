@@ -125,7 +125,9 @@ export const coreCanvasRegistrations: readonly CanvasViewRegistration[] = create
     'wiki.footer',
     'wiki.toolbar',
   ].map((id) => createSlotCanvasRegistration(id, ['wiki'])),
-  createSlotCanvasRegistration('home.content', ['home']),
+  ...['home.content', 'home.header', 'home.controls'].map((id) =>
+    createSlotCanvasRegistration(id, ['home']),
+  ),
   ...[
     'collaboration.content',
     'collaboration.header',

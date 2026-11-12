@@ -18,6 +18,8 @@ const coreViewIdSchema = z.enum([
   'wiki.footer',
   'wiki.toolbar',
   'home.content',
+  'home.header',
+  'home.controls',
   'collaboration.content',
   'collaboration.header',
   'collaboration.directory',
@@ -52,6 +54,7 @@ const instanceSchema = z
       text: z.string().max(5000).optional(),
       // Old wiki.document instances keep their embedded reader actions until explicitly split.
       splitToolbar: z.boolean().optional(),
+      splitHome: z.boolean().optional(),
       componentId: z.string().uuid().optional(),
       releaseId: z.string().uuid().optional(),
       assetId: z.string().uuid().optional(),
@@ -207,7 +210,15 @@ export function createDefaultComposition(surface: CanvasSurface): Composition {
             { ...instance('wiki-footer', 'wiki.footer', 0, 12), y: 5 },
           ]
         : surface === 'home'
-          ? [instance('home-content', 'home.content', 0, 12)]
+          ? [
+              instance('home-header', 'home.header', 0, 12),
+              { ...instance('home-controls', 'home.controls', 0, 12), y: 1 },
+              {
+                ...instance('home-content', 'home.content', 0, 12),
+                y: 2,
+                config: { splitHome: true },
+              },
+            ]
           : [
               instance('collaboration-header', 'collaboration.header', 0, 12),
               { ...instance('collaboration-directory', 'collaboration.directory', 0, 4), y: 1 },

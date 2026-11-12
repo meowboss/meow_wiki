@@ -57,7 +57,21 @@ const views: readonly ViewMetadata[] = [
       surfaces: ['wiki'] as const,
     }),
   ),
-  { label: '首页内容', viewId: 'home.content', config: {}, repeatable: false, surfaces: ['home'] },
+  {
+    label: '首页内容',
+    viewId: 'home.content',
+    config: { splitHome: true },
+    repeatable: false,
+    surfaces: ['home'],
+  },
+  { label: '首页工具栏', viewId: 'home.header', config: {}, repeatable: false, surfaces: ['home'] },
+  {
+    label: '首页组合设置',
+    viewId: 'home.controls',
+    config: {},
+    repeatable: false,
+    surfaces: ['home'],
+  },
   {
     label: '协作标题',
     viewId: 'collaboration.header',

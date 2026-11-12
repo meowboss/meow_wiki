@@ -233,7 +233,7 @@ export default function CanvasSurface({
       )}
       <div className="canvas-workspace">
         <div
-          className={`canvas-board canvas-layout-${draft?.layout ?? 'flow'}${draft?.tree !== undefined ? ' canvas-has-tree' : ''}${editing ? ' canvas-editing-board' : ''}`}
+          className={`canvas-board canvas-layout-${draft?.layout ?? 'flow'}${draft?.tree !== undefined ? ' canvas-has-tree' : ''}${editing ? ' canvas-editing-board' : ''}${surface === 'wiki' && draft?.instances.find((i) => i.viewId === 'wiki.directory')?.x === 0 && draft?.instances.find((i) => i.viewId === 'wiki.directory')?.w === 4 && draft?.instances.find((i) => i.viewId === 'wiki.document')?.x === 4 && draft?.instances.find((i) => i.viewId === 'wiki.document')?.w === 8 ? ' canvas-default-wiki' : ''}`}
           style={boardStyle}
           aria-busy={busy}
         >

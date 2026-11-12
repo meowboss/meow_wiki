@@ -78,9 +78,8 @@ export class CompositionService {
       const legacy = layoutSchema.safeParse(source);
       if (!legacy.success) throw new CompositionError(400, '旧首页布局格式无效');
       const { revision: _, ...composition } = createDefaultComposition('home');
-      composition.instances = composition.instances.filter(
-        (item) => item.viewId !== 'home.content',
-      );
+      // Migration intentionally yields only independent title/component views, not legacy controls.
+      composition.instances = [];
       composition.instances.push({
         id: 'legacy-title',
         viewId: 'builtin.text',

@@ -61,6 +61,9 @@ test('explicit migration reads actual legacy home JSON and preserves order, titl
   const f = fixture();
   try {
     const before = f.legacy();
+    const releaseBytesBefore = f.store.db
+      .prepare('SELECT content,digest FROM mw_releases WHERE id=?')
+      .get(f.release.id);
     const snapshot = f.store.get('alice', f.workspace);
     const home = f.components.home('alice', f.workspace);
     assert.deepEqual(JSON.parse(String(before.json)), home.layout);
@@ -101,6 +104,10 @@ test('explicit migration reads actual legacy home JSON and preserves order, titl
     );
     assert.deepEqual(f.legacy(), before);
     assert.deepEqual(f.store.get('alice', f.workspace), snapshot);
+    assert.deepEqual(
+      f.store.db.prepare('SELECT content,digest FROM mw_releases WHERE id=?').get(f.release.id),
+      releaseBytesBefore,
+    );
     assert.deepEqual(
       { ...f.marker() },
       {

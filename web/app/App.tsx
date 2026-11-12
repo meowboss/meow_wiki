@@ -1107,28 +1107,38 @@ export default function App({
               />
             )}
             {view === 'home' && (
-              <WorkspaceCanvas
-                key={`home:${data.workspace.id}`}
-                surface="home"
-                ownerId={user.id}
+              <HomeView
                 data={data}
                 onOpen={openSource}
-                contentDirty={homeDirty}
-                workspaceId={data.workspace.id}
-                disabled={!!externalBusy || logoutBusy}
-                onDirtyChange={setCanvasDirty}
-                onBusyChange={setCanvasBusy}
-                slots={{
-                  // Legacy adapter: HomeView retains its own content/layout save flow.
-                  'home.content': (
-                    <HomeView
+                onDirtyChange={setHomeDirty}
+                onBusyChange={childBusy}
+                composition={({ header, controls, content }) => (
+                  <div className="catalog-view home-view">
+                    <WorkspaceCanvas
+                      key={`home:${data.workspace.id}`}
+                      surface="home"
+                      ownerId={user.id}
                       data={data}
                       onOpen={openSource}
-                      onDirtyChange={setHomeDirty}
-                      onBusyChange={childBusy}
+                      contentDirty={homeDirty}
+                      workspaceId={data.workspace.id}
+                      disabled={!!externalBusy || logoutBusy}
+                      onDirtyChange={setCanvasDirty}
+                      onBusyChange={setCanvasBusy}
+                      homeFallbackControls={
+                        <>
+                          {header}
+                          {controls}
+                        </>
+                      }
+                      slots={{
+                        'home.header': header,
+                        'home.controls': controls,
+                        'home.content': content,
+                      }}
                     />
-                  ),
-                }}
+                  </div>
+                )}
               />
             )}
             {(view === 'market' || view === 'components') && (
