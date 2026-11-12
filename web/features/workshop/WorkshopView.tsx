@@ -47,6 +47,7 @@ export default function WorkshopView({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [pollingError, setPollingError] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
   const lifecycle = useRef<AbortController | null>(null);
   const lock = useRef(false);
   const projectRef = useRef<Project | null>(null);
@@ -132,6 +133,9 @@ export default function WorkshopView({
       callbacks.current.onBusyChange(false);
     };
   }, [workspaceId]);
+  useEffect(() => {
+    setPreviewOpen(!!project?.id);
+  }, [project?.id]);
   useEffect(() => {
     callbacks.current.onDirtyChange(dirty);
   }, [dirty]);
@@ -356,7 +360,7 @@ export default function WorkshopView({
       )}
       {loading && <p role="status">正在加载工坊配置…</p>}
       {!workspaceId && <p className="workshop-warning">请先选择工作空间，再开始组件对话。</p>}
-      <div className="workshop-project-picker workshop-panel">
+      <div className="workshop-project-picker">
         <label>
           选择项目
           <select
@@ -410,7 +414,7 @@ export default function WorkshopView({
           刷新项目列表
         </button>
       </div>
-      <div className="workshop-conversation-layout">
+      <div className={`workshop-conversation-layout${previewOpen ? ' is-preview-open' : ''}`}>
         <WorkshopChat
           project={project}
           messages={messages}
@@ -428,93 +432,109 @@ export default function WorkshopView({
           onCancel={() => void cancelRun()}
           onRefresh={() => void refreshCurrent()}
         />
-        <WorkshopPreview
-          content={project?.files[FILE] || ''}
-          pages={pages}
-          onOpen={onOpen}
-          stale={running || fileDirty}
-        />
-      </div>
-      {project && (
-        <section className="workshop-panel workshop-editor" aria-label="组件保存与高级编辑">
-          {project.error && (
-            <p className="form-error" role="alert">
-              执行错误：{project.error}
-            </p>
-          )}
-          <div className="workshop-actions">
-            <button className="secondary-btn" disabled={working || fileDirty} onClick={validate}>
-              校验组件
-            </button>
-            <button
-              className="primary-btn"
-              disabled={working || fileDirty || !(project.state === 'ready' || validation?.valid)}
-              onClick={install}
-            >
-              保存为私有组件
-            </button>
-          </div>
-          <p>保存与公开发布分开。完成对话不会自动上架；你可先预览并继续发消息修改。</p>
-          {validation && (
-            <div role="status">
-              <strong>{validation.valid ? '校验通过' : '校验未通过'}</strong>
-              {validation.issues && (
-                <pre className="workshop-issues">{JSON.stringify(validation.issues, null, 2)}</pre>
-              )}
-            </div>
-          )}
-          <details>
-            <summary>高级：声明式 JSON 编辑</summary>
-            <p>可选，不用填写即可开始对话。只允许 {FILE}；手动改动需先保存再校验或继续对话。</p>
-            <label>
-              声明式组件 JSON（{FILE}）
-              <textarea
-                className="workshop-json"
-                maxLength={30000}
-                value={content}
-                onChange={(e) => {
-                  setContent(e.target.value);
-                  setValidation(null);
-                }}
-                spellCheck={false}
-                disabled={working}
-                rows={18}
-              />
-            </label>
-            <button className="secondary-btn" disabled={working || !fileDirty} onClick={saveFile}>
-              保存 JSON
-            </button>
-            {fileDirty && <p>JSON 未保存；对话、项目刷新和私有保存暂不可用，避免覆盖编辑。</p>}
-          </details>
-        </section>
-      )}
-      <ProviderSettings
-        config={config}
-        providers={providers}
-        disabled={working}
-        onProvidersChange={setProviders}
-        onSelected={setProviderId}
-        onDirtyChange={setProviderDirty}
-        action={action}
-        onNotice={setNotice}
-      />
-      <aside className="workshop-boundary" aria-label="工坊能力边界">
-        <details>
-          <summary>开发边界</summary>
-          <p>
-            受控 Agent，不是通用代码 IDE。只读虚拟 SDK：/sdk/README.md 和
-            /sdk/component.schema.json。唯一可写文件 {FILE}（最多 30000 字符）；最多 8
-            轮受限工具执行。不提供 shell、任意网络或主机文件访问，不执行自定义
-            JavaScript。工具事件只显示服务端安全摘要，不呈现原始敏感输出或模型思考。
-          </p>
-          <strong>只读 SDK / 声明式组件契约</strong>
-          <p>
-            name（1–160 字符）、description（最多 500 字符）、template（惰性文本或 Markdown，最多
-            10000 字符）；可选 blocks 最多 20 项，仅支持 markdown/text、page-list/title 和
-            search/title。最终以服务端校验为准。密钥不能放进对话或文件。刷新、断开与请求超时不等于取消运行；请核对服务端真实状态。
-          </p>
+        <details
+          className="workshop-preview-drawer"
+          open={previewOpen}
+          onToggle={(event) => setPreviewOpen(event.currentTarget.open)}
+        >
+          <summary>预览产物</summary>
+          <WorkshopPreview
+            content={project?.files[FILE] || ''}
+            pages={pages}
+            onOpen={onOpen}
+            stale={running || fileDirty}
+          />
         </details>
-      </aside>
+      </div>
+      <div className="workshop-configuration" aria-label="组件保存与工坊设置">
+        {project && (
+          <section className="workshop-editor" aria-label="组件保存与高级编辑">
+            {project.error && (
+              <p className="form-error" role="alert">
+                执行错误：{project.error}
+              </p>
+            )}
+            <div className="workshop-actions">
+              <button className="secondary-btn" disabled={working || fileDirty} onClick={validate}>
+                校验组件
+              </button>
+              <button
+                className="primary-btn"
+                disabled={working || fileDirty || !(project.state === 'ready' || validation?.valid)}
+                onClick={install}
+              >
+                保存为私有组件
+              </button>
+            </div>
+            <p>保存与公开发布分开。完成对话不会自动上架；你可先预览并继续发消息修改。</p>
+            {validation && (
+              <div
+                className={
+                  validation.valid ? 'workshop-validation-success' : 'workshop-validation-error'
+                }
+                role="status"
+              >
+                <strong>{validation.valid ? '校验通过' : '校验未通过'}</strong>
+                {validation.issues && (
+                  <pre className="workshop-issues">
+                    {JSON.stringify(validation.issues, null, 2)}
+                  </pre>
+                )}
+              </div>
+            )}
+            <details>
+              <summary>高级：声明式 JSON 编辑</summary>
+              <p>可选，不用填写即可开始对话。只允许 {FILE}；手动改动需先保存再校验或继续对话。</p>
+              <label>
+                声明式组件 JSON（{FILE}）
+                <textarea
+                  className="workshop-json"
+                  maxLength={30000}
+                  value={content}
+                  onChange={(e) => {
+                    setContent(e.target.value);
+                    setValidation(null);
+                  }}
+                  spellCheck={false}
+                  disabled={working}
+                  rows={18}
+                />
+              </label>
+              <button className="secondary-btn" disabled={working || !fileDirty} onClick={saveFile}>
+                保存 JSON
+              </button>
+              {fileDirty && <p>JSON 未保存；对话、项目刷新和私有保存暂不可用，避免覆盖编辑。</p>}
+            </details>
+          </section>
+        )}
+        <ProviderSettings
+          config={config}
+          providers={providers}
+          disabled={working}
+          onProvidersChange={setProviders}
+          onSelected={setProviderId}
+          onDirtyChange={setProviderDirty}
+          action={action}
+          onNotice={setNotice}
+        />
+        <aside className="workshop-boundary" aria-label="工坊能力边界">
+          <details>
+            <summary>开发边界</summary>
+            <p>
+              受控 Agent，不是通用代码 IDE。只读虚拟 SDK：/sdk/README.md 和
+              /sdk/component.schema.json。唯一可写文件 {FILE}（最多 30000 字符）；最多 8
+              轮受限工具执行。不提供 shell、任意网络或主机文件访问，不执行自定义
+              JavaScript。工具事件只显示服务端安全摘要，不呈现原始敏感输出或模型思考。
+            </p>
+            <strong>只读 SDK / 声明式组件契约</strong>
+            <p>
+              name（1–160 字符）、description（最多 500 字符）、template（惰性文本或 Markdown，最多
+              10000 字符）；可选 blocks 最多 20 项，仅支持 markdown/text、page-list/title 和
+              search/title。最终以服务端校验为准。密钥不能放进对话或文件。刷新、断开与请求超时不等于取消运行；请核对服务端真实状态。
+            </p>
+          </details>
+        </aside>
+      </div>
     </section>
   );
 }

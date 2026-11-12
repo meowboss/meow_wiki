@@ -11,10 +11,21 @@ export default function PluginLabView({ workspaceId, pages, ready }: Props) {
   pagesRef.current = pages;
   const [logs, setLogs] = useState<string[]>([]);
   const [status, setStatus] = useState('正在载入受信示例…');
+  const [attempt, setAttempt] = useState(0);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!workspaceId || !ready || !container.current) return;
     let active = true;
+    setFailed(false);
+    setLogs([]);
+    setStatus('正在载入受信示例…');
+    const timeout = window.setTimeout(() => {
+      if (active) {
+        setFailed(true);
+        setStatus('示例未在预期时间内完成连接，请重试。');
+      }
+    }, 10000);
     let ports: MessagePort[] = [];
     const log = (text: string) => {
       if (active) setLogs((current) => [...current.slice(-39), text]);
@@ -44,6 +55,8 @@ export default function PluginLabView({ workspaceId, pages, ready }: Props) {
       ports = [channel.port1, channel.port2];
       channel.port1.onmessage = (event: MessageEvent<unknown>) => {
         if (!active) return;
+        window.clearTimeout(timeout);
+        setFailed(false);
         const reply = host.handle(event.data);
         if (host.exhausted) {
           closePorts();
@@ -58,8 +71,8 @@ export default function PluginLabView({ workspaceId, pages, ready }: Props) {
         setStatus('消息解码失败，通道已关闭。');
       };
       channel.port1.start();
-      const nonce = crypto.randomUUID();
       try {
+        const nonce = crypto.randomUUID();
         // The sandbox has an opaque origin: '*' is necessary, but the receiver is
         // this exact iframe WindowProxy, never a broadcast or global listener.
         // nonce correlates this connection only; permissions come from the manifest.
@@ -70,7 +83,9 @@ export default function PluginLabView({ workspaceId, pages, ready }: Props) {
         log('宿主连接 · opaque origin · 仅向指定 iframe 转移 MessagePort。');
       } catch {
         closePorts();
-        setStatus('连接失败，请离开实验室后重新进入。');
+        window.clearTimeout(timeout);
+        setFailed(true);
+        setStatus('连接失败，请重试；浏览器需支持安全上下文和 MessageChannel。');
         log('宿主拒绝 · CONNECTION_FAILED · 无法建立示例通道。');
       }
     };
@@ -79,12 +94,13 @@ export default function PluginLabView({ workspaceId, pages, ready }: Props) {
     container.current.appendChild(iframe);
     return () => {
       active = false;
+      window.clearTimeout(timeout);
       host.dispose();
       closePorts();
       iframe.removeEventListener('load', onLoad);
       iframe.remove();
     };
-  }, [workspaceId, ready]);
+  }, [workspaceId, ready, attempt]);
 
   return (
     <section className="plugin-lab" aria-labelledby="plugin-lab-title">
@@ -121,6 +137,15 @@ export default function PluginLabView({ workspaceId, pages, ready }: Props) {
           <p className="plugin-lab-status" role="status">
             {ready ? status : '正在等待当前工作空间数据；尚未创建示例通道。'}
           </p>
+          {failed && <p role="alert">{status}</p>}
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={() => setAttempt((value) => value + 1)}
+            disabled={!ready}
+          >
+            重新连接示例
+          </button>
           <div className="plugin-lab-frame" ref={container} />
           <section className="plugin-lab-logs" aria-labelledby="plugin-lab-log-title">
             <h2 id="plugin-lab-log-title">宿主决策日志</h2>

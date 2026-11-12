@@ -71,7 +71,7 @@ export default function WorkshopPreview({
 }) {
   const component = useMemo(() => previewComponent(content), [content]);
   return (
-    <section className="workshop-panel workshop-preview" aria-labelledby="workshop-preview-title">
+    <section className="workshop-preview" aria-labelledby="workshop-preview-title">
       <h2 id="workshop-preview-title">安全预览</h2>
       <p>只读取当前授权工作空间；预览不等于保存或发布。</p>
       {stale && (

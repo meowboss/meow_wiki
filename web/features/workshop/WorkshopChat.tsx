@@ -1,5 +1,11 @@
-import { useEffect, useRef, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import ExecutionTimeline, {
+  executionName,
+  executionStatus,
+  mergeExecutionMessages,
+} from './ExecutionTimeline';
 import type { Project, Provider, WorkshopMessage } from './types';
+import './timeline.css';
 
 type Props = {
   project: Project | null;
@@ -47,9 +53,31 @@ export default function WorkshopChat({
 }: Props) {
   const list = useRef<HTMLOListElement>(null);
   const follow = useRef(true);
+  const observed = useRef<{ projectId?: string; events: Map<string, string> }>({
+    events: new Map(),
+  });
+  const [announcement, setAnnouncement] = useState('');
+  const entries = mergeExecutionMessages(messages);
+  const latestRunId = messages.findLast((item) => item.runId)?.runId;
+  const latestUserSequence = messages.findLast((item) => item.role === 'user')?.sequence ?? 0;
   useEffect(() => {
     if (follow.current && list.current) list.current.scrollTop = list.current.scrollHeight;
-  }, [messages]);
+    const projectId = project?.id;
+    const current = new Map(messages.map((item) => [item.id, item.status ?? '']));
+    if (observed.current.projectId === projectId && observed.current.events.size) {
+      const changed = messages.filter(
+        (item) => observed.current.events.get(item.id) !== (item.status ?? ''),
+      );
+      const latest = changed.at(-1);
+      if (latest)
+        setAnnouncement(
+          latest.role === 'tool'
+            ? `${executionName(latest.content)}，${executionStatus(latest.status, running)}`
+            : `${roles[latest.role]}：${latest.content}`,
+        );
+    } else setAnnouncement('');
+    observed.current = { projectId, events: current };
+  }, [messages, project?.id, running]);
   const statuses: Record<string, string> = {
     started: '执行中',
     completed: '已完成',
@@ -57,13 +85,6 @@ export default function WorkshopChat({
     question: '等待回复',
     cancelled: '已取消',
     error: '错误',
-  };
-  const toolNames: Record<string, string> = {
-    read_file: '读取项目/SDK',
-    write_file: '更新组件内容',
-    validate_component: '校验组件',
-    ask_user: '澄清需求',
-    finish: '完成本轮',
   };
   return (
     <section className="workshop-panel workshop-chat" aria-labelledby="workshop-chat-title">
@@ -93,34 +114,44 @@ export default function WorkshopChat({
           if (node) follow.current = node.scrollHeight - node.scrollTop - node.clientHeight < 70;
         }}
         aria-label="项目对话与执行事件"
-        aria-live="polite"
-        aria-relevant="additions text"
       >
-        {messages.map((item) => (
-          <li
-            key={item.id}
-            className={`workshop-message workshop-message-${item.role}`}
-            data-message-role={item.role}
-          >
-            <div className="workshop-message-heading">
-              <strong>{roles[item.role]}</strong>
-              {item.status && <small>{statuses[item.status] ?? item.status}</small>}
-            </div>
-            <div className="workshop-message-content">
-              {item.role === 'tool' ? (toolNames[item.content] ?? item.content) : item.content}
-            </div>
-          </li>
-        ))}
+        {entries.map((entry) => {
+          if (entry.kind === 'execution') {
+            const active =
+              running &&
+              (entry.latest.runId
+                ? entry.latest.runId === latestRunId
+                : entry.first.sequence > latestUserSequence);
+            return <ExecutionTimeline key={entry.id} entry={entry} running={active} />;
+          }
+          const item = entry.message;
+          return (
+            <li
+              key={item.id}
+              className={`workshop-message workshop-message-${item.role}`}
+              data-message-role={item.role}
+            >
+              <div className="workshop-message-heading">
+                <strong>{roles[item.role]}</strong>
+                {item.status && <small>{statuses[item.status] ?? item.status}</small>}
+              </div>
+              <div className="workshop-message-content">{item.content}</div>
+            </li>
+          );
+        })}
       </ol>
+      <div className="workshop-live-update" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </div>
       {!project && !messages.length && (
         <p className="workshop-empty">描述需求即可开始，例如“创建团队知识导航”。</p>
       )}
       {running && (
-        <p role="status">
-          正在等待服务端执行事件。这里只显示真实消息与安全工具摘要，不展示模型内部思考。
+        <p className="workshop-running-note" role="status">
+          正在执行，进展会更新在对话中。
         </p>
       )}
-      <form onSubmit={onSend}>
+      <form className="workshop-composer" onSubmit={onSend}>
         <label>
           对话使用的 Provider
           <select
@@ -143,7 +174,7 @@ export default function WorkshopChat({
             id="workshop-message"
             value={draft}
             onChange={(e) => onDraftChange(e.target.value)}
-            rows={4}
+            rows={6}
             maxLength={3000}
             disabled={disabled || running}
             placeholder="用自然语言描述需求，支持换行…"
@@ -158,7 +189,7 @@ export default function WorkshopChat({
         </p>
         <div className="workshop-actions">
           <button
-            className="primary-btn"
+            className="primary-btn workshop-send-button"
             disabled={disabled || running || !canSend || !draft.trim()}
           >
             {project ? '发送消息' : '发送并创建组件项目'}

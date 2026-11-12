@@ -10,3 +10,4 @@
 - [Markdown长文空间与阅读改进](<markdown-reading-layout.md>)
 - [知识空间内部结构](<space-navigation.md>)
 - [知识空间阅读优先](<wiki-reading-first.md>)
+- [工坊执行工作台与视觉层级](<workshop-execution-experience.md>)

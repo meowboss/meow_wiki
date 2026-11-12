@@ -23,6 +23,15 @@ export type Project = {
   workspaceId: string;
   turnId?: string;
 };
+export type WorkshopMessageDetails = {
+  path?: string;
+  bytes?: number;
+  lines?: number;
+  valid?: boolean;
+  issues?: string[];
+  durationMs?: number;
+  summary?: string;
+};
 export type WorkshopMessage = {
   id: string;
   projectId: string;
@@ -31,7 +40,11 @@ export type WorkshopMessage = {
   status?: string;
   createdAt: string;
   sequence: number;
+  runId?: string;
+  callId?: string;
+  turn?: number;
   turnId?: string;
+  details?: WorkshopMessageDetails;
 };
 export type Validation = { valid: boolean; issues?: unknown[] };
 export const errorMessage = (error: unknown) =>

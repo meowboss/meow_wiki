@@ -130,7 +130,7 @@ test(
         },
         set textContent(value: string) {
           this.value = value;
-          if (value === 'pages.list complete') complete();
+          if (value === '页面列表读取成功') complete();
         },
       };
       const script = /<script nonce="[^"]+">([\s\S]*?)<\/script>/.exec(response.body)![1];
@@ -167,13 +167,10 @@ test(
         nodes.get('[data-testid="plugin-pages"]')!.textContent,
         '<img src=x onerror=bad> (page-1)',
       );
-      assert.match(nodes.get('[data-testid="plugin-dom-result"]')!.textContent, /SecurityError/);
-      assert.match(
-        nodes.get('[data-testid="plugin-fetch-result"]')!.textContent,
-        /fetch blocked by CSP/,
-      );
+      assert.match(nodes.get('[data-testid="plugin-dom-result"]')!.textContent, /隔离检查通过/);
+      assert.match(nodes.get('[data-testid="plugin-fetch-result"]')!.textContent, /隔离检查通过/);
       listener!({ source: parentWindow, data: connect, ports: [ignored.port2] });
-      assert.equal(status.textContent, 'pages.list complete');
+      assert.equal(status.textContent, '页面列表读取成功');
     } finally {
       channel.port1.close();
       channel.port2.close();

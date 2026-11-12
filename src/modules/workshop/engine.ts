@@ -3,7 +3,38 @@ import { randomUUID } from 'node:crypto';
 import type { ProviderVault } from './providers.ts';
 import { safeProviderFetch } from './provider-network.ts';
 import type { WorkshopProjects } from './projects.ts';
-import type { ConversationStore, ConversationMessage } from './conversation.ts';
+import {
+  conversationDetailsSchema,
+  type ConversationDetails,
+  type ConversationStore,
+  type ConversationMessage,
+} from './conversation.ts';
+const allowedPath = conversationDetailsSchema.shape.path;
+function fileDetails(content: string): ConversationDetails {
+  return {
+    bytes: Buffer.byteLength(content, 'utf8'),
+    lines: content.length ? content.split('\n').length : 0,
+  };
+}
+function validationDetails(value: unknown): ConversationDetails {
+  // Only the project's schema-derived validation result may reach this projection.
+  const parsed = z
+    .discriminatedUnion('valid', [
+      z.object({ valid: z.literal(true) }).strict(),
+      z.object({ valid: z.literal(false), issues: z.array(z.string()) }).strict(),
+    ])
+    .parse(value);
+  return {
+    valid: parsed.valid,
+    ...(!parsed.valid
+      ? {
+          issues: parsed.issues
+            .slice(0, 8)
+            .map((issue) => issue.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 160)),
+        }
+      : {}),
+  };
+}
 const command = z.discriminatedUnion('tool', [
   z.object({ tool: z.literal('read_file'), path: z.string().max(100) }).strict(),
   z
@@ -80,12 +111,16 @@ export class WorkshopEngine {
       role: ConversationMessage['role'],
       content: string,
       status?: ConversationMessage['status'],
+      details?: ConversationDetails,
     ) => {
       if (containsSecret(content, profile.apiKey)) return;
+      if (details && containsSecret(JSON.stringify(details), profile.apiKey))
+        details = { summary: '工具详情包含敏感信息，已隐藏' };
       return this.conversation?.append(owner, projectId, {
         role,
         content,
         status,
+        ...(details === undefined ? {} : { details }),
         runId,
         turn: iteration,
         ...(role === 'tool' && callId ? { callId } : {}),
@@ -111,6 +146,8 @@ export class WorkshopEngine {
           ]),
     ];
     let activeTool: string | undefined;
+    let toolStartedAt = 0;
+    const duration = () => Math.min(300000, Math.max(0, Date.now() - toolStartedAt));
     try {
       record('user', userMessage ?? project.instruction);
       this.projects.setRunState(owner, projectId, 'running', 0, null);
@@ -162,25 +199,41 @@ export class WorkshopEngine {
         messages.push({ role: 'assistant', content: raw });
         activeTool = action.tool;
         callId = randomUUID();
-        record('tool', action.tool, 'started');
+        toolStartedAt = Date.now();
+        const path = 'path' in action ? allowedPath.safeParse(action.path) : undefined;
+        const startedDetails: ConversationDetails = {
+          ...(path?.success ? { path: path.data } : {}),
+          ...(action.tool === 'write_file' ? fileDetails(action.content) : {}),
+        };
+        record('tool', action.tool, 'started', startedDetails);
         if (action.tool === 'ask_user') {
-          record('tool', action.tool, 'completed');
+          record('tool', action.tool, 'completed', {
+            durationMs: duration(),
+            summary: '等待用户补充需求',
+          });
           activeTool = undefined;
           record('assistant', action.message, 'question');
           return this.projects.setRunState(owner, projectId, 'draft', iteration, null);
         }
         let result: unknown;
-        if (action.tool === 'read_file')
+        let completedDetails: ConversationDetails = { ...startedDetails };
+        if (action.tool === 'read_file') {
           result = this.projects.readFile(owner, projectId, action.path);
-        else if (action.tool === 'write_file') {
+          completedDetails = { ...startedDetails, ...fileDetails(result as string) };
+        } else if (action.tool === 'write_file') {
           this.projects.writeFile(owner, projectId, action.path, action.content, true);
           result = { written: true };
-        } else if (action.tool === 'validate_component')
+        } else if (action.tool === 'validate_component') {
           result = this.projects.validate(owner, projectId);
-        else {
+          completedDetails = validationDetails(result);
+        } else {
           const check = this.projects.validate(owner, projectId);
           if (!check.valid) throw new WorkshopError('模型结束时组件验证未通过');
-          record('tool', action.tool, 'completed');
+          record('tool', action.tool, 'completed', {
+            ...validationDetails(check),
+            durationMs: duration(),
+            summary: '组件已通过验证，等待确认导入',
+          });
           activeTool = undefined;
           record(
             'assistant',
@@ -198,7 +251,7 @@ export class WorkshopEngine {
         )
           throw new WorkshopError('工具结果包含当前Provider凭据，已阻止进入上下文');
         controller.signal.throwIfAborted();
-        record('tool', action.tool, 'completed');
+        record('tool', action.tool, 'completed', { ...completedDetails, durationMs: duration() });
         activeTool = undefined;
         messages.push({
           role: 'user',
@@ -220,7 +273,11 @@ export class WorkshopEngine {
         : error instanceof WorkshopError
           ? error.message
           : '开发循环失败，已停止；请检查Provider协议或工具请求';
-      if (activeTool) record('tool', activeTool, 'failed');
+      if (activeTool)
+        record('tool', activeTool, 'failed', {
+          durationMs: duration(),
+          summary: '工具执行失败，已停止',
+        });
       record('assistant', message, controller.signal.aborted ? 'cancelled' : 'error');
       this.projects.setRunState(owner, projectId, 'failed', Math.min(iteration, 8), message);
       throw new WorkshopError(message, status);
