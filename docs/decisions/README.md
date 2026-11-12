@@ -15,4 +15,5 @@
 - [ADR-007：首个浏览器代码插件运行边界](<adr-007-browser-plugin-runtime.md>)
 - [ADR-008：受控插件创作Harness首批](<adr-008-controlled-plugin-workshop.md>)
 - [ADR-009：受审核Agent写入与场景构建](<adr-009-reviewed-agent-contributions.md>)
+- [ADR-010：从内容块转向全站插件画布](<adr-010-plugin-canvas.md>)
 - [用户Provider配置修订](<adr-provider-user-configuration.md>)

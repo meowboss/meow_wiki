@@ -12,6 +12,7 @@
 - [只读MCP首批设计与验证边界](<mcp-readonly-design.md>)
 - [页面包传输设计](<page-transfer-design.md>)
 - [个人设置首批](<personal-settings-design.md>)
+- [全站插件画布架构修订](<plugin-canvas.md>)
 - [首批插件运行时约束](<plugin-runtime-constraints.md>)
 - [明确IP的本地模型支持](<provider-local-ip-policy.md>)
 - [技术选型与兼容决策 · 待评审](<technical-decisions.md>)

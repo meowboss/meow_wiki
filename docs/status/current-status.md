@@ -20,6 +20,10 @@
 
 两条配置互不自动联动；首批协议是OpenAI-compatible，不能推断支持原生Anthropic/Responses等。真实商业模型质量、费用和语义引用没有独立验收证据；可控HTTP fixture只证明协议链路。
 
+## 正在设计、尚未实现
+
+[全站插件画布](<../architecture/plugin-canvas.md>)拟替代仅首页纵向块：统一组合文档、实例、自由布局/样式、背景/媒体/桌宠和跨页面生命周期。现有首页、知识空间与协作UI仍固定装配；不能以当前声明式组件或固定iframe示例宣称已完成这一愿景。实施与迁移见[路线](<../plans/plugin-canvas-roadmap.md>)。
+
 ## 工程与运行边界
 
 受信静态插件及声明式组件可用；opaque iframe/MessageChannel/CSP仅受审示例，未开放任意用户JS。工坊虚拟文件不是OS沙箱，也不是完整DSH runtime或跨重启in-flight续跑。

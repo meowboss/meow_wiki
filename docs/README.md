@@ -24,6 +24,10 @@
 | [history](<history/README.md>) | 阶段交付、Review、验证快照 | 测试数字只代表对应快照 |
 | [guides](<guides/documentation-governance.md>) | 文档维护与查阅规则 | 新建、修改、归档前先读 |
 
+## 架构修订（待实施）
+
+[全站插件画布](<architecture/plugin-canvas.md>) · [ADR-010](<decisions/adr-010-plugin-canvas.md>) · [迁移开发计划](<plans/plugin-canvas-roadmap.md>)：页面组成、样式、交互与布局自由化，当前仍是设计阶段，不与下面已实现能力混同。
+
 ## 最近的有效变化
 
 - [知识空间导航与插件设置](<features/space-navigation.md>)。
