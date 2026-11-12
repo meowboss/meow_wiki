@@ -25,4 +25,7 @@ test('canvas conflict preserves local draft and requires explicit reload', async
     '本地布局草稿必须保留',
   );
   await expect(page.getByRole('button', { name: '保存布局', exact: true })).toBeDisabled();
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: '导出当前布局', exact: true }).click();
+  expect((await download).suggestedFilename()).toContain('canvas-wiki');
 });

@@ -11,6 +11,7 @@ import {
   type CanvasSurfaceName,
 } from './useCanvasComposition';
 import './canvas.css';
+import { exportCanvasLayout } from './export-layout';
 
 type Props = {
   surface: CanvasSurfaceName;
@@ -214,6 +215,13 @@ export default function CanvasSurface({
             迁移旧首页组件
           </button>
         )}
+        <button
+          type="button"
+          disabled={!draft || locked}
+          onClick={() => draft && exportCanvasLayout(draft)}
+        >
+          导出当前布局
+        </button>
         {busy && <span role="status">正在处理布局…</span>}
       </div>
       {state.error && (
