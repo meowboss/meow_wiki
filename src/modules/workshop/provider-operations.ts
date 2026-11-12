@@ -21,7 +21,7 @@ export class ProviderOperations {
     try {
       endpoint = normalizeProviderEndpoint(input.baseURL);
     } catch {
-      throw Object.assign(new Error('API地址必须为不含凭据或查询参数的HTTPS地址'), {
+      throw Object.assign(new Error('API地址不允许凭据或查询参数；域名须HTTPS，具体IP允许HTTP'), {
         statusCode: 400,
       });
     }

@@ -20,7 +20,7 @@ test('JSON escaped key is rejected after response decoding and operation failure
     const vault = new ProviderVault(store.db, 'test-master-secret-longer-than-32-characters', {}),
       ops = new ProviderOperations(vault, network);
     await assert.rejects(
-      ops.models('owner', { vendor: 'custom', baseURL: 'http://127.0.0.1/v1', apiKey: key }),
+      ops.models('owner', { vendor: 'custom', baseURL: 'http://169.254.169.254/v1', apiKey: key }),
       (e) => (e as { statusCode: number }).statusCode === 400,
     );
     await assert.rejects(

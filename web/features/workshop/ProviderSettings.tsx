@@ -155,7 +155,9 @@ export default function ProviderSettings({
       return;
     }
     if (
-      endpoint.protocol !== 'https:' ||
+      !['https:', 'http:'].includes(endpoint.protocol) ||
+      (endpoint.protocol === 'http:' &&
+        !/^(\d{1,3}\.){3}\d{1,3}$|^\[[0-9a-f:]+\]$/i.test(endpoint.hostname)) ||
       endpoint.username ||
       endpoint.password ||
       endpoint.search ||
@@ -163,7 +165,7 @@ export default function ProviderSettings({
     ) {
       void action('provider-input', async () => {
         throw new Error(
-          '配置未发送：自定义Base URL需要HTTPS，不含账号密码、查询参数或#片段；本机HTTP请使用受信部署配置。',
+          '配置未发送：域名需要HTTPS；HTTP请填写明确IPv4或IPv6地址。不允许账号密码、查询参数或#片段。',
         );
       });
       return;
@@ -197,7 +199,7 @@ export default function ProviderSettings({
         if (signal.aborted) return;
         if (error instanceof ApiError && error.status === 400)
           throw new Error(
-            '保存被拒绝（HTTP 400）：请检查名称/模型长度、API Key格式以及Base URL。地址必须是HTTPS API前缀，不能包含密钥参数；本次未保存，密钥输入已清除。',
+            '保存被拒绝（HTTP 400）：请检查名称/模型长度、API Key格式以及Base URL。域名须HTTPS，具体IP可HTTP；地址不能包含密钥参数；本次未保存，密钥输入已清除。',
           );
         if (error instanceof ApiError && error.status === 409)
           throw new Error(
@@ -257,8 +259,9 @@ export default function ProviderSettings({
             />
           </label>
           <p className="form-hint">
-            填写API前缀（例如 /v1），不要填完整的 /chat/completions 或 /models
-            地址；系统会自动追加请求路径。
+            支持具体本机/内网IP（例如
+            http://127.0.0.1:11434/v1）。HTTP不加密，请仅用于可信网络；127.0.0.1指后端所在机器。填写API前缀（例如
+            /v1），不要填完整的 /chat/completions 或 /models 地址；系统会自动追加请求路径。
           </p>
           <label>
             模型名称（可从列表选择或手动填写）

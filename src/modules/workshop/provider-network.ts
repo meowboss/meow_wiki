@@ -22,7 +22,8 @@ export function normalizeProviderEndpoint(value: string): string {
       throw invalidEndpoint();
     const url = new URL(value);
     if (
-      url.protocol !== 'https:' ||
+      !['https:', 'http:'].includes(url.protocol) ||
+      (url.protocol === 'http:' && !isIP(url.hostname.replace(/^\[|\]$/g, ''))) ||
       !url.hostname ||
       url.username ||
       url.password ||
@@ -38,9 +39,24 @@ export function normalizeProviderEndpoint(value: string): string {
         .includes('@')
     )
       throw invalidEndpoint();
+    const host = url.hostname.replace(/^\[|\]$/g, '');
+    const authority = value.slice(value.indexOf('://') + 3).split('/')[0];
+    if (isIP(host) === 4 && authority.split(':')[0] !== host) throw invalidEndpoint();
+    if (isIP(host) && !isAllowedLiteralAddress(host)) throw invalidEndpoint();
     return url.href.replace(/\/+$/, '');
   } catch {
     throw invalidEndpoint();
+  }
+}
+
+/** Explicit IP targets may use private/loopback networks; never link-local/metadata or mapped IPs. */
+export function isAllowedLiteralAddress(ip: string): boolean {
+  if (!isIP(ip) || ip.includes('%')) return false;
+  try {
+    const parsed = ipaddr.parse(ip);
+    return isPublicAddress(ip) || ['private', 'loopback', 'uniqueLocal'].includes(parsed.range());
+  } catch {
+    return false;
   }
 }
 
@@ -150,7 +166,9 @@ export function createSafeProviderFetch(
       if (
         !addresses.length ||
         addresses.some(
-          ({ address, family }) => !isPublicAddress(address) || family !== isIP(address),
+          ({ address, family }) =>
+            !(isIP(hostname) ? isAllowedLiteralAddress(address) : isPublicAddress(address)) ||
+            family !== isIP(address),
         )
       )
         throw failure();

@@ -12,7 +12,7 @@ test('user can configure custom Provider without host endpoints and edit metadat
   await page.getByRole('button', { name: '组件工坊', exact: true }).click();
   await page.getByLabel('Provider 名称', { exact: true }).fill('我的模型');
   await page.getByRole('combobox', { name: '供应商', exact: true }).selectOption('custom');
-  await page.getByLabel(/Base URL/).fill('https://api.example.test/v1');
+  await page.getByLabel(/Base URL/).fill('http://192.168.1.50:8000/v1');
   await page.getByRole('combobox', { name: /模型名称/ }).fill('my-chat');
   await page.getByLabel('Provider 名称', { exact: true }).fill('x'.repeat(120));
   await expect(page.getByLabel('Provider 名称', { exact: true })).toHaveValue('x'.repeat(100));

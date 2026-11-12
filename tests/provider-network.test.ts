@@ -25,7 +25,6 @@ test('normalize accepts public HTTPS syntax and removes trailing slashes', () =>
 test('normalize rejects credentials, query/hash including empty delimiters, and non-HTTPS', () => {
   for (const endpoint of [
     'http://example.com',
-    'http://127.0.0.1:8000',
     'ftp://example.com',
     '//example.com',
     'https://user:secret@example.com',
@@ -225,7 +224,7 @@ test('safe fetch is fetch-compatible and resolves afresh for each request', asyn
   assert.equal(setup.destroyed, 2);
 });
 
-test('literal private and noncanonical IP URLs never invoke DNS or fetch', async () => {
+test('mapped and noncanonical IP URLs never invoke DNS or fetch', async () => {
   const setup = fixture(async () => {
     assert.fail('must not send');
   });
@@ -233,7 +232,6 @@ test('literal private and noncanonical IP URLs never invoke DNS or fetch', async
     'https://127.1',
     'https://2130706433',
     'https://0x7f000001',
-    'https://[::1]',
     'https://[::ffff:8.8.8.8]',
   ])
     await assert.rejects(createSafeProviderFetch(setup.options)(endpoint), {

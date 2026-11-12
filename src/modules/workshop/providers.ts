@@ -201,7 +201,7 @@ export class ProviderVault {
     } catch {
       throw new ProviderError(
         400,
-        'Base URL必须是公开HTTPS的API前缀，不含账号密码、查询参数或#片段；本机HTTP需宿主配置',
+        'Base URL须为API前缀，不含账号密码、查询参数或#片段；域名须HTTPS，具体IP允许HTTP',
       );
     }
   }
