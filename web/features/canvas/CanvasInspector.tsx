@@ -4,6 +4,7 @@ import MediaInspector from './MediaInspector';
 import CanvasTreeInspector from './CanvasTreeInspector';
 import { isRepeatableView } from './registry';
 import { moveCanvasInstance } from './layout-operations';
+import { alignCanvasInstance } from './alignment-operations';
 
 type Props = {
   composition: Composition;
@@ -199,6 +200,22 @@ export default function CanvasInspector({
             value={selected.style.color}
             onChange={(color) => style({ color })}
           />
+          <div className="canvas-inspector-actions" role="group" aria-label="组件对齐">
+            {(['left', 'center', 'right', 'full'] as const).map((alignment) => (
+              <button
+                type="button"
+                key={alignment}
+                disabled={!!composition.tree || composition.layout === 'flow'}
+                onClick={() => onInstanceChange(alignCanvasInstance(selected, alignment))}
+              >
+                {
+                  { left: '靠左对齐', center: '水平居中', right: '靠右对齐', full: '铺满宽度' }[
+                    alignment
+                  ]
+                }
+              </button>
+            ))}
+          </div>
           <div className="canvas-inspector-actions" role="group" aria-label="组件顺序">
             <button
               type="button"

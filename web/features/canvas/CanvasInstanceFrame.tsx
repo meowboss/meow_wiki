@@ -1,5 +1,6 @@
 import type { ComponentProps, CSSProperties, ReactNode } from 'react';
 import CanvasHandle from './CanvasHandle';
+import CanvasResizeHandle from './CanvasResizeHandle';
 import { ViewBoundary, ViewContent } from './CanvasView';
 import type { CanvasInstance } from './useCanvasComposition';
 
@@ -44,6 +45,15 @@ export default function CanvasInstanceFrame({
             selected={selected}
             layout={nested ? 'flow' : handle.layout}
           />
+          {!nested && handle.layout !== 'flow' && (
+            <CanvasResizeHandle
+              item={item}
+              layout={handle.layout}
+              disabled={handle.disabled}
+              gap={handle.gap}
+              onChange={handle.onChange}
+            />
+          )}
           <button
             type="button"
             className="canvas-select-overlay"

@@ -162,6 +162,42 @@
   background: transparent;
   cursor: pointer;
 }
+.canvas-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid #cfd9e9;
+  border-radius: 5px 0 0;
+  background: #edf2fa;
+  color: #405473;
+  cursor: nwse-resize;
+  touch-action: none;
+  user-select: none;
+}
+.canvas-resize-handle:focus-visible {
+  outline: 2px solid #6384d5;
+  outline-offset: 2px;
+}
+.canvas-resize-handle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.canvas-resize-preview {
+  position: absolute;
+  right: 30px;
+  bottom: 2px;
+  z-index: 3;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #25324b;
+  color: #fff;
+  font-size: 12px;
+  pointer-events: none;
+}
 .canvas-business-content[inert] {
   pointer-events: none;
   user-select: none;
