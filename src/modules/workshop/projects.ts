@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { ProjectRevisions } from './project-revisions.ts';
 import type { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
 import { CompositionError, CompositionService } from '../compositions/service.ts';
@@ -56,6 +57,8 @@ const conflict = () => new WorkshopError('Workshop project state conflict or lim
 
 /** Owner-scoped declaration storage only: never resolves virtual paths on the host. */
 export class WorkshopProjects {
+  private readonly revisions: ProjectRevisions;
+
   constructor(
     private readonly db: DatabaseSync,
     private readonly components: ComponentService,
@@ -91,6 +94,9 @@ export class WorkshopProjects {
         if (!columns.has(name))
           this.db.exec(`ALTER TABLE mw_workshop_projects ADD COLUMN ${name} ${definition}`);
     });
+    this.revisions = this.database(
+      () => new ProjectRevisions(db, (owner, id) => this.get(owner, id)),
+    );
   }
 
   recoverInterruptedRuns(): number {
@@ -145,6 +151,7 @@ export class WorkshopProjects {
         source_revision=? WHERE owner=? AND id=?`,
         )
         .run(content, parsed.data.surface, current.revision, owner, project.id);
+      this.revisions.record(owner, project.id);
       return this.get(owner, project.id);
     });
   }
@@ -174,6 +181,7 @@ export class WorkshopProjects {
         )
         .run(saved.revision, owner, id, expectedProjectRevision);
       if (Number(changed.changes) !== 1) throw conflict();
+      this.revisions.record(owner, id);
       return this.get(owner, id);
     });
   }
@@ -204,6 +212,14 @@ export class WorkshopProjects {
       if (!row) throw missing();
       return projectFromRow(row);
     });
+  }
+
+  listRevisions(owner: string, id: string) {
+    return this.database(() => this.revisions.list(owner, id));
+  }
+
+  readRevision(owner: string, id: string, revision: number) {
+    return this.database(() => this.revisions.getRevision(owner, id, revision));
   }
 
   readFile(owner: string, id: string, path: string): string {
@@ -238,7 +254,7 @@ export class WorkshopProjects {
       (expected !== project.revision || expected === Number.MAX_SAFE_INTEGER)
     )
       throw conflict();
-    return this.database(() => {
+    return this.transaction(() => {
       const result = this.db
         .prepare(
           `UPDATE mw_workshop_projects SET content = ?, revision=revision+1,
@@ -247,6 +263,7 @@ export class WorkshopProjects {
         )
         .run(content, owner, id, expected ?? null, expected ?? null);
       if (Number(result.changes) !== 1) throw conflict();
+      if (project.kind === 'page') this.revisions.record(owner, id);
       return this.get(owner, id);
     });
   }

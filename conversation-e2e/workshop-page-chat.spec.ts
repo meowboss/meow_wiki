@@ -43,4 +43,24 @@ test('Agent creates page draft through real HTTP tool loop and user explicitly a
   await nav.getByRole('button', { name: '我的Agent页面', exact: true }).click();
   await expect(page.getByRole('heading', { name: '我的Agent页面', exact: true })).toBeVisible();
   await expect(page.getByText('这是Agent对话生成的独立页面', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '在工坊继续编辑', exact: true }).click();
+  await expect(page.getByRole('button', { name: '更新创作页面', exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: '源码', exact: true }).click();
+  await page.getByText('项目修订历史', { exact: true }).click();
+  await page.getByRole('combobox', { name: '历史版本', exact: true }).selectOption('0');
+  await expect(page.getByRole('button', { name: '载入此修订为草稿', exact: true })).toBeVisible();
+  const editor = page.getByRole('textbox', { name: /page.json/ });
+  const declaration = JSON.parse(await editor.inputValue());
+  declaration.composition.instances[0].config.text = '继续编辑后的独立页面';
+  await editor.fill(JSON.stringify(declaration));
+  await page.getByRole('button', { name: '保存 JSON', exact: true }).click();
+  await page.getByRole('button', { name: '校验页面', exact: true }).click();
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: '更新创作页面', exact: true }).click();
+  await expect(page.getByText('创作页面已更新', { exact: false })).toBeVisible();
+  await page
+    .getByRole('navigation', { name: '创作页面' })
+    .getByRole('button', { name: '我的Agent页面', exact: true })
+    .click();
+  await expect(page.getByText('继续编辑后的独立页面', { exact: true })).toBeVisible();
 });

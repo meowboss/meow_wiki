@@ -7,17 +7,21 @@ export default function CreatedPageView({
   workspaceId,
   ownerId,
   data,
+  onEdit,
 }: {
   id: string;
   workspaceId: string;
   ownerId: string;
   data?: WorkspaceData;
+  onEdit: (target: { id: string; title: string; revision: number; projectId: string }) => void;
 }) {
   const [page, setPage] = useState<{
     id: string;
     title: string;
     workspaceId: string;
     composition: CompositionDocument;
+    revision: number;
+    sourceProject: string | null;
   } | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -43,6 +47,21 @@ export default function CreatedPageView({
   return (
     <section aria-label="创作页面">
       <h1>{page.title}</h1>
+      <button
+        type="button"
+        disabled={!page.sourceProject}
+        onClick={() =>
+          page.sourceProject &&
+          onEdit({
+            id: page.id,
+            title: page.title,
+            revision: page.revision,
+            projectId: page.sourceProject,
+          })
+        }
+      >
+        在工坊继续编辑
+      </button>
       <WorkshopPageCanvas
         ownerId={ownerId}
         workspaceId={workspaceId}

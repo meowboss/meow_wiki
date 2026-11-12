@@ -9,6 +9,9 @@ type Props = {
   onInstall: () => void;
   onApply: () => void;
   onCreatePage: () => void;
+  onUpdatePage?: () => void;
+  targetTitle?: string;
+  dirty?: boolean;
 };
 export default function WorkbenchActions({
   project,
@@ -19,6 +22,9 @@ export default function WorkbenchActions({
   onInstall,
   onApply,
   onCreatePage,
+  onUpdatePage,
+  targetTitle,
+  dirty = fileDirty,
 }: Props) {
   const page = project.kind === 'page';
   return (
@@ -37,10 +43,16 @@ export default function WorkbenchActions({
         </button>
         <button
           className="primary-btn"
-          disabled={working || fileDirty || !(project.state === 'ready' || validation?.valid)}
-          onClick={page ? onApply : onInstall}
+          disabled={
+            working ||
+            project.state === 'running' ||
+            fileDirty ||
+            (page && !!onUpdatePage && dirty) ||
+            !(project.state === 'ready' || validation?.valid)
+          }
+          onClick={page ? (onUpdatePage ?? onApply) : onInstall}
         >
-          {page ? '应用到页面' : '保存为私有组件'}
+          {page ? (onUpdatePage ? '更新创作页面' : '应用到页面') : '保存为私有组件'}
         </button>
         {page && (
           <button
@@ -54,7 +66,7 @@ export default function WorkbenchActions({
       </div>
       <p>
         {page
-          ? `目标页面：${project.sourceSurface ?? '未知'}。对话与文件保存不会自动应用；应用前需要明确确认。`
+          ? `目标页面：${onUpdatePage ? (targetTitle ?? '创作页面') : (project.sourceSurface ?? '未知')}。对话与文件保存不会自动应用；应用前需要明确确认。`
           : '保存与公开发布分开。完成对话不会自动上架；你可先预览并继续发消息修改。'}
       </p>
       {validation && (

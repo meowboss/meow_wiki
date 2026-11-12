@@ -77,8 +77,37 @@ export function registerWorkshop(
       composition: page.composition,
       revision: page.revision,
       workspaceId: page.workspaceId,
+      sourceProject: page.sourceProject,
+      sourceProjectRevision: page.sourceProjectRevision,
     };
   });
+  app.put<{ Params: { id: string } }>('/api/workshop/pages/:id', async (request) => {
+    const owner = context.caller(request),
+      workspaceId = context.scope(request).id;
+    const input = z
+      .strictObject({
+        expectedRevision: revisionSchema,
+        expectedProjectRevision: revisionSchema,
+        title: z.string().trim().min(1).max(160),
+      })
+      .parse(request.body);
+    const current = createdPages.get(owner, workspaceId, request.params.id);
+    if (!current.sourceProject) throw new WorkshopError('Source project unavailable', 409);
+    const project = projects.get(owner, current.sourceProject);
+    return createdPages.updateFromProject(owner, workspaceId, current.id, input, project);
+  });
+  app.get<{ Params: { id: string } }>('/api/workshop/projects/:id/revisions', async (request) => ({
+    revisions: projects.listRevisions(context.caller(request), request.params.id),
+  }));
+  app.get<{ Params: { id: string; revision: string } }>(
+    '/api/workshop/projects/:id/revisions/:revision',
+    async (request) =>
+      projects.readRevision(
+        context.caller(request),
+        request.params.id,
+        z.coerce.number().int().nonnegative().parse(request.params.revision),
+      ),
+  );
   app.post<{ Params: { id: string } }>(
     '/api/workshop/projects/:id/create-page',
     async (request, reply) => {

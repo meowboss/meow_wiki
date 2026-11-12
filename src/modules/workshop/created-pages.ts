@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
+import { AccessError } from '../../store.ts';
+import { CompositionError } from '../compositions/service.ts';
+import { PAGE_FILE, parsePage } from './page-projects.ts';
+import { WorkshopError, type WorkshopProject } from './projects.ts';
 import {
   compositionDocumentSchema,
   type CompositionDocument,
@@ -127,6 +131,72 @@ export class WorkshopCreatedPages {
     });
   }
 
+  /**
+   * Replace only this snapshot, never its canvas surface or source project.
+   * The caller must obtain project through an owner-scoped WorkshopProjects.get;
+   * WorkshopProject is a trusted service value, not an HTTP request body.
+   */
+  updateFromProject(
+    owner: string,
+    workspaceId: string,
+    pageId: string,
+    input: { expectedRevision: number; expectedProjectRevision: number; title: string },
+    project: WorkshopProject,
+  ): CreatedPage {
+    return this.transaction(() => {
+      const current = this.get(owner, workspaceId, pageId);
+      const parsedTitle = title.safeParse(input?.title);
+      if (
+        !parsedTitle.success ||
+        !revision.safeParse(input?.expectedRevision).success ||
+        !revision.safeParse(input?.expectedProjectRevision).success
+      )
+        throw new CreatedPageError('Invalid created page update input', 400);
+      if (!project || project.kind !== 'page' || !id.safeParse(project.id).success)
+        throw new CreatedPageError('Invalid source page project', 400);
+      if (project.workspaceId !== workspaceId)
+        throw new CreatedPageError('Source page project not found in workspace', 404);
+      if (
+        project.state === 'running' ||
+        project.revision !== input.expectedProjectRevision ||
+        current.revision !== input.expectedRevision ||
+        current.revision === Number.MAX_SAFE_INTEGER
+      )
+        throw new CreatedPageError('Page or source project changed; reload before updating', 409);
+      const declaration = parsePage(project.files[PAGE_FILE]);
+      const doc = declaration.composition;
+      if (doc.surface !== current.composition.surface)
+        throw new CreatedPageError('Created page surface cannot change', 400);
+      this.validateRefs(owner, workspaceId, doc);
+      try {
+        const changed = this.db
+          .prepare(
+            `UPDATE mw_workshop_pages SET title=?, composition_json=?, revision=revision+1,
+            updated_at=?, source_project=?, source_project_revision=?
+            WHERE owner=? AND workspace_id=? AND id=? AND revision=?`,
+          )
+          .run(
+            parsedTitle.data,
+            JSON.stringify(doc),
+            new Date().toISOString(),
+            project.id,
+            project.revision,
+            owner,
+            workspaceId,
+            pageId,
+            input.expectedRevision,
+          );
+        if (Number(changed.changes) !== 1)
+          throw new CreatedPageError('Created page changed; reload before updating', 409);
+      } catch (error) {
+        if (String(error).includes('UNIQUE constraint failed'))
+          throw new CreatedPageError('Page already created for this project revision', 409);
+        throw error;
+      }
+      return this.get(owner, workspaceId, pageId);
+    });
+  }
+
   list(owner: string, workspaceId: string): CreatedPageMetadata[] {
     this.ids(owner, workspaceId);
     this.authorize(owner, workspaceId);
@@ -182,7 +252,13 @@ export class WorkshopCreatedPages {
       return result;
     } catch (error) {
       this.db.exec('ROLLBACK');
-      if (error instanceof CreatedPageError) throw error;
+      if (
+        error instanceof CreatedPageError ||
+        error instanceof AccessError ||
+        error instanceof WorkshopError ||
+        error instanceof CompositionError
+      )
+        throw error;
       throw new CreatedPageError('Created page storage operation failed', 500);
     }
   }

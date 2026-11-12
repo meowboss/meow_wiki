@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import WorkshopWorkspace from './WorkshopWorkspace';
-import WorkshopSource from './WorkshopSource';
+import WorkshopSourceWorkspace from './WorkshopSourceWorkspace';
 import WorkshopProjectPicker from './WorkshopProjectPicker';
 import WorkbenchActions from './WorkbenchActions';
+import useWorkshopPageActions, { type CreatedPageTarget } from './useWorkshopPageActions';
 import { api, type WikiPage } from '../../shared/api';
 import ProviderSettings from './ProviderSettings';
 import WorkshopChat from './WorkshopChat';
@@ -23,6 +24,8 @@ import './workshop.css';
 
 type Props = {
   workspaceId: string | null;
+  initialProjectId?: string;
+  targetCreatedPage?: CreatedPageTarget;
   pages?: WikiPage[];
   renderPagePreview?: (content: string) => ReactNode;
   onOpen?: (id: string) => void;
@@ -32,6 +35,8 @@ type Props = {
 };
 export default function WorkshopView({
   workspaceId,
+  initialProjectId,
+  targetCreatedPage,
   pages = [],
   renderPagePreview,
   onOpen = () => {},
@@ -50,6 +55,8 @@ export default function WorkshopView({
   const [providerDirty, setProviderDirty] = useState(false);
   const [validation, setValidation] = useState<Validation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [openingInitial, setOpeningInitial] = useState(false);
+  const [initializedWorkspace, setInitializedWorkspace] = useState<string | null>();
   const [busy, setBusy] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState('');
@@ -63,6 +70,9 @@ export default function WorkshopView({
   const lock = useRef(false);
   const projectRef = useRef<Project | null>(null);
   const reloadRevision = useRef(0);
+  const initialLoadGeneration = useRef(0);
+  const initialLoaded = useRef('');
+  const initialLoadGuard = useRef({ dirty: false, busy: false, running: false });
   const callbacks = useRef({ onDirtyChange, onBusyChange });
   callbacks.current = { onDirtyChange, onBusyChange };
   const file = projectFile(project);
@@ -71,7 +81,8 @@ export default function WorkshopView({
   const dirty = fileDirty || !!draft || providerDirty;
   const projectRunning = project?.state === 'running';
   const running = projectRunning || busy === 'chat';
-  const working = loading || !!busy || projectRunning;
+  const working = loading || openingInitial || !!busy || projectRunning;
+  initialLoadGuard.current = { dirty, busy: !!busy, running };
   const chosenProvider = providers.find((item) => item.id === providerId);
   // Host endpoint configuration does not gate custom providers; the server authorizes execution.
   const canRun = chosenProvider?.configured === true;
@@ -137,6 +148,7 @@ export default function WorkshopView({
         setProviders(records);
         setProviderId(records.find((item) => item.configured)?.id ?? '');
         setProjects(projectResult.projects.filter((item) => item.workspaceId === workspaceId));
+        setInitializedWorkspace(workspaceId);
       })
       .catch((e: unknown) => {
         if (!controller.signal.aborted) setError(errorMessage(e));
@@ -151,6 +163,77 @@ export default function WorkshopView({
       callbacks.current.onBusyChange(false);
     };
   }, [workspaceId]);
+  useEffect(() => {
+    if (!initialProjectId) {
+      initialLoaded.current = '';
+      return;
+    }
+    const selection = `${workspaceId}:${initialProjectId}`;
+    if (
+      loading ||
+      initializedWorkspace !== workspaceId ||
+      !workspaceId ||
+      initialLoaded.current === selection ||
+      dirty ||
+      busy ||
+      running
+    )
+      return;
+    const controller = new AbortController();
+    const generation = ++initialLoadGeneration.current;
+    const revision = ++reloadRevision.current;
+    setOpeningInitial(true);
+    void Promise.all([
+      api<Project>(
+        `/workshop/projects/${encodeURIComponent(initialProjectId)}`,
+        undefined,
+        'GET',
+        controller.signal,
+      ),
+      api<{ messages: WorkshopMessage[] }>(
+        `/workshop/projects/${encodeURIComponent(initialProjectId)}/messages`,
+        undefined,
+        'GET',
+        controller.signal,
+      ),
+    ])
+      .then(([next, history]) => {
+        const guard = initialLoadGuard.current;
+        if (
+          controller.signal.aborted ||
+          generation !== initialLoadGeneration.current ||
+          revision !== reloadRevision.current ||
+          guard.dirty ||
+          guard.busy ||
+          guard.running
+        )
+          return;
+        if (next.id !== initialProjectId) throw new Error('返回项目与请求不一致，已阻止加载。');
+        acceptProject(next);
+        setMessages(
+          history.messages
+            .filter((item) => item.projectId === next.id)
+            .sort((a, b) => a.sequence - b.sequence),
+        );
+        setPollingError('');
+        initialLoaded.current = selection;
+      })
+      .catch((e: unknown) => {
+        if (!controller.signal.aborted && generation === initialLoadGeneration.current)
+          setError(errorMessage(e));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted && generation === initialLoadGeneration.current)
+          setOpeningInitial(false);
+      });
+    return () => {
+      controller.abort();
+      ++initialLoadGeneration.current;
+      setOpeningInitial(false);
+    };
+    // Separate from configuration loading; never replace unsaved edits or active execution.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialProjectId, workspaceId, initializedWorkspace, loading, dirty, busy, running]);
   useEffect(() => {
     callbacks.current.onDirtyChange(dirty);
   }, [dirty]);
@@ -363,57 +446,24 @@ export default function WorkshopView({
       await reload(project.id, signal);
     });
   }
-  function createPage() {
-    if (
-      !project ||
-      !isPage ||
-      fileDirty ||
-      running ||
-      !(project.state === 'ready' || validation?.valid)
-    )
-      return;
-    void action('create-page', async (signal) => {
-      const title = window.prompt('新页面标题', project.name)?.trim();
-      if (!title) return;
-      const page = await api<WikiPage>(
-        `/workshop/projects/${encodeURIComponent(project.id)}/create-page`,
-        { expectedProjectRevision: project.revision, title },
-        'POST',
-        signal,
-      );
-      if (signal.aborted) return;
-      setNotice(`${page.title}：已保存为新页面，可从左侧创作页面打开。`);
-      try {
-        await onInstalled();
-      } catch {
-        if (!signal.aborted) setError('页面已保存，但导航刷新失败，请手动刷新；不要重复创建。');
-      }
-    });
-  }
-  function applyPage() {
-    if (
-      !project ||
-      !isPage ||
-      fileDirty ||
-      running ||
-      !(project.state === 'ready' || validation?.valid)
-    )
-      return;
-    if (!window.confirm(`确认将此项目应用到 ${project.sourceSurface} 页面？当前页面布局将被替换。`))
-      return;
-    void action('apply', async (signal) => {
-      await api(
-        `/workshop/projects/${encodeURIComponent(project.id)}/apply`,
-        { expectedProjectRevision: project.revision },
-        'POST',
-        signal,
-      );
-      if (signal.aborted) return;
-      setNotice('页面已应用。项目文件保存与页面应用是独立操作。');
-      await onInstalled();
-      await reload(project.id, signal);
-    });
-  }
+  const {
+    createPage,
+    applyPage,
+    updatePage,
+    targetCreatedPage: targetPage,
+  } = useWorkshopPageActions({
+    project,
+    validation,
+    fileDirty,
+    dirty: dirty || (!!targetCreatedPage && project?.id !== initialProjectId),
+    running,
+    targetCreatedPage,
+    action,
+    onInstalled,
+    reload,
+    setNotice,
+    setError,
+  });
   return (
     <section className="workshop-view" aria-label="对话式组件工坊">
       <header className="workshop-heading">
@@ -519,15 +569,11 @@ export default function WorkshopView({
         }
         source={
           project ? (
-            <WorkshopSource
-              path={selectedFile || file}
-              content={
-                !selectedFile || selectedFile === file
-                  ? content
-                  : (project.files[selectedFile] ?? '')
-              }
-              editable={!selectedFile || selectedFile === file}
-              page={isPage}
+            <WorkshopSourceWorkspace
+              project={project}
+              path={selectedFile}
+              file={file}
+              content={content}
               working={working}
               dirty={fileDirty}
               onChange={(value) => {
@@ -557,6 +603,9 @@ export default function WorkshopView({
             onInstall={install}
             onApply={applyPage}
             onCreatePage={createPage}
+            onUpdatePage={targetPage ? updatePage : undefined}
+            targetTitle={targetPage?.title}
+            dirty={dirty || (!!targetCreatedPage && project.id !== initialProjectId)}
           />
         )}
         <ProviderSettings

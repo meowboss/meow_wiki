@@ -93,6 +93,13 @@ export default function App({
   const [notice, setNotice] = useState('');
   const [view, setView] = useState<View>('wiki');
   const [createdPageId, setCreatedPageId] = useState('');
+  const [workshopTarget, setWorkshopTarget] = useState<{
+    id: string;
+    title: string;
+    revision: number;
+    projectId: string;
+    workspaceId: string;
+  } | null>(null);
   const createdPages = useCreatedPages(workspace?.id ?? null);
   const [selected, setSelected] = useState('');
   const [editorPage, setEditorPage] = useState<WikiPage | null>(null);
@@ -921,6 +928,10 @@ export default function App({
         ) : view === 'created-page' && workspace ? (
           <CreatedPageView
             key={`${workspace.id}:${createdPageId}`}
+            onEdit={(target) => {
+              setWorkshopTarget({ ...target, workspaceId: workspace.id });
+              nav('workshop');
+            }}
             id={createdPageId}
             workspaceId={workspace.id}
             ownerId={user.id}
@@ -928,7 +939,15 @@ export default function App({
           />
         ) : view === 'workshop' ? (
           <WorkshopView
-            key={workspace?.id ?? 'no-workspace'}
+            key={`${workspace?.id ?? 'no-workspace'}:${workshopTarget?.workspaceId === workspace?.id ? (workshopTarget?.projectId ?? 'new') : 'new'}`}
+            initialProjectId={
+              workshopTarget?.workspaceId === workspace?.id ? workshopTarget?.projectId : undefined
+            }
+            targetCreatedPage={
+              workshopTarget?.workspaceId === workspace?.id
+                ? (workshopTarget ?? undefined)
+                : undefined
+            }
             workspaceId={workspace?.id ?? null}
             pages={data && data.workspace.id === workspace?.id && !loading ? data.pages : []}
             onOpen={openSource}
