@@ -3,6 +3,7 @@ import CanvasSurface from '../features/canvas/CanvasSurface';
 import HomeComponentView, { homeCanvasEntries } from '../features/home/HomeComponentView';
 import CanvasSearchView from '../shared/components/CanvasSearchView';
 import type { WorkspaceData } from '../shared/api';
+import type { CanvasCatalogEntry } from '../features/canvas/CanvasCatalog';
 
 type WorkspaceCanvasProps = Omit<ComponentProps<typeof CanvasSurface>, 'renderView'> & {
   data?: WorkspaceData;
@@ -31,6 +32,28 @@ export default function WorkspaceCanvas({
   return (
     <CanvasSurface
       {...props}
+      availableViews={[
+        { label: '文本', viewId: 'builtin.text', config: { text: '新文本' } },
+        { label: '搜索笔记', viewId: 'builtin.search', config: {} },
+        ...Object.entries(slots)
+          .filter(([viewId, node]) => node != null && viewId !== 'collaboration.content')
+          .map(([viewId]) => ({
+            label:
+              (
+                {
+                  'wiki.directory': '笔记目录',
+                  'wiki.document': '笔记正文',
+                  'home.content': '旧首页兼容视图',
+                  'collaboration.content': '旧协作兼容视图',
+                  'collaboration.header': '协作工具栏',
+                  'collaboration.directory': '知识域目录',
+                  'collaboration.detail': '知识域详情',
+                } as Record<string, string>
+              )[viewId] ?? viewId,
+            viewId: viewId as CanvasCatalogEntry['viewId'],
+            config: {},
+          })),
+      ]}
       catalog={
         data
           ? homeCanvasEntries(data).map((entry) => ({

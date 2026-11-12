@@ -1,4 +1,7 @@
+import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
+import { z } from 'zod';
+import { layoutSchema } from '../../components.ts';
 import {
   compositionSchema,
   compositionUpdateSchema,
@@ -7,6 +10,10 @@ import {
   type CanvasSurface,
   type Composition,
 } from '../../../packages/canvas-contract/index.ts';
+
+const legacyMigrationSchema = z.strictObject({
+  expectedRevision: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+});
 
 export class CompositionError extends Error {
   constructor(
@@ -30,7 +37,98 @@ export class CompositionService {
       revision INTEGER NOT NULL CHECK (revision >= 1),
       json TEXT NOT NULL,
       PRIMARY KEY (owner, workspace, surface)
+    );
+    CREATE TABLE IF NOT EXISTS mw_composition_migrations (
+      owner TEXT NOT NULL,
+      workspace TEXT NOT NULL,
+      source_revision INTEGER NOT NULL,
+      source_digest TEXT NOT NULL,
+      target_revision INTEGER NOT NULL,
+      PRIMARY KEY (owner, workspace)
     )`);
+  }
+
+  /** Explicit, one-time home import; GET never reads or migrates legacy layouts. */
+  migrateLegacy(owner: string, workspace: string, input: unknown): Composition {
+    this.authorize(owner, workspace);
+    const parsed = legacyMigrationSchema.safeParse(input);
+    if (!parsed.success) throw new CompositionError(400, '迁移输入校验失败');
+
+    // This outer savepoint atomically commits both update() and its provenance marker.
+    this.db.exec('SAVEPOINT composition_migrate_legacy');
+    try {
+      const migrated = this.db
+        .prepare('SELECT 1 FROM mw_composition_migrations WHERE owner = ? AND workspace = ?')
+        .get(owner, workspace);
+      if (migrated) {
+        const current = this.get(owner, workspace, 'home');
+        this.db.exec('RELEASE SAVEPOINT composition_migrate_legacy');
+        return current;
+      }
+      const row = this.db
+        .prepare('SELECT json, revision FROM mw_layouts WHERE workspace_id = ?')
+        .get(workspace);
+      if (!row) throw new CompositionError(400, '没有可迁移的旧首页布局');
+      let source: unknown;
+      try {
+        source = JSON.parse(String(row.json));
+      } catch {
+        throw new CompositionError(400, '旧首页布局 JSON 无效');
+      }
+      const legacy = layoutSchema.safeParse(source);
+      if (!legacy.success) throw new CompositionError(400, '旧首页布局格式无效');
+      const { revision: _, ...composition } = createDefaultComposition('home');
+      composition.instances = composition.instances.filter(
+        (item) => item.viewId !== 'home.content',
+      );
+      composition.instances.push({
+        id: 'legacy-title',
+        viewId: 'builtin.text',
+        visible: true,
+        x: 0,
+        y: 0,
+        w: 12,
+        h: 1,
+        config: { text: legacy.data.title },
+        style: {},
+      });
+      composition.instances.push(
+        ...legacy.data.blocks.map((block, index) => ({
+          id: `legacy-${index}`,
+          viewId: 'component.render' as const,
+          visible: true,
+          x: (index % 2) * 6,
+          y: 1 + Math.floor(index / 2) * 4,
+          w: 6,
+          h: 4,
+          config: block,
+          style: {},
+        })),
+      );
+      // Reuse normal validation, reference authorization and revision CAS.
+      const saved = this.update(owner, workspace, 'home', {
+        expectedRevision: parsed.data.expectedRevision,
+        composition,
+      });
+      this.db
+        .prepare(
+          `INSERT INTO mw_composition_migrations
+          (owner, workspace, source_revision, source_digest, target_revision) VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run(
+          owner,
+          workspace,
+          row.revision,
+          createHash('sha256').update(String(row.json)).digest('hex'),
+          saved.revision,
+        );
+      this.db.exec('RELEASE SAVEPOINT composition_migrate_legacy');
+      return saved;
+    } catch (error) {
+      this.db.exec('ROLLBACK TO SAVEPOINT composition_migrate_legacy');
+      this.db.exec('RELEASE SAVEPOINT composition_migrate_legacy');
+      throw error;
+    }
   }
 
   get(owner: string, workspace: string, surface: CanvasSurface): Composition {

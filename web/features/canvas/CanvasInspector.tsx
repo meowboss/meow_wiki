@@ -1,5 +1,6 @@
 import type { Composition } from '../../../packages/canvas-contract/index';
 import type { CanvasInstance } from './useCanvasComposition';
+import { isRepeatableView } from './registry';
 
 type Props = {
   composition: Composition;
@@ -181,12 +182,9 @@ export default function CanvasInspector({
           <div className="canvas-inspector-actions">
             <button
               type="button"
-              disabled={
-                !['builtin.text', 'component.render', 'builtin.search'].includes(selected.viewId) ||
-                composition.instances.length >= 40
-              }
+              disabled={!isRepeatableView(selected.viewId) || composition.instances.length >= 40}
               title={
-                !['builtin.text', 'component.render', 'builtin.search'].includes(selected.viewId)
+                !isRepeatableView(selected.viewId)
                   ? '现有业务组件（legacy）使用单实例，文本、搜索和空间组件支持独立复制。'
                   : undefined
               }
@@ -198,7 +196,7 @@ export default function CanvasInspector({
               移除布局组件
             </button>
           </div>
-          {!['builtin.text', 'component.render', 'builtin.search'].includes(selected.viewId) && (
+          {!isRepeatableView(selected.viewId) && (
             <p className="muted">
               现有业务组件（legacy）为单实例，不能复制。文本、搜索和空间组件支持独立复制。
             </p>

@@ -3,6 +3,8 @@ import { ViewBoundary, ViewContent } from './CanvasView';
 import CanvasInspector from './CanvasInspector';
 import CanvasHandle from './CanvasHandle';
 import CanvasCatalog, { type CanvasCatalogEntry } from './CanvasCatalog';
+import { createDefaultComposition } from '../../../packages/canvas-contract/index';
+import { availableCanvasViews, isRepeatableView, isViewOnSurface } from './registry';
 import {
   useCanvasComposition,
   type CanvasInstance,
@@ -19,6 +21,7 @@ type Props = {
   disabled?: boolean;
   contentDirty?: boolean;
   catalog?: CanvasCatalogEntry[];
+  availableViews?: CanvasCatalogEntry[];
 };
 const COLUMNS = 12;
 const CONTENT_DRAFT_MESSAGE = '请先保存或取消业务草稿，再编辑布局或重新加载布局。';
@@ -32,6 +35,7 @@ export default function CanvasSurface({
   disabled = false,
   contentDirty = false,
   catalog = [],
+  availableViews,
 }: Props) {
   const state = useCanvasComposition(surface, workspaceId, onDirtyChange, onBusyChange);
   const [selectedId, setSelectedId] = useState('');
@@ -49,7 +53,11 @@ export default function CanvasSurface({
       });
   }
   function addView(viewId: CanvasInstance['viewId'], config: CanvasInstance['config']) {
-    if (!draft || draft.instances.length >= 40) return;
+    if (!draft || locked || contentDirty || !editing || draft.instances.length >= 40) return;
+    const entries = [...availableCanvasViews(surface, availableViews), ...catalog];
+    if (!isViewOnSurface(viewId, surface) || !entries.some((entry) => entry.viewId === viewId))
+      return;
+    if (!isRepeatableView(viewId) && draft.instances.some((item) => item.viewId === viewId)) return;
     const item: CanvasInstance = {
       id: crypto.randomUUID(),
       viewId,
@@ -58,7 +66,7 @@ export default function CanvasSurface({
       y: Math.min(100, Math.max(0, ...draft.instances.map((i) => i.y + i.h))),
       w: 6,
       h: 4,
-      config,
+      config: { ...config },
       style: {},
     };
     state.change({ ...draft, instances: [...draft.instances, item] });
@@ -81,12 +89,7 @@ export default function CanvasSurface({
     setSelectedId(item.id);
   }
   function duplicate() {
-    if (
-      !draft ||
-      !selected ||
-      !['builtin.text', 'component.render', 'builtin.search'].includes(selected.viewId) ||
-      draft.instances.length >= 40
-    )
+    if (!draft || !selected || !isRepeatableView(selected.viewId) || draft.instances.length >= 40)
       return;
     const item = {
       ...selected,
@@ -97,6 +100,15 @@ export default function CanvasSurface({
     };
     state.change({ ...draft, instances: [...draft.instances, item] });
     setSelectedId(item.id);
+  }
+  function restoreDefault() {
+    if (locked || contentDirty || !draft) return;
+    if (!window.confirm('恢复默认布局将替换当前布局并进入编辑草稿；保存布局后才会生效，是否继续？'))
+      return;
+    setDragPosition(null);
+    setSelectedId('');
+    state.change({ ...createDefaultComposition(surface), revision: draft.revision });
+    state.setEditing(true);
   }
   function remove() {
     if (!draft || !selected || !window.confirm('仅从布局中移除此组件？原有数据不会被删除。'))
@@ -172,9 +184,6 @@ export default function CanvasSurface({
             >
               取消布局编辑
             </button>
-            <button type="button" disabled={locked} onClick={state.restore}>
-              恢复默认布局
-            </button>
             <button
               type="button"
               disabled={locked || (draft?.instances.length ?? 0) >= 40}
@@ -182,7 +191,14 @@ export default function CanvasSurface({
             >
               添加文本
             </button>
-            <CanvasCatalog catalog={catalog} disabled={locked} onAdd={addView} />
+            <CanvasCatalog
+              catalog={catalog}
+              availableViews={availableViews}
+              surface={surface}
+              instances={draft?.instances ?? []}
+              disabled={locked || contentDirty || (draft?.instances.length ?? 0) >= 40}
+              onAdd={addView}
+            />
             <button type="button" disabled={locked || !state.canUndo} onClick={state.undo}>
               撤销布局修改
             </button>
@@ -193,6 +209,23 @@ export default function CanvasSurface({
               {state.dirty ? '布局有未保存修改' : '布局已保存'}
             </span>
           </>
+        )}
+        <button
+          type="button"
+          disabled={locked || contentDirty || !draft}
+          title={contentDirty ? CONTENT_DRAFT_MESSAGE : undefined}
+          onClick={restoreDefault}
+        >
+          恢复默认布局
+        </button>
+        {surface === 'home' && (
+          <button
+            type="button"
+            disabled={locked || contentDirty || !state.loaded}
+            onClick={() => void state.migrateLegacy()}
+          >
+            迁移旧首页组件
+          </button>
         )}
         {busy && <span role="status">正在处理布局…</span>}
       </div>

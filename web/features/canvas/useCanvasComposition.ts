@@ -154,6 +154,40 @@ export function useCanvasComposition(
       if (!controller.signal.aborted && version === generation.current) setBusy(false);
     }
   }
+  async function migrateLegacy() {
+    if (surface !== 'home' || busy || !baseline || !loaded) return;
+    if (
+      !window.confirm(
+        '将旧首页布局转换为独立画布实例？旧首页与组件内容不修改，新画布将按当前版本保存。',
+      )
+    )
+      return;
+    if (dirty && !window.confirm('当前布局草稿将被迁移结果替换，继续吗？')) return;
+    const controller = new AbortController();
+    request.current = controller;
+    const version = generation.current;
+    setBusy(true);
+    setError('');
+    try {
+      const value = await api<Composition>(
+        `/compositions/home/migrate-legacy?workspaceId=${encodeURIComponent(workspaceId)}`,
+        { expectedRevision: baseline.revision },
+        'POST',
+        controller.signal,
+      );
+      if (controller.signal.aborted || version !== generation.current) return;
+      setBaseline(value);
+      setDraft(value);
+      setEditing(false);
+      setPast([]);
+      setFuture([]);
+    } catch (cause) {
+      if (!controller.signal.aborted && version === generation.current)
+        setError(cause instanceof Error ? cause.message : '迁移失败，原数据保留');
+    } finally {
+      if (!controller.signal.aborted && version === generation.current) setBusy(false);
+    }
+  }
   function loadLatest() {
     if (dirty && !window.confirm('重新加载会放弃当前布局草稿，是否继续？')) return;
     setReload((value) => value + 1);
@@ -172,6 +206,7 @@ export function useCanvasComposition(
     restore,
     save,
     loadLatest,
+    migrateLegacy,
     undo,
     redo,
     canUndo: past.length > 0,
