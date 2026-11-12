@@ -23,6 +23,7 @@ import { registerMcpRoutes } from './modules/mcp/routes.ts';
 import { registerPluginRuntime } from './modules/plugin-runtime/routes.ts';
 import { registerProfileRoutes } from './modules/profile/routes.ts';
 import { registerCompositions } from './modules/compositions/routes.ts';
+import { registerAssets } from './modules/assets/routes.ts';
 
 export type AppOptions = IdentityOptions & {
   modelBroker?: ModelBroker;
@@ -88,6 +89,7 @@ export function createApp(options: AppOptions = {}) {
   registerIdentityRoutes(app, context);
   registerProfileRoutes(app, context);
   registerCompositions(app, context);
+  registerAssets(app, context);
   registerWorkspaceRoutes(app, context, new WorkspacesService(store, components, kernel));
   registerPageRoutes(app, context, new PagesService(store, kernel));
   registerExtensionRoutes(app, context, new ExtensionsService(store, kernel));

@@ -73,6 +73,7 @@ test('explicit migration reads actual legacy home JSON and preserves order, titl
       id: 'legacy-title',
       viewId: 'builtin.text',
       visible: true,
+      layer: 'content',
       x: 0,
       y: 0,
       w: 12,

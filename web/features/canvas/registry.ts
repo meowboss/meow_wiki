@@ -13,6 +13,14 @@ type ViewMetadata = CanvasCatalogEntry & {
 const views: readonly ViewMetadata[] = [
   { label: '文本', viewId: 'builtin.text', config: { text: '在此输入文本' }, repeatable: true },
   { label: '搜索', viewId: 'builtin.search', config: {}, repeatable: true },
+  { label: '图片 / 背景', viewId: 'builtin.image', config: { alt: '图片' }, repeatable: true },
+  {
+    label: '视频播放器',
+    viewId: 'builtin.video',
+    config: { muted: true, loop: false },
+    repeatable: true,
+  },
+  { label: '页面桌宠', viewId: 'builtin.pet', config: { text: '🐈' }, repeatable: true },
   {
     label: '知识目录',
     viewId: 'wiki.directory',
@@ -71,9 +79,7 @@ export function availableCanvasViews(
   surface: CanvasSurfaceName,
   availableViews?: readonly CanvasCatalogEntry[],
 ): CanvasCatalogEntry[] {
-  const builtins = views.filter(
-    (view) => view.viewId === 'builtin.text' || view.viewId === 'builtin.search',
-  );
+  const builtins = views.filter((view) => view.viewId.startsWith('builtin.'));
   const candidates =
     availableViews ??
     views.filter(

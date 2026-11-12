@@ -85,6 +85,7 @@ export class CompositionService {
         id: 'legacy-title',
         viewId: 'builtin.text',
         visible: true,
+        layer: 'content' as const,
         x: 0,
         y: 0,
         w: 12,
@@ -97,6 +98,7 @@ export class CompositionService {
           id: `legacy-${index}`,
           viewId: 'component.render' as const,
           visible: true,
+          layer: 'content' as const,
           x: (index % 2) * 6,
           y: 1 + Math.floor(index / 2) * 4,
           w: 6,
@@ -155,6 +157,17 @@ export class CompositionService {
     if (composition.surface !== surface)
       throw new CompositionError(400, '画布 surface 与路径不一致');
     for (const instance of composition.instances) {
+      if (instance.config.assetId) {
+        const asset = this.db
+          .prepare('SELECT mime FROM mw_assets WHERE id=? AND owner=? AND workspace=?')
+          .get(instance.config.assetId, owner, workspace);
+        if (
+          !asset ||
+          (instance.viewId === 'builtin.image' && !String(asset.mime).startsWith('image/')) ||
+          (instance.viewId === 'builtin.video' && !String(asset.mime).startsWith('video/'))
+        )
+          throw new CompositionError(400, '媒体素材不可访问或格式不匹配');
+      }
       if (instance.viewId !== 'component.render') continue;
       const { componentId, releaseId } = instance.config;
       if (!!componentId === !!releaseId)

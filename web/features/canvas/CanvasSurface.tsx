@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { ViewBoundary, ViewContent } from './CanvasView';
 import CanvasInspector from './CanvasInspector';
 import CanvasHandle from './CanvasHandle';
@@ -37,13 +37,20 @@ export default function CanvasSurface({
   catalog = [],
   availableViews,
 }: Props) {
-  const state = useCanvasComposition(surface, workspaceId, onDirtyChange, onBusyChange);
+  const [mediaBusy, setMediaBusy] = useState(false);
+  const state = useCanvasComposition(surface, workspaceId, onDirtyChange, () => {});
+  const busyCallback = useRef(onBusyChange);
+  busyCallback.current = onBusyChange;
+  useEffect(() => {
+    busyCallback.current(state.busy || mediaBusy);
+    return () => busyCallback.current(false);
+  }, [state.busy, mediaBusy]);
   const [selectedId, setSelectedId] = useState('');
   const [dragPosition, setDragPosition] = useState<{ id: string; x: number; y: number } | null>(
     null,
   );
   const { draft, editing, busy } = state;
-  const locked = disabled || busy;
+  const locked = disabled || busy || mediaBusy;
   const selected = draft?.instances.find((item) => item.id === selectedId);
   function updateInstance(next: CanvasInstance) {
     if (draft)
@@ -62,6 +69,7 @@ export default function CanvasSurface({
       id: crypto.randomUUID(),
       viewId,
       visible: true,
+      layer: 'content',
       x: 0,
       y: Math.min(100, Math.max(0, ...draft.instances.map((i) => i.y + i.h))),
       w: 6,
@@ -78,6 +86,7 @@ export default function CanvasSurface({
       id: crypto.randomUUID(),
       viewId: 'builtin.text',
       visible: true,
+      layer: 'content',
       x: 0,
       y: Math.min(100, Math.max(0, ...draft.instances.map((value) => value.y + value.h))),
       w: 6,
@@ -174,7 +183,7 @@ export default function CanvasSurface({
             </button>
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || mediaBusy}
               onClick={() => {
                 if (!state.dirty || window.confirm('放弃当前未保存的布局修改？')) {
                   setDragPosition(null);
@@ -246,7 +255,7 @@ export default function CanvasSurface({
       )}
       <div className="canvas-workspace">
         <div
-          className={`canvas-board canvas-layout-${draft?.layout ?? 'flow'}`}
+          className={`canvas-board canvas-layout-${draft?.layout ?? 'flow'}${editing ? ' canvas-editing-board' : ''}`}
           style={boardStyle}
           aria-busy={busy}
         >
@@ -255,6 +264,7 @@ export default function CanvasSurface({
               key={item.id}
               style={itemStyle(item)}
               data-view-id={item.viewId}
+              data-layer={item.layer}
               hidden={!editing && !item.visible}
               className={`canvas-instance${editing && item.id === selectedId ? ' is-selected' : ''}${!item.visible ? ' is-hidden' : ''}`}
             >
@@ -282,7 +292,7 @@ export default function CanvasSurface({
               )}
               <div className="canvas-business-content" inert={editing}>
                 <ViewBoundary key={`${workspaceId}:${surface}:${item.id}`}>
-                  <ViewContent instance={item} renderView={renderView} />
+                  <ViewContent instance={item} renderView={renderView} workspaceId={workspaceId} />
                 </ViewBoundary>
               </div>
             </div>
@@ -293,6 +303,8 @@ export default function CanvasSurface({
         </div>
         {editing && draft && (
           <CanvasInspector
+            workspaceId={workspaceId}
+            onMediaBusyChange={setMediaBusy}
             composition={draft}
             selected={selected}
             disabled={locked}

@@ -1,5 +1,6 @@
 import type { Composition } from '../../../packages/canvas-contract/index';
 import type { CanvasInstance } from './useCanvasComposition';
+import MediaInspector from './MediaInspector';
 import { isRepeatableView } from './registry';
 
 type Props = {
@@ -10,6 +11,8 @@ type Props = {
   onInstanceChange: (next: CanvasInstance) => void;
   onDuplicate: () => void;
   onRemove: () => void;
+  workspaceId: string;
+  onMediaBusyChange?: (value: boolean) => void;
 };
 function NumberField({
   label,
@@ -76,6 +79,8 @@ export default function CanvasInspector({
   onInstanceChange,
   onDuplicate,
   onRemove,
+  workspaceId,
+  onMediaBusyChange,
 }: Props) {
   function style(patch: Partial<CanvasInstance['style']>) {
     if (!selected) return;
@@ -118,6 +123,13 @@ export default function CanvasInspector({
       {selected ? (
         <fieldset disabled={disabled}>
           <legend>所选组件</legend>
+          <MediaInspector
+            instance={selected}
+            workspaceId={workspaceId}
+            onBusyChange={onMediaBusyChange}
+            disabled={disabled}
+            onChange={onInstanceChange}
+          />
           <p className="canvas-view-name">{selected.viewId}</p>
           <label className="canvas-checkbox">
             <input

@@ -22,9 +22,9 @@
 
 ## 插件画布实施进度
 
-[基础增量](<../features/canvas-foundation.md>)已接入首页/知识空间/知识域，共享组合CAS、固定12逻辑列grid/flow/free、实例定位/尺寸/样式/隐藏、文本/搜索和私有/安装组件的独立放置。知识域header/目录/详情已分离共享状态；首页旧布局仍兼容adapter，不修改旧release快照。
+[基础增量](<../features/canvas-foundation.md>)已接入首页/知识空间/知识域，共享组合CAS、固定12逻辑列grid/flow/free、实例定位/尺寸/样式/隐藏、文本/搜索和私有/安装组件的独立放置。知识域header/目录/详情已分离共享状态；首页旧布局可显式迁移为独立实例，不修改旧布局和release快照。已补最小授权媒体asset服务、图片/视频/内置交互桌宠及背景/内容/悬浮层，签名与大小配额、Range请求、引用保护和素材回收；视频codec兼容性未作真实片源全面验收。
 
-[全站插件画布](<../architecture/plugin-canvas.md>)完整目标尚未达成：嵌套布局、媒体/桌宠/背景层、跨页面常驻、动态包registry、事件连线与工坊v2仍待实施，不能把本批当完整C0–C2。实施与迁移见[路线](<../plans/plugin-canvas-roadmap.md>)。
+[全站插件画布](<../architecture/plugin-canvas.md>)完整目标尚未达成：嵌套布局、任意代码桌宠、跨页面常驻、动态包registry、事件连线与工坊v2仍待实施，不能把本批当完整C0–C2。实施与迁移见[路线](<../plans/plugin-canvas-roadmap.md>)。
 
 ## 工程与运行边界
 

@@ -14,6 +14,9 @@ export const canvasViewIdSchema = z.enum([
   'builtin.text',
   'component.render',
   'builtin.search',
+  'builtin.image',
+  'builtin.video',
+  'builtin.pet',
 ]);
 
 const hex = z.string().regex(/^#(?:[\da-fA-F]{3}|[\da-fA-F]{4}|[\da-fA-F]{6}|[\da-fA-F]{8})$/);
@@ -27,6 +30,7 @@ const instanceSchema = z
       .regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/),
     viewId: canvasViewIdSchema,
     visible: z.boolean(),
+    layer: z.enum(['background', 'content', 'overlay']).default('content'),
     x: z.number().int().min(0).max(11),
     y: z.number().int().min(0).max(100),
     w: z.number().int().min(1).max(12),
@@ -35,6 +39,11 @@ const instanceSchema = z
       text: z.string().max(5000).optional(),
       componentId: z.string().uuid().optional(),
       releaseId: z.string().uuid().optional(),
+      assetId: z.string().uuid().optional(),
+      alt: z.string().max(300).optional(),
+      muted: z.boolean().optional(),
+      autoplay: z.boolean().optional(),
+      loop: z.boolean().optional(),
     }),
     style: z.strictObject({
       background: hex.optional(),
@@ -69,7 +78,17 @@ export const compositionDocumentSchema = z
   .refine(
     (document) => {
       const views = document.instances
-        .filter((i) => !['builtin.text', 'component.render', 'builtin.search'].includes(i.viewId))
+        .filter(
+          (i) =>
+            ![
+              'builtin.text',
+              'component.render',
+              'builtin.search',
+              'builtin.image',
+              'builtin.video',
+              'builtin.pet',
+            ].includes(i.viewId),
+        )
         .map((i) => i.viewId);
       return new Set(views).size === views.length;
     },
@@ -84,7 +103,17 @@ export const compositionSchema = z
   .refine(
     (document) => {
       const views = document.instances
-        .filter((i) => !['builtin.text', 'component.render', 'builtin.search'].includes(i.viewId))
+        .filter(
+          (i) =>
+            ![
+              'builtin.text',
+              'component.render',
+              'builtin.search',
+              'builtin.image',
+              'builtin.video',
+              'builtin.pet',
+            ].includes(i.viewId),
+        )
         .map((i) => i.viewId);
       return new Set(views).size === views.length;
     },
@@ -113,6 +142,7 @@ export function createDefaultComposition(surface: CanvasSurface): Composition {
     id,
     viewId,
     visible: true,
+    layer: 'content',
     x,
     y: 0,
     w,
