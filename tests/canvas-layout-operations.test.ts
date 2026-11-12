@@ -4,6 +4,9 @@ import { createDefaultComposition } from '../packages/canvas-contract/index.ts';
 import { moveCanvasInstance } from '../web/features/canvas/layout-operations.ts';
 test('canvas ordering is immutable, bounded and preserves instance identity and configuration', () => {
   const source = createDefaultComposition('wiki');
+  source.instances = source.instances.filter((i) =>
+    ['wiki-directory', 'wiki-document'].includes(i.id),
+  );
   const before = structuredClone(source);
   const moved = moveCanvasInstance(source, 'wiki-document', -1);
   assert.deepEqual(source, before);

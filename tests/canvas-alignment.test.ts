@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { createDefaultComposition } from '../packages/canvas-contract/index.ts';
 import { alignCanvasInstance } from '../web/features/canvas/alignment-operations.ts';
 test('alignment preserves instance identity and config while respecting logical bounds', () => {
-  const instance = createDefaultComposition('wiki').instances[0],
+  const instance = createDefaultComposition('wiki').instances.find(
+      (i) => i.id === 'wiki-directory',
+    )!,
     copy = structuredClone(instance);
   assert.equal(alignCanvasInstance(instance, 'left').x, 0);
   assert.equal(alignCanvasInstance(instance, 'center').x, 4);

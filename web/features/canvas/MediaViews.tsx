@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CanvasInstance } from './useCanvasComposition';
 import './media-views.css';
+import { useCanvasActive } from './runtime-context';
 
 type MediaConfig = {
   assetId?: string;
@@ -63,12 +64,16 @@ function ImageView({ source, alt }: { source: string; alt: string }) {
 }
 
 function VideoView({ source, config }: { source: string; config: MediaConfig }) {
+  const active = useCanvasActive();
   const video = useRef<HTMLVideoElement>(null);
   const reducedMotion = useReducedMotion();
   const [visible, setVisible] = useState(() => typeof document !== 'undefined' && !document.hidden);
   const [failed, setFailed] = useState(false);
   const muted = config.muted ?? true;
-  const autoplay = config.autoplay === true && muted && !reducedMotion && visible;
+  const autoplay = active && config.autoplay === true && muted && !reducedMotion && visible;
+  useEffect(() => {
+    if (!active) video.current?.pause();
+  }, [active]);
 
   useEffect(() => {
     const element = video.current;
@@ -102,7 +107,7 @@ function VideoView({ source, config }: { source: string; config: MediaConfig }) 
         preload="metadata"
         aria-label={config.alt || '画布视频'}
         onPlay={(event) => {
-          if (document.hidden) event.currentTarget.pause();
+          if (document.hidden || !active) event.currentTarget.pause();
         }}
         onError={() => setFailed(true)}
       >
@@ -116,12 +121,13 @@ function VideoView({ source, config }: { source: string; config: MediaConfig }) 
 }
 
 function PetView({ config }: { config: MediaConfig }) {
+  const active = useCanvasActive();
   const reducedMotion = useReducedMotion();
   const [paused, setPaused] = useState(false);
   const [greetings, setGreetings] = useState(0);
   const character = config.text?.trim() || '🐈';
   return (
-    <div className="canvas-media-pet" data-paused={paused || reducedMotion}>
+    <div className="canvas-media-pet" data-paused={paused || reducedMotion || !active}>
       <button
         type="button"
         className="canvas-media-pet-character"

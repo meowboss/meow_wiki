@@ -4,7 +4,11 @@
 
 已接统一composition schema/service/API/CanvasSurface：首页、知识空间、知识域页面各自保存owner/workspace/surface作用域布局，独立revision/强制expectedRevision CAS。GET无写入，旧mw_layouts与release快照不改。首批布局为固定12逻辑列grid、flow、free，提供文本/搜索/当前空间组件实例、位置/尺寸/可见性/颜色/内边距/圆角、拖动与键盘、撤销重做、默认恢复。新实例无强制卡片框。功能视图目录由App可用slot与纯metadata注册表组合，已删除官方视图可逐个加回；恢复默认入口在阅读/编辑模式均可达，需确认且只产生布局草稿，不自动写入。
 
-知识空间目录和阅读/编辑为独立放置实例；首页旧HomeView作为singleton兼容adapter；知识域共享原业务状态，将header、成员域目录和详情作为三个独立画布实例，旧collaboration.content仍可兼容读取。用户的私有/已安装组件可脱离旧首页列表，在各画布独立添加/复制/定位，安装版仍固定releaseId。不是任意代码或动态包registry，也不声称已拆完协作列表/详情等所有业务视图。
+知识空间标题、统计、问答入口、页脚、阅读工具栏、目录和正文分别为独立实例，新正文splitToolbar标记可删工具栏不回生；旧文档无标记保留内嵌工具栏兼容。单Reader状态位于画布上层共享字号/专注，旧布局可恢复默认获取完整新版。首页旧HomeView作为singleton兼容adapter；知识域共享原业务状态，将header、成员域目录和详情作为三个独立画布实例，旧collaboration.content仍可兼容读取。用户的私有/已安装组件可脱离旧首页列表，在各画布独立添加/复制/定位，安装版仍固定releaseId。不是任意代码或动态包registry，也不声称已拆完协作列表/详情等所有业务视图。
+
+受信注册：App使用不可变renderer注册表分发，不再每个新视图增加switch；official.package.view格式契约允许编译期受信包扩展，metadata无可执行字段，unknown为占位而非执行slot。不是任意用户代码加载。
+
+刷新草稿：sessionStorage按真实owner/workspace/surface隔离保存布局草稿（1MiB），GET后显式恢复/丢弃；旧baseRevision冲突时保留草稿禁止覆盖，save/cancel清当前scope，storage失败不抛、不复制正文/Key。媒体上下文hidden/edit/loading暂停视频与桌宠动效。
 
 草稿边界：业务草稿未保存时禁入布局编辑；编辑态业务子树inert，隐藏保持挂载，legacy业务adapter禁止复制；取消布局不写正文。独立审阅发现过误触/卸载/坐标/专注问题，修复后再做回归。布局请求失败时临时默认业务可用，但未成功读取版本前禁保存；冲突保草稿，显式确认后重载。
 

@@ -4,6 +4,13 @@ import {
   type Composition,
 } from '../../../packages/canvas-contract/index';
 import { api, ApiError } from '../../shared/api';
+import {
+  canvasDraftKey,
+  clearCanvasDraft,
+  readCanvasDraft,
+  saveCanvasDraft,
+  type CanvasDraft,
+} from './draft-storage';
 
 export type CanvasInstance = Composition['instances'][number];
 export type CanvasSurfaceName = Composition['surface'];
@@ -15,6 +22,7 @@ export function useCanvasComposition(
   workspaceId: string,
   onDirtyChange: (value: boolean) => void,
   onBusyChange: (value: boolean) => void,
+  ownerId: string,
 ) {
   const [baseline, setBaseline] = useState<Composition | null>(null);
   const [draft, setDraft] = useState<Composition | null>(null);
@@ -26,11 +34,17 @@ export function useCanvasComposition(
   const [past, setPast] = useState<Composition[]>([]);
   const [future, setFuture] = useState<Composition[]>([]);
   const [reload, setReload] = useState(0);
+  const [recovery, setRecovery] = useState<CanvasDraft | null>(null);
+  const [baseRevision, setBaseRevision] = useState(0);
+  const [loadedScope, setLoadedScope] = useState('');
+  const scope = { ownerId, workspaceId, surface };
+  const scopeKey = canvasDraftKey(scope);
+  const [stateScope, setStateScope] = useState(scopeKey);
   const request = useRef<AbortController | null>(null);
   const generation = useRef(0);
   const callbacks = useRef({ onDirtyChange, onBusyChange });
   callbacks.current = { onDirtyChange, onBusyChange };
-  const dirty = editing && !same(baseline, draft);
+  const dirty = stateScope === scopeKey && editing && !same(baseline, draft);
   useEffect(() => {
     callbacks.current.onDirtyChange(dirty);
   }, [dirty]);
@@ -52,7 +66,10 @@ export function useCanvasComposition(
     request.current?.abort();
     request.current = controller;
     const fallback = createDefaultComposition(surface);
+    setStateScope(scopeKey);
     setLoaded(false);
+    setLoadedScope('');
+    setRecovery(null);
     setBaseline(null);
     setDraft(fallback);
     setEditing(false);
@@ -65,8 +82,11 @@ export function useCanvasComposition(
       .then((value) => {
         if (controller.signal.aborted || version !== generation.current) return;
         setLoaded(true);
+        setLoadedScope(scopeKey);
+        setBaseRevision(value.revision);
         setBaseline(value);
         setDraft(value);
+        setRecovery(readCanvasDraft({ ownerId, workspaceId, surface }));
       })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted && version === generation.current) {
@@ -82,7 +102,34 @@ export function useCanvasComposition(
       ++generation.current;
       request.current?.abort();
     };
-  }, [path, reload]);
+  }, [path, reload, ownerId, scopeKey, surface, workspaceId]);
+
+  useEffect(() => {
+    // A scope switch renders once with the old state before the loading effect runs.
+    // Never persist that state into the next owner's storage slot.
+    if (!loaded || loadedScope !== scopeKey || busy || !editing || !draft || recovery) return;
+    if (!dirty) {
+      clearCanvasDraft({ ownerId, workspaceId, surface });
+      return;
+    }
+    saveCanvasDraft(
+      { ownerId, workspaceId, surface },
+      { composition: draft, baseRevision, savedAt: Date.now() },
+    );
+  }, [
+    loaded,
+    loadedScope,
+    scopeKey,
+    busy,
+    dirty,
+    editing,
+    draft,
+    recovery,
+    baseRevision,
+    ownerId,
+    workspaceId,
+    surface,
+  ]);
 
   const change = useCallback(
     (next: Composition) => {
@@ -105,7 +152,33 @@ export function useCanvasComposition(
     setDraft(future[0]);
     setFuture(future.slice(1));
   }
+  function recoverDraft() {
+    if (!recovery || !baseline || busy || !loaded || loadedScope !== scopeKey) return;
+    setDraft(recovery.composition);
+    setBaseRevision(recovery.baseRevision);
+    setEditing(true);
+    setPast([]);
+    setFuture([]);
+    const stale = recovery.baseRevision !== baseline.revision;
+    setConflict(stale);
+    setError(stale ? '草稿基于较旧的布局版本，已保留但无法保存。请导出草稿或放弃后重新编辑。' : '');
+    setRecovery(null);
+  }
+  function discardDraft() {
+    clearCanvasDraft(scope);
+    setRecovery(null);
+    setDraft(baseline);
+    setBaseRevision(baseline?.revision ?? 0);
+    setEditing(false);
+    setPast([]);
+    setFuture([]);
+    setError('');
+    setConflict(false);
+  }
   function cancel() {
+    clearCanvasDraft(scope);
+    setRecovery(null);
+    setBaseRevision(baseline?.revision ?? 0);
     setDraft(baseline);
     setEditing(false);
     setPast([]);
@@ -119,7 +192,7 @@ export function useCanvasComposition(
     change({ ...createDefaultComposition(surface), revision: draft.revision });
   }
   async function save() {
-    if (!draft || !baseline || busy || conflict || !loaded) return;
+    if (!draft || !baseline || busy || conflict || !loaded || loadedScope !== scopeKey) return;
     const controller = new AbortController();
     request.current = controller;
     const version = generation.current;
@@ -134,6 +207,9 @@ export function useCanvasComposition(
         controller.signal,
       );
       if (controller.signal.aborted || version !== generation.current) return;
+      clearCanvasDraft(scope);
+      setRecovery(null);
+      setBaseRevision(value.revision);
       setBaseline(value);
       setDraft(value);
       setEditing(false);
@@ -176,6 +252,9 @@ export function useCanvasComposition(
         controller.signal,
       );
       if (controller.signal.aborted || version !== generation.current) return;
+      clearCanvasDraft(scope);
+      setRecovery(null);
+      setBaseRevision(value.revision);
       setBaseline(value);
       setDraft(value);
       setEditing(false);
@@ -193,14 +272,17 @@ export function useCanvasComposition(
     setReload((value) => value + 1);
   }
   return {
-    draft,
-    editing,
+    draft: stateScope === scopeKey ? draft : null,
+    editing: stateScope === scopeKey && editing,
     setEditing,
     busy,
     dirty,
     error,
     conflict,
     loaded,
+    hasRecovery: loaded && loadedScope === scopeKey && recovery !== null,
+    recoverDraft,
+    discardDraft,
     change,
     cancel,
     restore,

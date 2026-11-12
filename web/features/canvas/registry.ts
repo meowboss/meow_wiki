@@ -1,3 +1,4 @@
+import { trustedViewIdSchema } from '../../../packages/canvas-contract/index';
 import type { CanvasInstance, CanvasSurfaceName } from './useCanvasComposition';
 
 export type CanvasCatalogEntry = {
@@ -34,7 +35,28 @@ const views: readonly ViewMetadata[] = [
     repeatable: false,
     surfaces: ['wiki'],
   },
-  { label: '知识文档', viewId: 'wiki.document', config: {}, repeatable: false, surfaces: ['wiki'] },
+  {
+    label: '知识文档',
+    viewId: 'wiki.document',
+    config: { splitToolbar: true },
+    repeatable: false,
+    surfaces: ['wiki'],
+  },
+  ...(['wiki.header', 'wiki.stats', 'wiki.ask', 'wiki.footer', 'wiki.toolbar'] as const).map(
+    (viewId) => ({
+      label: {
+        'wiki.header': '知识空间标题',
+        'wiki.stats': '空间统计',
+        'wiki.ask': '问答入口',
+        'wiki.footer': '页脚',
+        'wiki.toolbar': '阅读工具栏',
+      }[viewId],
+      viewId,
+      config: {},
+      repeatable: false,
+      surfaces: ['wiki'] as const,
+    }),
+  ),
   { label: '首页内容', viewId: 'home.content', config: {}, repeatable: false, surfaces: ['home'] },
   {
     label: '协作标题',
@@ -68,15 +90,21 @@ const views: readonly ViewMetadata[] = [
 ];
 
 export function isRepeatableView(viewId: CanvasInstance['viewId']): boolean {
-  return views.some((view) => view.viewId === viewId && view.repeatable);
+  return (
+    trustedViewIdSchema.safeParse(viewId).success ||
+    views.some((view) => view.viewId === viewId && view.repeatable)
+  );
 }
 
 export function isViewOnSurface(
   viewId: CanvasInstance['viewId'],
   surface: CanvasSurfaceName,
 ): boolean {
-  return views.some(
-    (view) => view.viewId === viewId && (!view.surfaces || view.surfaces.includes(surface)),
+  return (
+    trustedViewIdSchema.safeParse(viewId).success ||
+    views.some(
+      (view) => view.viewId === viewId && (!view.surfaces || view.surfaces.includes(surface)),
+    )
   );
 }
 

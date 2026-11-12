@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { validateLayoutTree } from './layout-tree';
+import { trustedViewIdSchema } from './trusted-packages';
+export { trustedViewIdSchema, trustedPackageSchema } from './trusted-packages';
 
 export { layoutTreeSchema, validateLayoutTree } from './layout-tree';
 export type { LayoutTree } from './layout-tree';
@@ -7,9 +9,14 @@ export type { LayoutTree } from './layout-tree';
 /** Browser-safe C0 canvas contract. Coordinates are logical cells in all layouts. */
 export const surfaceSchema = z.enum(['home', 'wiki', 'collaboration']);
 export type CanvasSurface = z.infer<typeof surfaceSchema>;
-export const canvasViewIdSchema = z.enum([
+const coreViewIdSchema = z.enum([
   'wiki.directory',
   'wiki.document',
+  'wiki.header',
+  'wiki.stats',
+  'wiki.ask',
+  'wiki.footer',
+  'wiki.toolbar',
   'home.content',
   'collaboration.content',
   'collaboration.header',
@@ -23,6 +30,7 @@ export const canvasViewIdSchema = z.enum([
   'builtin.video',
   'builtin.pet',
 ]);
+export const canvasViewIdSchema = z.union([coreViewIdSchema, trustedViewIdSchema]);
 
 const hex = z.string().regex(/^#(?:[\da-fA-F]{3}|[\da-fA-F]{4}|[\da-fA-F]{6}|[\da-fA-F]{8})$/);
 const revision = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
@@ -42,6 +50,8 @@ const instanceSchema = z
     h: z.number().int().min(1).max(24),
     config: z.strictObject({
       text: z.string().max(5000).optional(),
+      // Old wiki.document instances keep their embedded reader actions until explicitly split.
+      splitToolbar: z.boolean().optional(),
       componentId: z.string().uuid().optional(),
       releaseId: z.string().uuid().optional(),
       assetId: z.string().uuid().optional(),
@@ -184,8 +194,17 @@ export function createDefaultComposition(surface: CanvasSurface): Composition {
     instances:
       surface === 'wiki'
         ? [
-            instance('wiki-directory', 'wiki.directory', 0, 4),
-            instance('wiki-document', 'wiki.document', 4, 8),
+            instance('wiki-header', 'wiki.header', 0, 12),
+            { ...instance('wiki-stats', 'wiki.stats', 0, 12), y: 1 },
+            { ...instance('wiki-directory', 'wiki.directory', 0, 4), y: 2 },
+            { ...instance('wiki-toolbar', 'wiki.toolbar', 4, 8), y: 2 },
+            {
+              ...instance('wiki-document', 'wiki.document', 4, 8),
+              y: 3,
+              config: { splitToolbar: true },
+            },
+            { ...instance('wiki-ask', 'wiki.ask', 0, 12), y: 4 },
+            { ...instance('wiki-footer', 'wiki.footer', 0, 12), y: 5 },
           ]
         : surface === 'home'
           ? [instance('home-content', 'home.content', 0, 12)]

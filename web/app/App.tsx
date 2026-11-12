@@ -38,7 +38,6 @@ import '../shared/compact-layout.css';
 import PageHistory from '../features/wiki/PageHistory';
 import PageTransfer from '../features/wiki/PageTransfer';
 import WikiEditor, { type WikiEditorMode } from '../features/wiki/WikiEditor';
-import WikiReader from '../features/wiki/WikiReader';
 import WikiWorkspaceView from '../features/wiki/WikiWorkspaceView';
 import SpaceNavigator from '../features/wiki/SpaceNavigator';
 import WorkspacePicker from '../features/workspaces/WorkspacePicker';
@@ -58,6 +57,7 @@ import type { AppView as View } from './navigation/types';
 import useSidebarCompact from './navigation/useSidebarCompact';
 import './navigation/compact-sidebar.css';
 import WorkspaceCanvas from './WorkspaceCanvas';
+import WikiCanvas from './WikiCanvas';
 const message = (error: unknown) =>
   error instanceof Error ? error.message : '发生未知错误，请重试。';
 
@@ -939,6 +939,7 @@ export default function App({
                   <WorkspaceCanvas
                     key={`collaboration:${workspace.id}`}
                     surface="collaboration"
+                    ownerId={user.id}
                     data={data ?? undefined}
                     onOpen={openSource}
                     workspaceId={workspace.id}
@@ -1006,19 +1007,38 @@ export default function App({
                 hasPage={!!page}
                 onCreatePage={createPage}
                 onAsk={() => setAskOpen(true)}
-              >
-                <WorkspaceCanvas
-                  key={`wiki:${data.workspace.id}`}
-                  surface="wiki"
-                  data={data}
-                  onOpen={openSource}
-                  contentDirty={dirty}
-                  workspaceId={data.workspace.id}
-                  disabled={!!externalBusy || logoutBusy}
-                  onDirtyChange={setCanvasDirty}
-                  onBusyChange={setCanvasBusy}
-                  slots={{
-                    'wiki.directory': (
+                composition={(parts) => (
+                  <WikiCanvas
+                    parts={parts}
+                    reader={
+                      page && documentMode === 'read'
+                        ? {
+                            page,
+                            pages: data.pages,
+                            html,
+                            rendering,
+                            renderError,
+                            markdownEnabled: enabled('official.markdown'),
+                            busy,
+                            onEdit: () => setDocumentMode('edit'),
+                            onOpenHistory: () => setHistoryOpen(true),
+                            onDelete: () => void deletePage(),
+                            onOpenMarket: () => nav('market'),
+                            onRetryPreview: () => setPreviewVersion((version) => version + 1),
+                            onOpen: openSource,
+                          }
+                        : null
+                    }
+                    key={`wiki:${data.workspace.id}`}
+                    ownerId={user.id}
+                    data={data}
+                    onOpen={openSource}
+                    contentDirty={dirty}
+                    workspaceId={data.workspace.id}
+                    disabled={!!externalBusy || logoutBusy}
+                    onDirtyChange={setCanvasDirty}
+                    onBusyChange={setCanvasBusy}
+                    directory={
                       <SpaceNavigator
                         workspaceName={data.workspace.name}
                         pages={data.pages}
@@ -1034,59 +1054,39 @@ export default function App({
                         onCreate={createPage}
                         onTogglePlugin={(id, value) => void toggleSpacePlugin(id, value)}
                       />
-                    ),
-                    'wiki.document': (
-                      <div className="knowledge-space-document">
-                        {page &&
-                          (documentMode === 'read' ? (
-                            <WikiReader
-                              page={page}
-                              pages={data.pages}
-                              html={html}
-                              rendering={rendering}
-                              renderError={renderError}
-                              markdownEnabled={enabled('official.markdown')}
-                              busy={busy}
-                              onEdit={() => setDocumentMode('edit')}
-                              onOpenHistory={() => setHistoryOpen(true)}
-                              onDelete={() => void deletePage()}
-                              onOpenMarket={() => nav('market')}
-                              onRetryPreview={() => setPreviewVersion((version) => version + 1)}
-                              onOpen={openSource}
-                            />
-                          ) : (
-                            <WikiEditor
-                              page={page}
-                              pages={data.pages}
-                              title={title}
-                              markdown={markdown}
-                              parentId={parentId}
-                              baseRevision={baseRevision}
-                              dirty={dirty}
-                              conflict={conflict}
-                              busy={busy}
-                              mode={mode}
-                              markdownEnabled={enabled('official.markdown')}
-                              html={html}
-                              rendering={rendering}
-                              renderError={renderError}
-                              onTitleChange={setTitle}
-                              onMarkdownChange={setMarkdown}
-                              onParentIdChange={setParentId}
-                              onModeChange={setMode}
-                              onOpenHistory={() => setHistoryOpen(true)}
-                              onLoadLatest={() => void loadLatest()}
-                              onDelete={() => void deletePage()}
-                              onSave={() => void savePage()}
-                              onCancel={cancelEdit}
-                              onOpenMarket={() => nav('market')}
-                              onRetryPreview={() => setPreviewVersion((version) => version + 1)}
-                            />
-                          ))}
-                      </div>
-                    ),
-                  }}
-                />
+                    }
+                  />
+                )}
+              >
+                {page && documentMode === 'edit' && (
+                  <WikiEditor
+                    page={page}
+                    pages={data.pages}
+                    title={title}
+                    markdown={markdown}
+                    parentId={parentId}
+                    baseRevision={baseRevision}
+                    dirty={dirty}
+                    conflict={conflict}
+                    busy={busy}
+                    mode={mode}
+                    markdownEnabled={enabled('official.markdown')}
+                    html={html}
+                    rendering={rendering}
+                    renderError={renderError}
+                    onTitleChange={setTitle}
+                    onMarkdownChange={setMarkdown}
+                    onParentIdChange={setParentId}
+                    onModeChange={setMode}
+                    onOpenHistory={() => setHistoryOpen(true)}
+                    onLoadLatest={() => void loadLatest()}
+                    onDelete={() => void deletePage()}
+                    onSave={() => void savePage()}
+                    onCancel={cancelEdit}
+                    onOpenMarket={() => nav('market')}
+                    onRetryPreview={() => setPreviewVersion((version) => version + 1)}
+                  />
+                )}
               </WikiWorkspaceView>
             )}
             {view === 'proposals' && (
@@ -1110,6 +1110,7 @@ export default function App({
               <WorkspaceCanvas
                 key={`home:${data.workspace.id}`}
                 surface="home"
+                ownerId={user.id}
                 data={data}
                 onOpen={openSource}
                 contentDirty={homeDirty}

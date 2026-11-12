@@ -1,6 +1,7 @@
 import type { ComponentProps, CSSProperties, ReactNode } from 'react';
 import CanvasHandle from './CanvasHandle';
 import CanvasResizeHandle from './CanvasResizeHandle';
+import { CanvasRuntimeContext } from './runtime-context';
 import { ViewBoundary, ViewContent } from './CanvasView';
 import type { CanvasInstance } from './useCanvasComposition';
 
@@ -66,7 +67,9 @@ export default function CanvasInstanceFrame({
       )}
       <div className="canvas-business-content" inert={editing || loading}>
         <ViewBoundary key={`${workspaceId}:${surface}:${item.id}`}>
-          <ViewContent instance={item} renderView={renderView} workspaceId={workspaceId} />
+          <CanvasRuntimeContext.Provider value={{ active: item.visible && !editing && !loading }}>
+            <ViewContent instance={item} renderView={renderView} workspaceId={workspaceId} />
+          </CanvasRuntimeContext.Provider>
         </ViewBoundary>
       </div>
     </div>

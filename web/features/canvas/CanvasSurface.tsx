@@ -15,6 +15,7 @@ import './canvas.css';
 type Props = {
   surface: CanvasSurfaceName;
   workspaceId: string;
+  ownerId: string;
   renderView: (instance: CanvasInstance) => ReactNode;
   onDirtyChange: (dirty: boolean) => void;
   onBusyChange: (busy: boolean) => void;
@@ -29,6 +30,7 @@ const CONTENT_DRAFT_MESSAGE = '请先保存或取消业务草稿，再编辑布�
 export default function CanvasSurface({
   surface,
   workspaceId,
+  ownerId,
   renderView,
   onDirtyChange,
   onBusyChange,
@@ -38,7 +40,7 @@ export default function CanvasSurface({
   availableViews,
 }: Props) {
   const [mediaBusy, setMediaBusy] = useState(false);
-  const state = useCanvasComposition(surface, workspaceId, onDirtyChange, () => {});
+  const state = useCanvasComposition(surface, workspaceId, onDirtyChange, () => {}, ownerId);
   const busyCallback = useRef(onBusyChange);
   busyCallback.current = onBusyChange;
   useEffect(() => {
@@ -122,6 +124,17 @@ export default function CanvasSurface({
     : undefined;
   return (
     <section className={`canvas-surface${editing ? ' is-editing' : ''}`} aria-label="页面画布">
+      {state.hasRecovery && !editing && (
+        <div role="status" className="canvas-recovery">
+          发现此账号和空间的未保存布局草稿。
+          <button type="button" disabled={locked || contentDirty} onClick={state.recoverDraft}>
+            恢复布局草稿
+          </button>
+          <button type="button" disabled={locked} onClick={state.discardDraft}>
+            丢弃布局草稿
+          </button>
+        </div>
+      )}
       <div className="canvas-toolbar" role="toolbar" aria-label="布局工具">
         {!editing ? (
           <>

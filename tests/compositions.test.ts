@@ -40,7 +40,9 @@ test('canvas contract is strict, bounded and deterministic for every layout', ()
   }
   const base = document(createDefaultComposition('wiki'));
   assert.deepEqual(
-    base.instances.map(({ id, x, w }) => ({ id, x, w })),
+    base.instances
+      .filter((i) => ['wiki-directory', 'wiki-document'].includes(i.id))
+      .map(({ id, x, w }) => ({ id, x, w })),
     [
       { id: 'wiki-directory', x: 0, w: 4 },
       { id: 'wiki-document', x: 4, w: 8 },
