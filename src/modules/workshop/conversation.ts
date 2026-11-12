@@ -54,7 +54,7 @@ const input = z
     status: z.enum(['started', 'completed', 'failed', 'question', 'error', 'cancelled']).optional(),
     runId: z.string().uuid().optional(),
     callId: z.string().uuid().optional(),
-    turn: z.number().int().min(0).max(8).optional(),
+    turn: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
     details: conversationDetailsSchema.optional(),
   })
   .strict();

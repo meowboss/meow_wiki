@@ -36,6 +36,7 @@ test('user and Agent clarify, create, iterate and explicitly save a private comp
   await expect(
     page.getByText('读书笔记组件已完成校验，你可以预览并保存为私有组件。', { exact: true }),
   ).toBeVisible();
+  await page.getByRole('tab', { name: '轨迹', exact: true }).click();
   await expect(page.locator('[data-message-role="tool"]')).not.toHaveCount(0);
   const write = page.locator('.workshop-execution').filter({ hasText: '更新组件内容' }).first();
   await write.locator('summary').click();
@@ -43,9 +44,11 @@ test('user and Agent clarify, create, iterate and explicitly save a private comp
   await expect(write.getByText(/字节/)).toBeVisible();
   await expect(write.locator('[data-execution-status="started"]')).toHaveCount(0);
   expect(await page.locator('.workshop-execution').count()).toBeLessThanOrEqual(4);
+  await page.getByRole('tab', { name: '对话', exact: true }).click();
   await page.locator('#workshop-message').fill('增加思考章节');
   await page.getByRole('button', { name: '发送消息', exact: true }).click();
   await expect(page.getByRole('heading', { name: '我的思考', exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: '轨迹', exact: true }).click();
   await page
     .locator('.workshop-execution')
     .filter({ hasText: '更新组件内容' })

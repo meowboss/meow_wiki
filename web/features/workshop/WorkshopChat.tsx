@@ -1,11 +1,14 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { RefreshCw } from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import ExecutionTimeline, {
   executionName,
   executionStatus,
   mergeExecutionMessages,
 } from './ExecutionTimeline';
+import WorkshopComposer from './WorkshopComposer';
 import type { Project, Provider, WorkshopMessage } from './types';
 import './timeline.css';
+import './chat-shell.css';
 
 type Props = {
   project: Project | null;
@@ -26,42 +29,39 @@ type Props = {
 };
 const roles = { user: '你', assistant: '助手', tool: '工具执行摘要', system: '系统事件' };
 const states: Record<string, string> = {
-  draft: '等待你的回复 / 可继续对话',
-  running: '服务端正在执行',
-  ready: '产物已就绪，可预览并保存',
-  failed: '执行失败，可核对事件后继续',
-  cancelled: '执行已取消',
-  interrupted: '执行已中断，请核对事件',
-  installed: '已保存为私有组件',
+  draft: '等待回复',
+  running: '执行中',
+  ready: '已就绪',
+  failed: '执行失败',
+  cancelled: '已取消',
+  interrupted: '已中断',
+  installed: '已保存',
 };
-export default function WorkshopChat({
-  project,
-  messages,
-  draft,
-  onDraftChange,
-  providers,
-  providerId,
-  onProviderChange,
-  disabled,
-  canSend,
-  running,
-  cancelling,
-  pollingError,
-  onSend,
-  onCancel,
-  onRefresh,
-}: Props) {
-  const list = useRef<HTMLOListElement>(null);
+type Tab = 'conversation' | 'timeline';
+export default function WorkshopChat(props: Props) {
+  const { project, messages, disabled, running, pollingError, onRefresh } = props;
+  const viewport = useRef<HTMLDivElement>(null);
   const follow = useRef(true);
   const observed = useRef<{ projectId?: string; events: Map<string, string> }>({
     events: new Map(),
   });
   const [announcement, setAnnouncement] = useState('');
+  const [tab, setTab] = useState<Tab>('conversation');
   const entries = mergeExecutionMessages(messages);
+  const conversation = messages.filter((item) => item.role === 'user' || item.role === 'assistant');
+  const timeline = entries.filter(
+    (entry) => entry.kind === 'execution' || entry.message.role === 'system',
+  );
+  const steps = entries.filter((entry) => entry.kind === 'execution').length;
   const latestRunId = messages.findLast((item) => item.runId)?.runId;
   const latestUserSequence = messages.findLast((item) => item.role === 'user')?.sequence ?? 0;
   useEffect(() => {
-    if (follow.current && list.current) list.current.scrollTop = list.current.scrollHeight;
+    follow.current = true;
+    setTab('conversation');
+  }, [project?.id]);
+  useEffect(() => {
+    if (follow.current && viewport.current)
+      viewport.current.scrollTop = viewport.current.scrollHeight;
     const projectId = project?.id;
     const current = new Map(messages.map((item) => [item.id, item.status ?? '']));
     if (observed.current.projectId === projectId && observed.current.events.size) {
@@ -73,143 +73,154 @@ export default function WorkshopChat({
         setAnnouncement(
           latest.role === 'tool'
             ? `${executionName(latest.content)}，${executionStatus(latest.status, running)}`
-            : `${roles[latest.role]}：${latest.content}`,
+            : latest.role === 'system'
+              ? '轨迹已更新'
+              : `${roles[latest.role]}：${latest.content}`,
         );
     } else setAnnouncement('');
     observed.current = { projectId, events: current };
   }, [messages, project?.id, running]);
-  const statuses: Record<string, string> = {
-    started: '执行中',
-    completed: '已完成',
-    failed: '失败',
-    question: '等待回复',
-    cancelled: '已取消',
-    error: '错误',
-  };
+  function navigateTabs(event: KeyboardEvent<HTMLButtonElement>) {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const next =
+      event.key === 'Home'
+        ? 'conversation'
+        : event.key === 'End'
+          ? 'timeline'
+          : tab === 'conversation'
+            ? 'timeline'
+            : 'conversation';
+    setTab(next);
+    event.currentTarget.parentElement
+      ?.querySelector<HTMLButtonElement>(`[data-chat-tab="${next}"]`)
+      ?.focus();
+  }
   return (
     <section className="workshop-panel workshop-chat" aria-labelledby="workshop-chat-title">
-      <h2 id="workshop-chat-title">{project?.name || '和 AI 一起创建组件'}</h2>
-      <p className="workshop-chat-hint">
-        {project?.kind === 'page'
-          ? '页面工作副本不会自动覆盖原页面，校验后需明确确认应用。'
-          : '生成后需明确保存为私有组件，不会自动发布。'}
-      </p>
-      {project && (
-        <div className="workshop-session-status">
-          <p role="status">
-            服务端状态：<strong>{states[project.state] || project.state}</strong> ·{' '}
-            {project.iterations} / 8 轮
-          </p>
-          <button className="text-btn" disabled={disabled && !running} onClick={onRefresh}>
-            刷新对话与项目
+      <header className="workshop-chat-header">
+        <h2 id="workshop-chat-title" title={project?.name || '描述需求'}>
+          {project?.name || '描述需求'}
+        </h2>
+        {project && (
+          <button
+            type="button"
+            className="workshop-chat-icon"
+            disabled={disabled && !running}
+            onClick={onRefresh}
+            title="刷新对话与项目"
+            aria-label="刷新对话与项目"
+          >
+            <RefreshCw size={16} aria-hidden="true" />
           </button>
+        )}
+      </header>
+      <div className="workshop-chat-navigation">
+        <div className="workshop-chat-tabs" role="tablist" aria-label="项目交流">
+          {(['conversation', 'timeline'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              id={`workshop-tab-${value}`}
+              aria-controls={`workshop-panel-${value}`}
+              aria-selected={tab === value}
+              tabIndex={tab === value ? 0 : -1}
+              data-chat-tab={value}
+              onClick={() => setTab(value)}
+              onKeyDown={navigateTabs}
+            >
+              {value === 'conversation' ? '对话' : '轨迹'}
+            </button>
+          ))}
         </div>
-      )}
+        <p className="workshop-chat-status" role="status">
+          <span className="workshop-chat-status-dot" data-running={running} aria-hidden="true" />
+          {running ? '执行中' : project ? states[project.state] || project.state : '等待开始'}
+          <span>已执行 {steps} 步</span>
+        </p>
+      </div>
       {pollingError && (
-        <p className="workshop-warning" role="status">
+        <p className="workshop-chat-error" role="status">
           {pollingError}
         </p>
       )}
-      <ol
-        className="workshop-messages"
-        ref={list}
+      <div
+        className="workshop-chat-viewport"
+        ref={viewport}
         onScroll={() => {
-          const node = list.current;
+          const node = viewport.current;
           if (node) follow.current = node.scrollHeight - node.scrollTop - node.clientHeight < 70;
         }}
-        aria-label="项目对话与执行事件"
       >
-        {entries.map((entry) => {
-          if (entry.kind === 'execution') {
-            const active =
-              running &&
-              (entry.latest.runId
-                ? entry.latest.runId === latestRunId
-                : entry.first.sequence > latestUserSequence);
-            return <ExecutionTimeline key={entry.id} entry={entry} running={active} />;
-          }
-          const item = entry.message;
-          return (
-            <li
-              key={item.id}
-              className={`workshop-message workshop-message-${item.role}`}
-              data-message-role={item.role}
-            >
-              <div className="workshop-message-heading">
-                <strong>{roles[item.role]}</strong>
-                {item.status && <small>{statuses[item.status] ?? item.status}</small>}
-              </div>
-              <div className="workshop-message-content">{item.content}</div>
-            </li>
-          );
-        })}
-      </ol>
-      <div className="workshop-live-update" aria-live="polite" aria-atomic="true">
-        {announcement}
-      </div>
-      {!project && !messages.length && (
-        <p className="workshop-empty">描述需求即可开始，例如“创建团队知识导航”。</p>
-      )}
-      {running && (
-        <p className="workshop-running-note" role="status">
-          正在执行，进展会更新在对话中。
-        </p>
-      )}
-      <form className="workshop-composer" onSubmit={onSend}>
-        <label>
-          对话使用的 Provider
-          <select
-            value={providerId}
-            disabled={disabled || running}
-            onChange={(e) => onProviderChange(e.target.value)}
-          >
-            <option value="">选择已配置的 Provider</option>
-            {providers.map((provider) => (
-              <option key={provider.id} value={provider.id}>
-                {provider.label} · {provider.model}
-                {!provider.configured ? '（未配置）' : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label htmlFor="workshop-message">
-          {project ? '继续描述修改，或回答助手的问题' : '描述你想创建的组件'}
-          <textarea
-            id="workshop-message"
-            value={draft}
-            onChange={(e) => onDraftChange(e.target.value)}
-            rows={6}
-            maxLength={3000}
-            disabled={disabled || running}
-            placeholder="用自然语言描述需求，支持换行…"
-            required
-          />
-        </label>
-        {!canSend && <p>请先配置或选择 Provider。</p>}
-        <p className="workshop-request-warning">
-          发送会向所选 Provider 提交对话与组件内容，可能产生费用。请勿输入密钥。
-          {providers.find((provider) => provider.id === providerId)?.baseURL?.startsWith('http:') &&
-            ' 当前 Provider 使用 HTTP，传输不加密，请仅用于可信网络。'}
-        </p>
-        <div className="workshop-actions">
-          <button
-            className="primary-btn workshop-send-button"
-            disabled={disabled || running || !canSend || !draft.trim()}
-          >
-            {project ? '发送消息' : '发送并创建组件项目'}
-          </button>
-          {running && (
-            <button
-              type="button"
-              className="secondary-btn"
-              disabled={cancelling}
-              onClick={onCancel}
-            >
-              {cancelling ? '正在请求取消…' : '请求取消运行'}
-            </button>
+        <div
+          role="tabpanel"
+          id="workshop-panel-conversation"
+          aria-labelledby="workshop-tab-conversation"
+          hidden={tab !== 'conversation'}
+          tabIndex={0}
+        >
+          {conversation.length ? (
+            <ol className="workshop-messages" aria-label="项目对话">
+              {conversation.map((item) => (
+                <li
+                  key={item.id}
+                  className={`workshop-message workshop-message-${item.role}`}
+                  data-message-role={item.role}
+                >
+                  <div className="workshop-message-heading">{roles[item.role]}</div>
+                  <div className="workshop-message-content">{item.content}</div>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="workshop-chat-empty">
+              <p>描述需求，和 AI 一起开始。</p>
+              <span>例如：创建团队知识导航</span>
+            </div>
           )}
         </div>
-      </form>
+        <div
+          role="tabpanel"
+          id="workshop-panel-timeline"
+          aria-labelledby="workshop-tab-timeline"
+          hidden={tab !== 'timeline'}
+          tabIndex={0}
+        >
+          {timeline.length ? (
+            <ol className="workshop-messages" aria-label="项目执行轨迹">
+              {timeline.map((entry) => {
+                if (entry.kind === 'execution') {
+                  const active =
+                    running &&
+                    (entry.latest.runId
+                      ? entry.latest.runId === latestRunId
+                      : entry.first.sequence > latestUserSequence);
+                  return <ExecutionTimeline key={entry.id} entry={entry} running={active} />;
+                }
+                return (
+                  <li
+                    key={entry.message.id}
+                    className="workshop-message workshop-message-system"
+                    data-message-role="system"
+                  >
+                    <div className="workshop-message-heading">系统事件</div>
+                    <div className="workshop-message-content">{entry.message.content}</div>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <div className="workshop-chat-empty">
+              <p>执行后将在这里显示轨迹。</p>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="workshop-chat-sr-only" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </div>
+      <WorkshopComposer {...props} hasProject={!!project} />
     </section>
   );
 }

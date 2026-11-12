@@ -212,7 +212,7 @@ export default function ProviderSettings({
     });
   }
   return (
-    <details className="workshop-panel workshop-settings" open={!providers.length || !!editing}>
+    <details className="workshop-panel workshop-settings" open={!!editing}>
       <summary id="workshop-providers">Provider 设置</summary>
       <details>
         <summary>使用说明</summary>

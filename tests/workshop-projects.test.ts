@@ -171,7 +171,7 @@ test('project inputs, owner-wide quota, and run state have strict bounds', () =>
     for (let i = 1; i < 20; i++) f.projects.create('alice', i % 2 ? f.alice : f.other, input);
     assert.throws(() => f.projects.create('alice', f.other, input), status(409));
     assert.ok(f.projects.create('bob', f.bob, input));
-    for (const iterations of [-1, 9, 0.5, NaN, Infinity, '1']) {
+    for (const iterations of [-1, Number.MAX_SAFE_INTEGER + 1, 0.5, NaN, Infinity, '1']) {
       assert.throws(
         () => f.projects.setRunState('alice', p.id, 'running', iterations as number),
         status(400),

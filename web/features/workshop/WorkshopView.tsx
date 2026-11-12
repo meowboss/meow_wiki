@@ -9,6 +9,7 @@ import ProviderSettings from './ProviderSettings';
 import WorkshopChat from './WorkshopChat';
 import WorkshopPreview from './WorkshopPreview';
 import WorkshopPagePreview from './WorkshopPagePreview';
+import usePageStartingPreview from './usePageStartingPreview';
 import {
   projectFile,
   type PageSurface,
@@ -78,6 +79,12 @@ export default function WorkshopView({
   const file = projectFile(project);
   const fileDirty = !!project && content !== project.files[file];
   const isPage = project?.kind === 'page';
+  const startingPreview = usePageStartingPreview({
+    enabled: !project && newKind === 'page',
+    workspaceId,
+    surface,
+    fromCurrent,
+  });
   const dirty = fileDirty || !!draft || providerDirty;
   const projectRunning = project?.state === 'running';
   const running = projectRunning || busy === 'chat';
@@ -543,13 +550,17 @@ export default function WorkshopView({
           />
         }
         preview={
-          isPage ? (
-            <WorkshopPagePreview
-              projectId={project?.id ?? ''}
-              content={project?.files[file] ?? ''}
-              stale={running || fileDirty}
-              render={renderPagePreview}
-            />
+          isPage || (!project && newKind === 'page') ? (
+            <>
+              {startingPreview.loading && !project && <p role="status">正在加载当前页面预览…</p>}
+              {startingPreview.error && !project && <p role="alert">{startingPreview.error}</p>}
+              <WorkshopPagePreview
+                projectId={project?.id ?? startingPreview.key}
+                content={project?.files[file] ?? startingPreview.content}
+                stale={running || fileDirty}
+                render={renderPagePreview}
+              />
+            </>
           ) : (
             <WorkshopPreview
               content={project?.files[file] ?? ''}
@@ -614,9 +625,10 @@ export default function WorkshopView({
           <details>
             <summary>开发边界</summary>
             <p>
-              受控 Agent，不是通用代码 IDE。只读虚拟 SDK：/sdk/README.md 和
-              /sdk/component.schema.json。唯一可写文件 {file}（最多 30000 字符）；最多 8
-              轮受限工具执行。不提供 shell、任意网络或主机文件访问，不执行自定义
+              受控 Agent，不是通用代码 IDE。只读虚拟 SDK：/sdk/README.md 和 对应项目
+              schema。唯一可写文件 {file}（最多 30000
+              字符）。对话没有八轮上限；后台保留超时、取消和异常循环保护。不提供
+              shell、任意网络或主机文件访问，不执行自定义
               JavaScript。工具事件只显示服务端安全摘要，不呈现原始敏感输出或模型思考。
             </p>
             <strong>只读 SDK / 声明式组件契约</strong>

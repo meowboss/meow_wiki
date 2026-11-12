@@ -1,4 +1,4 @@
-/* Workshop layout and controls only; timeline.css owns conversation messages. */
+/* Workshop layout and controls only; chat-shell.css owns the chat shell. */
 .workshop-view {
   --workshop-ink: #20313f;
   --workshop-muted: #52636f;
@@ -152,35 +152,6 @@
   min-width: 0;
   max-width: 620px;
   padding: 8px 10px;
-}
-.workshop-view .workshop-chat {
-  min-width: 0;
-  min-height: 55vh;
-}
-.workshop-view .workshop-chat-hint {
-  margin: 0 0 14px;
-  color: var(--workshop-muted);
-  font-size: 13px;
-  line-height: 1.6;
-}
-.workshop-view .workshop-chat form {
-  font-size: 16px;
-}
-.workshop-view .workshop-chat textarea {
-  min-height: 130px;
-  font-size: 16px;
-}
-.workshop-view .workshop-request-warning {
-  color: #855714;
-  font-size: 13px;
-  line-height: 1.6;
-}
-.workshop-view .workshop-session-status {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 6px 14px;
 }
 .workshop-view .workshop-preview {
   min-width: 0;

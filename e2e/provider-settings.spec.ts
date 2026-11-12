@@ -11,6 +11,8 @@ test('user can configure custom Provider without host endpoints and edit metadat
   await page.getByRole('button', { name: '创建我的知识花园' }).click();
   await expect(page.getByRole('button', { name: '编辑页面', exact: true })).toBeVisible();
   await navigate(page, '组件工坊');
+  if (!(await page.locator('.workshop-settings').evaluate((el) => (el as HTMLDetailsElement).open)))
+    await page.getByText('Provider 设置', { exact: true }).click();
   await page.getByLabel('Provider 名称', { exact: true }).fill('我的模型');
   await page.getByRole('combobox', { name: '供应商', exact: true }).selectOption('custom');
   await page.getByLabel(/Base URL/).fill('http://192.168.1.50:8000/v1');
@@ -26,12 +28,14 @@ test('user can configure custom Provider without host endpoints and edit metadat
   await page.getByLabel('API Key', { exact: true }).fill('  browser-test-only-provider-key  ');
   await page.getByRole('button', { name: '保存 Provider', exact: true }).click();
   await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('');
-  await page.getByText('Provider 设置', { exact: true }).click();
+  if (!(await page.locator('.workshop-settings').evaluate((el) => (el as HTMLDetailsElement).open)))
+    await page.getByText('Provider 设置', { exact: true }).click();
   await page.getByRole('button', { name: '编辑 Provider 我的模型', exact: true }).click();
   await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('');
   await page.getByLabel('Provider 名称', { exact: true }).fill('改名后的模型');
   await page.getByRole('button', { name: '保存修改', exact: true }).click();
-  await page.getByText('Provider 设置', { exact: true }).click();
+  if (!(await page.locator('.workshop-settings').evaluate((el) => (el as HTMLDetailsElement).open)))
+    await page.getByText('Provider 设置', { exact: true }).click();
   await expect(page.getByText('改名后的模型', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'artifacts/visual/provider-settings-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });

@@ -1,4 +1,5 @@
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import './workshop-workspace.css';
 
 export type WorkshopWorkspaceProps = {
@@ -31,6 +32,7 @@ export default function WorkshopWorkspace({
   const id = useId();
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('preview');
   const [filesOpen, setFilesOpen] = useState(true);
+  const [previewVisible, setPreviewVisible] = useState(true);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -57,17 +59,42 @@ export default function WorkshopWorkspace({
   }
 
   return (
-    <div className="workshop-workspace">
-      <div className="workshop-workspace-chat">{chat}</div>
-      <section className="workshop-workspace-pane" aria-labelledby={`${id}-title`}>
-        <header className="workshop-workspace-heading">
-          <h2 id={`${id}-title`} title={title}>
-            {title || '组件工作区'}
-          </h2>
+    <div
+      className={`workshop-workspace${previewVisible ? '' : ' workshop-workspace-preview-hidden'}`}
+    >
+      <header className="workshop-workspace-heading">
+        <h2 id={`${id}-title`} title={title}>
+          {title || '组件工作区'}
+        </h2>
+        <div className="workshop-workspace-controls">
           <span className="workshop-workspace-status" role="status">
             {busy ? '正在更新…' : '工作区'}
           </span>
-        </header>
+          <button
+            className="workshop-workspace-preview-toggle"
+            type="button"
+            aria-label={previewVisible ? '隐藏预览工作区' : '显示预览工作区'}
+            title={previewVisible ? '隐藏预览工作区' : '显示预览工作区'}
+            aria-expanded={previewVisible}
+            aria-controls={`${id}-pane`}
+            onClick={() => setPreviewVisible((visible) => !visible)}
+          >
+            {previewVisible ? (
+              <PanelRightClose size={18} aria-hidden="true" />
+            ) : (
+              <PanelRightOpen size={18} aria-hidden="true" />
+            )}
+          </button>
+        </div>
+      </header>
+      <div className="workshop-workspace-chat">{chat}</div>
+      <section
+        className="workshop-workspace-pane"
+        id={`${id}-pane`}
+        aria-labelledby={`${id}-title`}
+        hidden={!previewVisible}
+        inert={!previewVisible}
+      >
         <div className="workshop-workspace-toolbar">
           <div className="workshop-workspace-tabs" role="tablist" aria-label="工作区视图">
             {tabs.map((tab, index) => (

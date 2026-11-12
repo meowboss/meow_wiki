@@ -4,6 +4,8 @@ import type { ProviderVault } from './providers.ts';
 import { safeProviderFetch } from './provider-network.ts';
 import type { WorkshopProjects } from './projects.ts';
 import { buildWorkshopMessages } from './agent-definition.ts';
+import { MAX_RUN_MS, MAX_TOOL_CALLS, MAX_REPEATED_ACTIONS } from './run-limits.ts';
+export { MAX_RUN_MS, MAX_AGENT_STEPS, MAX_TOOL_CALLS } from './run-limits.ts';
 import {
   conversationDetailsSchema,
   type ConversationDetails,
@@ -108,6 +110,11 @@ export class WorkshopEngine {
     this.running.set(projectId, { owner, controller });
     const runId = randomUUID();
     let iteration = 0;
+    const startedAt = Date.now();
+    const deadline = AbortSignal.timeout(MAX_RUN_MS);
+    const runSignal = AbortSignal.any([controller.signal, deadline]);
+    let lastFeedback: string | undefined;
+    let repeatedActions = 0;
     let callId: string | undefined;
     const record = (
       role: ConversationMessage['role'],
@@ -136,8 +143,9 @@ export class WorkshopEngine {
     try {
       record('user', userMessage ?? project.instruction);
       this.projects.setRunState(owner, projectId, 'running', 0, null);
-      for (iteration = 1; iteration <= 8; iteration++) {
-        controller.signal.throwIfAborted();
+      while (Date.now() - startedAt < MAX_RUN_MS && iteration < MAX_TOOL_CALLS) {
+        iteration++;
+        runSignal.throwIfAborted();
         if (containsSecret(JSON.stringify(messages), profile.apiKey))
           throw new WorkshopError('开发上下文包含当前Provider凭据，已阻止发送');
         const response = await (profile.custom ? safeProviderFetch : this.fetcher)(
@@ -145,7 +153,7 @@ export class WorkshopEngine {
           {
             method: 'POST',
             redirect: 'error',
-            signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30_000)]),
+            signal: AbortSignal.any([runSignal, AbortSignal.timeout(30_000)]),
             headers: {
               'content-type': 'application/json',
               authorization: `Bearer ${profile.apiKey}`,
@@ -163,7 +171,9 @@ export class WorkshopEngine {
           throw new WorkshopError('Provider拒绝请求，请检查配置或额度', 502);
         }
         const text = await readBounded(response);
-        controller.signal.throwIfAborted(); // Cancellation can race the final response chunk.
+        runSignal.throwIfAborted(); // Cancellation/deadline can race the final response chunk.
+        if (Date.now() - startedAt >= MAX_RUN_MS)
+          throw new WorkshopError('运行超过安全时限，已停止；产物未自动导入');
         const raw = z
           .object({
             choices: z
@@ -235,7 +245,12 @@ export class WorkshopEngine {
           )
         )
           throw new WorkshopError('工具结果包含当前Provider凭据，已阻止进入上下文');
-        controller.signal.throwIfAborted();
+        runSignal.throwIfAborted();
+        const feedback = JSON.stringify([action, result]);
+        repeatedActions = feedback === lastFeedback ? repeatedActions + 1 : 1;
+        lastFeedback = feedback;
+        if (repeatedActions >= MAX_REPEATED_ACTIONS)
+          throw new WorkshopError(`工具重复无进展：${action.tool} 连续返回相同结果，已安全停止`);
         record('tool', action.tool, 'completed', { ...completedDetails, durationMs: duration() });
         activeTool = undefined;
         messages.push({
@@ -246,7 +261,11 @@ export class WorkshopEngine {
         if (JSON.stringify(messages).length > (userMessage === undefined ? 100_000 : 400_000))
           throw new WorkshopError('开发上下文超出预算');
       }
-      throw new WorkshopError('达到8轮工具预算，未自动安装产物');
+      throw new WorkshopError(
+        Date.now() - startedAt >= MAX_RUN_MS
+          ? '运行超过安全时限，已停止；产物未自动导入'
+          : '工具调用触发异常安全熔断，已停止；产物未自动导入',
+      );
     } catch (error) {
       const status = controller.signal.aborted
         ? 409
@@ -255,16 +274,18 @@ export class WorkshopEngine {
           : 502;
       const message = controller.signal.aborted
         ? '运行已由用户取消，产物未自动导入'
-        : error instanceof WorkshopError
-          ? error.message
-          : '开发循环失败，已停止；请检查Provider协议或工具请求';
+        : deadline.aborted || Date.now() - startedAt >= MAX_RUN_MS
+          ? '运行超过安全时限，已停止；产物未自动导入'
+          : error instanceof WorkshopError
+            ? error.message
+            : '开发循环失败，已停止；请检查Provider协议或工具请求';
       if (activeTool)
         record('tool', activeTool, 'failed', {
           durationMs: duration(),
           summary: '工具执行失败，已停止',
         });
       record('assistant', message, controller.signal.aborted ? 'cancelled' : 'error');
-      this.projects.setRunState(owner, projectId, 'failed', Math.min(iteration, 8), message);
+      this.projects.setRunState(owner, projectId, 'failed', iteration, message);
       throw new WorkshopError(message, status);
     } finally {
       this.running.delete(projectId);

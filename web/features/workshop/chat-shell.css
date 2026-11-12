@@ -1,0 +1,294 @@
+/* Chat-only shell: preview, editor and provider settings keep their own styles. */
+.workshop-view .workshop-chat {
+  display: flex;
+  flex-direction: column;
+  height: min(70vh, 760px);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  background: #fff;
+}
+
+.workshop-chat .workshop-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.workshop-chat .workshop-chat-header h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+}
+
+.workshop-chat .workshop-chat-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--workshop-muted, #52636f);
+  cursor: pointer;
+}
+
+.workshop-chat .workshop-chat-icon:hover:not(:disabled) {
+  background: #f0f4f3;
+}
+
+.workshop-chat .workshop-chat-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 12px;
+  border-bottom: 1px solid var(--workshop-line, #dce4e2);
+}
+
+.workshop-chat .workshop-chat-tabs {
+  display: flex;
+  gap: 18px;
+}
+
+.workshop-chat .workshop-chat-tabs button {
+  min-height: 38px;
+  padding: 6px 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--workshop-muted, #52636f);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.workshop-chat .workshop-chat-tabs [aria-selected='true'] {
+  border-bottom-color: var(--workshop-primary, #124b59);
+  color: var(--workshop-ink, #20313f);
+  font-weight: 600;
+}
+
+.workshop-chat .workshop-chat-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: var(--workshop-muted, #52636f);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.workshop-chat .workshop-chat-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #87998e;
+}
+
+.workshop-chat .workshop-chat-status-dot[data-running='true'] {
+  background: #309665;
+}
+
+.workshop-chat .workshop-chat-viewport {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.workshop-chat .workshop-chat-viewport > [role='tabpanel']:not([hidden]) {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.workshop-chat .workshop-messages {
+  list-style: none;
+  padding: 4px 10px 12px 0;
+  margin: 0;
+}
+
+.workshop-chat .workshop-message {
+  padding: 16px 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+}
+
+.workshop-chat .workshop-message-user {
+  padding-left: 12px;
+  margin: 16px 0 4px;
+  border-left: 2px solid #c7d9ce;
+}
+
+.workshop-chat .workshop-message-heading {
+  margin-bottom: 5px;
+  color: var(--workshop-muted, #52636f);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.workshop-chat .workshop-message-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.workshop-chat .workshop-message-system {
+  color: var(--workshop-muted, #52636f);
+}
+
+.workshop-chat .workshop-chat-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  padding: 24px;
+  text-align: center;
+  color: var(--workshop-muted, #52636f);
+}
+
+.workshop-chat .workshop-chat-empty p {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.workshop-chat .workshop-chat-empty span {
+  font-size: 12px;
+  color: #829087;
+}
+
+.workshop-chat .workshop-composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  flex-shrink: 0;
+  margin: 8px 0 0;
+  padding: 9px;
+  border: 1px solid #d7e1dc;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.workshop-chat .workshop-composer textarea {
+  display: block;
+  width: 100%;
+  min-height: 58px;
+  max-height: 160px;
+  padding: 5px 7px;
+  border: 0;
+  border-radius: 4px;
+  resize: none;
+  overflow-y: auto;
+  background: transparent;
+  color: var(--workshop-ink, #20313f);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.workshop-chat .workshop-composer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.workshop-chat .workshop-composer-toolbar select {
+  width: auto;
+  min-width: 0;
+  max-width: min(75%, 340px);
+  margin-right: auto;
+  padding: 5px 24px 5px 7px;
+  border: 0;
+  border-radius: 5px;
+  background-color: #f4f6f5;
+  color: var(--workshop-muted, #52636f);
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+.workshop-chat .workshop-request-warning {
+  position: relative;
+  flex-shrink: 0;
+  color: var(--workshop-muted, #52636f);
+}
+
+.workshop-chat .workshop-request-warning > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 30px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.workshop-chat .workshop-request-warning > summary::-webkit-details-marker {
+  display: none;
+}
+
+.workshop-chat .workshop-request-warning p {
+  position: absolute;
+  right: -36px;
+  bottom: 34px;
+  z-index: 2;
+  width: min(280px, 60vw);
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #dce4e2;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 20px #20313f14;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.workshop-chat .workshop-send-button,
+.workshop-chat .workshop-stop-button {
+  background: var(--workshop-primary, #124b59);
+  color: #fff;
+}
+
+.workshop-chat .workshop-send-button:hover:not(:disabled),
+.workshop-chat .workshop-stop-button:hover:not(:disabled) {
+  background: #0c3945;
+}
+
+.workshop-chat .workshop-composer-notice,
+.workshop-chat .workshop-chat-error {
+  margin: 6px 7px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #855714;
+}
+
+.workshop-chat .workshop-chat-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

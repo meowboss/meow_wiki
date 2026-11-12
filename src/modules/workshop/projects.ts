@@ -47,7 +47,7 @@ const identifier = z.string().min(1).max(200);
 const runInput = z
   .object({
     state: z.enum(['draft', 'running', 'ready', 'failed']),
-    iterations: z.number().int().min(0).max(8),
+    iterations: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
     error: z.string().max(2000).nullable(),
   })
   .strict();
@@ -73,7 +73,7 @@ export class WorkshopProjects {
         content TEXT NOT NULL DEFAULT '' CHECK(length(content) <= 30000),
         state TEXT NOT NULL DEFAULT 'draft' CHECK(state IN ('draft','running','ready','failed')),
         error TEXT CHECK(error IS NULL OR length(error) <= 2000),
-        iterations INTEGER NOT NULL DEFAULT 0 CHECK(iterations BETWEEN 0 AND 8)
+        iterations INTEGER NOT NULL DEFAULT 0 CHECK(iterations BETWEEN 0 AND 9007199254740991)
       );
       CREATE INDEX IF NOT EXISTS mw_workshop_projects_owner ON mw_workshop_projects(owner, workspace_id);
     `),
@@ -94,9 +94,47 @@ export class WorkshopProjects {
         if (!columns.has(name))
           this.db.exec(`ALTER TABLE mw_workshop_projects ADD COLUMN ${name} ${definition}`);
     });
+    this.migrateRunIterations();
     this.revisions = this.database(
       () => new ProjectRevisions(db, (owner, id) => this.get(owner, id)),
     );
+  }
+
+  /** Additive startup migration: retain every column, row, index and trigger of legacy projects. */
+  private migrateRunIterations(): void {
+    this.transaction(() => {
+      const schema = this.db
+        .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='mw_workshop_projects'")
+        .get();
+      const sql = String(schema?.sql ?? '');
+      const legacyCheck = /CHECK\s*\(\s*iterations\s+BETWEEN\s+0\s+AND\s+8\s*\)/i;
+      if (!legacyCheck.test(sql)) return;
+      // Child message/revision tables use project IDs, not foreign keys; do not rename the old
+      // table (which could rewrite references). Copy first, then atomically replace it.
+      const objects = this.db
+        .prepare(
+          "SELECT sql FROM sqlite_master WHERE tbl_name='mw_workshop_projects' AND type IN ('index','trigger') AND sql IS NOT NULL",
+        )
+        .all();
+      const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
+      const columns = this.db
+        .prepare('PRAGMA table_info(mw_workshop_projects)')
+        .all()
+        .map((row) => quote(String(row.name)))
+        .join(', ');
+      const create = sql
+        .replace(
+          /CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["`\[]?mw_workshop_projects["`\]]?/i,
+          'CREATE TABLE mw_workshop_projects_run_migration',
+        )
+        .replace(legacyCheck, 'CHECK(iterations BETWEEN 0 AND 9007199254740991)');
+      this.db.exec(create);
+      this.db.exec(`INSERT INTO mw_workshop_projects_run_migration (rowid, ${columns})
+        SELECT rowid, ${columns} FROM mw_workshop_projects;
+        DROP TABLE mw_workshop_projects;
+        ALTER TABLE mw_workshop_projects_run_migration RENAME TO mw_workshop_projects;`);
+      for (const object of objects) this.db.exec(String(object.sql));
+    });
   }
 
   recoverInterruptedRuns(): number {

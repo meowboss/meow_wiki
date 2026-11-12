@@ -1,9 +1,19 @@
 .workshop-workspace {
   display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(420px, 1.15fr) minmax(0, 1fr);
   align-items: start;
   gap: 18px;
   min-width: 0;
+}
+
+.workshop-workspace-preview-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.workshop-workspace-preview-hidden .workshop-workspace-chat {
+  width: 100%;
+  max-width: 1000px;
+  margin-inline: auto;
 }
 
 .workshop-workspace-chat,
@@ -21,11 +31,39 @@
 }
 
 .workshop-workspace-heading {
+  grid-column: 1 / -1;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 18px;
+  padding: 0 2px;
+}
+
+.workshop-workspace-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.workshop-workspace-preview-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--border, #dce2e8);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+}
+
+.workshop-workspace-preview-toggle:hover {
+  background: var(--surface-hover, #f1f5f9);
+  color: var(--accent, #2563eb);
 }
 
 .workshop-workspace-heading h2 {
