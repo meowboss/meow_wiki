@@ -115,6 +115,39 @@
   );
   min-height: calc(var(--canvas-h) * (48px + var(--canvas-gap)) - var(--canvas-gap));
 }
+/* Tree content uses local container tracks; coordinates remain stored for flat fallback. */
+.canvas-board.canvas-has-tree {
+  display: block;
+  height: auto;
+}
+.canvas-tree-root,
+.canvas-tree-node {
+  min-width: 0;
+}
+.canvas-tree-root > .canvas-nested-instance,
+.canvas-tree-node > .canvas-nested-instance {
+  position: relative;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  inset: auto;
+  width: auto;
+  min-height: 0;
+}
+.canvas-tree-flow {
+  display: flex;
+  gap: var(--canvas-tree-gap);
+  align-items: stretch;
+}
+.canvas-tree-flow > * {
+  min-width: 0;
+  flex: 1 1 0;
+}
+.canvas-tree-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--canvas-tree-columns), minmax(0, 1fr));
+  gap: var(--canvas-tree-gap);
+  align-items: stretch;
+}
 .canvas-instance[hidden] {
   display: none;
 }

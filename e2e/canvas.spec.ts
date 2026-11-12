@@ -15,6 +15,9 @@ test('shared canvas persists independent layouts across wiki home and collaborat
     await page.getByRole('button', { name: '编辑布局', exact: true }).click();
     await page.getByRole('button', { name: '添加文本', exact: true }).click();
     await page.getByRole('textbox', { name: '文本内容', exact: true }).fill(`${surface}独立布局`);
+    await page.getByRole('button', { name: '向前排列', exact: true }).click();
+    await page.getByRole('button', { name: '撤销布局修改', exact: true }).click();
+    await page.getByRole('button', { name: '重做布局修改', exact: true }).click();
     await page.getByRole('button', { name: '保存布局', exact: true }).first().click();
     await expect(page.getByRole('button', { name: '编辑布局', exact: true })).toBeVisible();
     await expect(page.getByText(`${surface}独立布局`, { exact: true })).toBeVisible();

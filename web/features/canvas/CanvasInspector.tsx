@@ -1,7 +1,9 @@
 import type { Composition } from '../../../packages/canvas-contract/index';
 import type { CanvasInstance } from './useCanvasComposition';
 import MediaInspector from './MediaInspector';
+import CanvasTreeInspector from './CanvasTreeInspector';
 import { isRepeatableView } from './registry';
+import { moveCanvasInstance } from './layout-operations';
 
 type Props = {
   composition: Composition;
@@ -88,6 +90,12 @@ export default function CanvasInspector({
   }
   return (
     <aside className="canvas-inspector" aria-label="布局属性">
+      <CanvasTreeInspector
+        composition={composition}
+        selectedId={selected?.id}
+        disabled={disabled}
+        onChange={onChange}
+      />
       <fieldset disabled={disabled}>
         <legend>画布设置</legend>
         <label>
@@ -191,6 +199,23 @@ export default function CanvasInspector({
             value={selected.style.color}
             onChange={(color) => style({ color })}
           />
+          <div className="canvas-inspector-actions" role="group" aria-label="组件顺序">
+            <button
+              type="button"
+              disabled={!!composition.tree || composition.instances[0]?.id === selected.id}
+              onClick={() => onChange(moveCanvasInstance(composition, selected.id, -1))}
+            >
+              向前排列
+            </button>
+            <button
+              type="button"
+              disabled={!!composition.tree || composition.instances.at(-1)?.id === selected.id}
+              onClick={() => onChange(moveCanvasInstance(composition, selected.id, 1))}
+            >
+              向后排列
+            </button>
+          </div>
+          <p className="muted">流式布局按此顺序阅读；同一图层中靠后的组件显示在上方。</p>
           <div className="canvas-inspector-actions">
             <button
               type="button"

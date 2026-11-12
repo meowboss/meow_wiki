@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import { validateLayoutTree } from './layout-tree';
+
+export { layoutTreeSchema, validateLayoutTree } from './layout-tree';
+export type { LayoutTree } from './layout-tree';
 
 /** Browser-safe C0 canvas contract. Coordinates are logical cells in all layouts. */
 export const surfaceSchema = z.enum(['home', 'wiki', 'collaboration']);
@@ -66,15 +70,30 @@ const documentShape = {
   gap: z.number().int().min(0).max(48),
   background: hex,
   instances: z.array(instanceSchema).max(40),
+  // Unknown intentionally: bounded iterative validation must precede recursive tree parsing.
+  tree: z.unknown().optional(),
 };
 const uniqueIds = (document: { instances: { id: string }[] }) =>
   new Set(document.instances.map((instance) => instance.id)).size === document.instances.length;
 const uniqueMessage = { message: 'Instance IDs must be unique', path: ['instances'] };
+const validateCompositionTree = (
+  document: { tree?: unknown; instances: { id: string }[] },
+  context: z.RefinementCtx,
+) => {
+  if (document.tree === undefined) return;
+  const result = validateLayoutTree(
+    document.tree,
+    document.instances.map((instance) => instance.id),
+  );
+  for (const message of result.issues)
+    context.addIssue({ code: 'custom', message, path: ['tree'] });
+};
 
 /** Editable document excludes the server-owned revision. Array order defines flow order. */
 export const compositionDocumentSchema = z
   .strictObject(documentShape)
   .refine(uniqueIds, uniqueMessage)
+  .superRefine(validateCompositionTree)
   .refine(
     (document) => {
       const views = document.instances
@@ -100,6 +119,7 @@ export const compositionDocumentSchema = z
 export const compositionSchema = z
   .strictObject({ ...documentShape, revision })
   .refine(uniqueIds, uniqueMessage)
+  .superRefine(validateCompositionTree)
   .refine(
     (document) => {
       const views = document.instances

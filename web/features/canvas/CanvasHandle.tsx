@@ -112,7 +112,11 @@ export default function CanvasHandle({
         onPointerCancel={() => stop(false)}
         onLostPointerCapture={() => stop(false)}
         onKeyDown={(event) => {
-          if (disabled || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key))
+          if (
+            disabled ||
+            layout === 'flow' ||
+            !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)
+          )
             return;
           event.preventDefault();
           onChange({

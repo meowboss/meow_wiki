@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { ViewBoundary, ViewContent } from './CanvasView';
+import CanvasInstanceFrame from './CanvasInstanceFrame';
+import CanvasTree from './CanvasTree';
 import CanvasInspector from './CanvasInspector';
-import CanvasHandle from './CanvasHandle';
+
 import CanvasCatalog, { type CanvasCatalogEntry } from './CanvasCatalog';
-import { createDefaultComposition } from '../../../packages/canvas-contract/index';
-import { availableCanvasViews, isRepeatableView, isViewOnSurface } from './registry';
+import { useCanvasInstances } from './useCanvasInstances';
 import {
   useCanvasComposition,
   type CanvasInstance,
@@ -52,82 +52,22 @@ export default function CanvasSurface({
   const { draft, editing, busy } = state;
   const locked = disabled || busy || mediaBusy;
   const selected = draft?.instances.find((item) => item.id === selectedId);
-  function updateInstance(next: CanvasInstance) {
-    if (draft)
-      state.change({
-        ...draft,
-        instances: draft.instances.map((item) => (item.id === next.id ? next : item)),
-      });
-  }
-  function addView(viewId: CanvasInstance['viewId'], config: CanvasInstance['config']) {
-    if (!draft || locked || contentDirty || !editing || draft.instances.length >= 40) return;
-    const entries = [...availableCanvasViews(surface, availableViews), ...catalog];
-    if (!isViewOnSurface(viewId, surface) || !entries.some((entry) => entry.viewId === viewId))
-      return;
-    if (!isRepeatableView(viewId) && draft.instances.some((item) => item.viewId === viewId)) return;
-    const item: CanvasInstance = {
-      id: crypto.randomUUID(),
-      viewId,
-      visible: true,
-      layer: 'content',
-      x: 0,
-      y: Math.min(100, Math.max(0, ...draft.instances.map((i) => i.y + i.h))),
-      w: 6,
-      h: 4,
-      config: { ...config },
-      style: {},
-    };
-    state.change({ ...draft, instances: [...draft.instances, item] });
-    setSelectedId(item.id);
-  }
-  function addText() {
-    if (!draft || draft.instances.length >= 40) return;
-    const item: CanvasInstance = {
-      id: crypto.randomUUID(),
-      viewId: 'builtin.text',
-      visible: true,
-      layer: 'content',
-      x: 0,
-      y: Math.min(100, Math.max(0, ...draft.instances.map((value) => value.y + value.h))),
-      w: 6,
-      h: 3,
-      config: { text: '在此输入文本' },
-      style: {},
-    };
-    state.change({ ...draft, instances: [...draft.instances, item] });
-    setSelectedId(item.id);
-  }
-  function duplicate() {
-    if (!draft || !selected || !isRepeatableView(selected.viewId) || draft.instances.length >= 40)
-      return;
-    const item = {
-      ...selected,
-      id: crypto.randomUUID(),
-      y: Math.min(100, selected.y + 1),
-      config: { ...selected.config },
-      style: { ...selected.style },
-    };
-    state.change({ ...draft, instances: [...draft.instances, item] });
-    setSelectedId(item.id);
-  }
-  function restoreDefault() {
-    if (locked || contentDirty || !draft) return;
-    if (!window.confirm('恢复默认布局将替换当前布局并进入编辑草稿；保存布局后才会生效，是否继续？'))
-      return;
-    setDragPosition(null);
-    setSelectedId('');
-    state.change({ ...createDefaultComposition(surface), revision: draft.revision });
-    state.setEditing(true);
-  }
-  function remove() {
-    if (!draft || !selected || !window.confirm('仅从布局中移除此组件？原有数据不会被删除。'))
-      return;
-    state.change({
-      ...draft,
-      instances: draft.instances.filter((item) => item.id !== selected.id),
+  const { updateInstance, addView, addText, duplicate, remove, restoreDefault } =
+    useCanvasInstances({
+      draft,
+      editing,
+      locked,
+      contentDirty,
+      surface,
+      availableViews,
+      catalog,
+      selected,
+      selectedId,
+      setSelectedId,
+      stateChange: state.change,
+      setEditing: state.setEditing,
+      setDragPosition,
     });
-    setSelectedId('');
-  }
   function itemStyle(item: CanvasInstance): CSSProperties {
     const position = dragPosition?.id === item.id ? dragPosition : item;
     const width = Math.min(item.w, COLUMNS);
@@ -144,6 +84,31 @@ export default function CanvasSurface({
       '--canvas-w': width,
       '--canvas-h': item.h,
     } as CSSProperties;
+  }
+  function renderInstance(item: CanvasInstance, nested: boolean) {
+    if (!draft) return null;
+    return (
+      <CanvasInstanceFrame
+        key={item.id}
+        item={item}
+        style={itemStyle(item)}
+        nested={nested}
+        editing={editing}
+        loading={busy}
+        selected={item.id === selectedId}
+        workspaceId={workspaceId}
+        surface={surface}
+        renderView={renderView}
+        handle={{
+          disabled: locked,
+          layout: draft.layout,
+          gap: draft.gap,
+          onSelect: () => setSelectedId(item.id),
+          onPreview: setDragPosition,
+          onChange: updateInstance,
+        }}
+      />
+    );
   }
   const visible = draft?.instances.filter((item) => editing || item.visible) ?? [];
   const maxBottom = Math.max(1, ...visible.map((item) => item.y + item.h));
@@ -255,48 +220,25 @@ export default function CanvasSurface({
       )}
       <div className="canvas-workspace">
         <div
-          className={`canvas-board canvas-layout-${draft?.layout ?? 'flow'}${editing ? ' canvas-editing-board' : ''}`}
+          className={`canvas-board canvas-layout-${draft?.layout ?? 'flow'}${draft?.tree !== undefined ? ' canvas-has-tree' : ''}${editing ? ' canvas-editing-board' : ''}`}
           style={boardStyle}
           aria-busy={busy}
         >
-          {draft?.instances.map((item) => (
-            <div
-              key={item.id}
-              style={itemStyle(item)}
-              data-view-id={item.viewId}
-              data-layer={item.layer}
-              hidden={!editing && !item.visible}
-              className={`canvas-instance${editing && item.id === selectedId ? ' is-selected' : ''}${!item.visible ? ' is-hidden' : ''}`}
-            >
-              {editing && (
-                <>
-                  <CanvasHandle
-                    item={item}
-                    selected={item.id === selectedId}
-                    disabled={locked}
-                    layout={draft.layout}
-                    gap={draft.gap}
-                    onSelect={() => setSelectedId(item.id)}
-                    onPreview={setDragPosition}
-                    onChange={updateInstance}
-                  />
-                  <button
-                    type="button"
-                    className="canvas-select-overlay"
-                    disabled={locked}
-                    tabIndex={-1}
-                    aria-label={`选择组件 ${item.viewId}`}
-                    onClick={() => setSelectedId(item.id)}
-                  />
-                </>
-              )}
-              <div className="canvas-business-content" inert={editing}>
-                <ViewBoundary key={`${workspaceId}:${surface}:${item.id}`}>
-                  <ViewContent instance={item} renderView={renderView} workspaceId={workspaceId} />
-                </ViewBoundary>
-              </div>
-            </div>
-          ))}
+          {draft?.tree !== undefined ? (
+            <>
+              <CanvasTree
+                tree={draft.tree}
+                instances={draft.instances}
+                editing={editing}
+                renderInstance={renderInstance}
+              />
+              {draft.instances
+                .filter((item) => item.layer !== 'content')
+                .map((item) => renderInstance(item, false))}
+            </>
+          ) : (
+            draft?.instances.map((item) => renderInstance(item, false))
+          )}
           {draft && visible.length === 0 && (
             <p className="canvas-empty">此布局暂无组件。可通过“编辑布局”添加文本或恢复默认布局。</p>
           )}

@@ -36,7 +36,9 @@ test('browser features depend on shared contracts, never server internals or app
         '\\',
         '/',
       );
-      const canvasImport = canvasPath === 'index' || canvasPath === 'index.ts';
+      const canvasImport = ['index', 'index.ts', 'layout-tree', 'layout-tree.ts'].includes(
+        canvasPath,
+      );
       if (sdkImport || canvasImport) continue; // Explicit browser-safe public contracts, never server source.
       assert.ok(
         !destination.startsWith('../'),
