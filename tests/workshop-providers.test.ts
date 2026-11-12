@@ -191,7 +191,7 @@ test('strict bounded input rejects URL/owner injection and enforces five provide
       { label: 'x'.repeat(101) },
       { model: '' },
       { model: ' ' },
-      { model: 'x'.repeat(101) },
+      { model: 'x'.repeat(201) },
       { apiKey: '' },
       { apiKey: ' ' },
       { apiKey: 'x'.repeat(501) },

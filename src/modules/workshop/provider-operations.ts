@@ -1,12 +1,13 @@
 import { z } from 'zod';
 import type { ProviderVault } from './providers.ts';
 import { ProviderNetwork, normalizeProviderEndpoint } from './provider-network.ts';
+import { providerKeySchema } from './provider-input.ts';
 export const providerOperationSchema = z
   .object({
     vendor: z.enum(['openai', 'deepseek', 'custom']),
-    baseURL: z.string().min(1).max(2000),
-    apiKey: z.string().max(500).optional(),
-    model: z.string().max(100).optional(),
+    baseURL: z.string().min(1).max(2048),
+    apiKey: providerKeySchema.optional(),
+    model: z.string().trim().max(200).optional(),
     providerId: z.string().uuid().optional(),
   })
   .strict();

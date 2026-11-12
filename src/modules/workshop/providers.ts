@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID }
 import type { DatabaseSync } from 'node:sqlite';
 import { z } from 'zod';
 import { normalizeProviderEndpoint } from './provider-network.ts';
+import { providerKeySchema, providerInputError } from './provider-input.ts';
 
 export class ProviderError extends Error {
   constructor(
@@ -17,12 +18,8 @@ const saveSchema = z
   .object({
     label: z.string().trim().min(1).max(100),
     endpointId: z.string().min(1).max(100),
-    model: z.string().trim().min(1).max(100),
-    apiKey: z
-      .string()
-      .min(1)
-      .max(500)
-      .refine((key) => key.trim().length > 0),
+    model: z.string().trim().min(1).max(200),
+    apiKey: providerKeySchema,
   })
   .strict();
 
@@ -149,7 +146,7 @@ export class ProviderVault {
   save(caller: string, input: SaveProviderInput): ProviderMetadata {
     this.owner(caller);
     const parsed = saveSchema.safeParse(input);
-    if (!parsed.success) throw new ProviderError(400, 'Invalid provider input');
+    if (!parsed.success) throw new ProviderError(400, providerInputError(parsed.error).message);
     const values = parsed.data;
     if (!this.endpoints.has(values.endpointId))
       throw new ProviderError(400, 'Unknown provider endpoint');
@@ -202,7 +199,10 @@ export class ProviderVault {
       if (normalizedEndpoint !== undefined && normalizedEndpoint !== endpoint) throw new Error();
       return endpoint;
     } catch {
-      throw new ProviderError(400, 'Invalid provider endpoint');
+      throw new ProviderError(
+        400,
+        'Base URL必须是公开HTTPS的API前缀，不含账号密码、查询参数或#片段；本机HTTP需宿主配置',
+      );
     }
   }
 
@@ -265,7 +265,7 @@ export class ProviderVault {
   ): ProviderMetadata {
     this.owner(caller);
     const parsed = customSchema.safeParse(input);
-    if (!parsed.success) throw new ProviderError(400, 'Invalid provider input');
+    if (!parsed.success) throw new ProviderError(400, providerInputError(parsed.error).message);
     const values = parsed.data;
     const settings = {
       endpoint: this.customEndpoint(values.baseURL, normalizedEndpoint),
@@ -301,7 +301,7 @@ export class ProviderVault {
     this.owner(caller);
     if (typeof id !== 'string' || !id) throw notFound();
     const parsed = updateCustomSchema.safeParse(input);
-    if (!parsed.success) throw new ProviderError(400, 'Invalid provider input');
+    if (!parsed.success) throw new ProviderError(400, providerInputError(parsed.error).message);
     const values = parsed.data;
     const settings = { endpoint: this.customEndpoint(values.baseURL), vendor: values.vendor };
     return this.transaction(() => {

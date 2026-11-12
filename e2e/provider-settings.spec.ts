@@ -14,7 +14,15 @@ test('user can configure custom Provider without host endpoints and edit metadat
   await page.getByRole('combobox', { name: '供应商', exact: true }).selectOption('custom');
   await page.getByLabel(/Base URL/).fill('https://api.example.test/v1');
   await page.getByRole('combobox', { name: /模型名称/ }).fill('my-chat');
-  await page.getByLabel('API Key', { exact: true }).fill('browser-test-only-provider-key');
+  await page.getByLabel('Provider 名称', { exact: true }).fill('x'.repeat(120));
+  await expect(page.getByLabel('Provider 名称', { exact: true })).toHaveValue('x'.repeat(100));
+  await page.getByLabel('Provider 名称', { exact: true }).fill('我的模型');
+  await page.getByRole('combobox', { name: /模型名称/ }).fill('m'.repeat(200));
+  await page.getByLabel('API Key', { exact: true }).fill('Bearer bad-key');
+  await page.getByRole('button', { name: '保存 Provider', exact: true }).click();
+  await expect(page.getByText(/配置未发送：请只粘贴API Key/)).toBeVisible();
+  await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('Bearer bad-key');
+  await page.getByLabel('API Key', { exact: true }).fill('  browser-test-only-provider-key  ');
   await page.getByRole('button', { name: '保存 Provider', exact: true }).click();
   await expect(page.getByLabel('API Key', { exact: true })).toHaveValue('');
   await page.getByText('Provider 设置', { exact: true }).click();

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { api } from '../../shared/api';
+import { api, ApiError } from '../../shared/api';
 import { providerMetadata, type Config, type Provider, type ProviderVendor } from './types';
 
 type Props = {
@@ -77,7 +77,7 @@ export default function ProviderSettings({
     return {
       vendor,
       baseURL: baseURL.trim(),
-      ...(apiKey.trim() ? { apiKey } : {}),
+      ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
       ...(editing ? { providerId: editing.id } : {}),
     };
   }
@@ -130,13 +130,51 @@ export default function ProviderSettings({
   function save(event: FormEvent) {
     event.preventDefault();
     if (!credentialsReady || !label.trim() || !model.trim()) return;
+    const key = apiKey.trim();
+    if (label.trim().length > 100 || model.trim().length > 200 || baseURL.trim().length > 2048) {
+      void action('provider-input', async () => {
+        throw new Error('配置未发送：名称最多100字符、模型ID最多200字符、Base URL最多2048字符。');
+      });
+      return;
+    }
+    if (key && (!/^[\x21-\x7e]+$/.test(key) || /^Bearer\s/i.test(key) || /^['"]|['"]$/.test(key))) {
+      void action('provider-input', async () => {
+        throw new Error(
+          '配置未发送：请只粘贴API Key本身，不含Bearer前缀、引号、空格或换行。密钥输入已保留。',
+        );
+      });
+      return;
+    }
+    let endpoint: URL;
+    try {
+      endpoint = new URL(baseURL.trim());
+    } catch {
+      void action('provider-input', async () => {
+        throw new Error('配置未发送：Base URL不是有效地址。');
+      });
+      return;
+    }
+    if (
+      endpoint.protocol !== 'https:' ||
+      endpoint.username ||
+      endpoint.password ||
+      endpoint.search ||
+      endpoint.hash
+    ) {
+      void action('provider-input', async () => {
+        throw new Error(
+          '配置未发送：自定义Base URL需要HTTPS，不含账号密码、查询参数或#片段；本机HTTP请使用受信部署配置。',
+        );
+      });
+      return;
+    }
     void action('provider', async (signal) => {
       const payload = {
         label: label.trim(),
         vendor,
         baseURL: baseURL.trim(),
         model: model.trim(),
-        ...(apiKey.trim() ? { apiKey } : {}),
+        ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
       };
       // Clear at submission, including failures. Never restore secrets from a response.
       setApiKey('');
@@ -155,8 +193,16 @@ export default function ProviderSettings({
         onSelected(record.id);
         reset();
         onNotice('Provider 已保存，仅保留元数据；密钥输入已清除。');
-      } catch {
+      } catch (error) {
         if (signal.aborted) return;
+        if (error instanceof ApiError && error.status === 400)
+          throw new Error(
+            '保存被拒绝（HTTP 400）：请检查名称/模型长度、API Key格式以及Base URL。地址必须是HTTPS API前缀，不能包含密钥参数；本次未保存，密钥输入已清除。',
+          );
+        if (error instanceof ApiError && error.status === 409)
+          throw new Error(
+            '保存被拒绝（HTTP 409）：可能已达到5个Provider上限，请核对列表后删除不再使用的配置。',
+          );
         throw new Error(
           'Provider 保存未确认。密钥输入已清除，请刷新 Provider 列表核对后再试；不会展示可能包含密钥的服务错误。',
         );
@@ -180,7 +226,7 @@ export default function ProviderSettings({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               required
-              maxLength={120}
+              maxLength={100}
             />
           </label>
           <label>
@@ -206,9 +252,14 @@ export default function ProviderSettings({
               onChange={(e) => setBaseURL(e.target.value)}
               required
               placeholder="https://example.com/v1"
+              maxLength={2048}
               autoComplete="off"
             />
           </label>
+          <p className="form-hint">
+            填写API前缀（例如 /v1），不要填完整的 /chat/completions 或 /models
+            地址；系统会自动追加请求路径。
+          </p>
           <label>
             模型名称（可从列表选择或手动填写）
             <input
