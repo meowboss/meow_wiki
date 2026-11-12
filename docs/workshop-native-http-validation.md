@@ -1,9 +1,0 @@
-# 工坊原生HTTP链路验证
-
-2026-11-12。新增测试运行真实Fastify本地provider listener、应用session API、原生fetch、AES-GCM vault与虚拟项目服务，不用注入fetcher函数。
-
-验证步骤：通过注册与CSRF保存allowlisted本机provider→创建项目→4轮read/write/validate/finish→ready且未自动安装；provider收到Bearer假key但prompt无假key。第二次模型端点保持响应等待，用户取消API使原生HTTP请求abort，run409并回写failed。全部server连接finally关闭，不遗留后台监听。
-
-该测试只证明网络协议/超时取消机制，不是真实LLM推理质量或供应商兼容评测。生产不默认开启本机provider，必须host显式allowlist。密钥为固定测试假值，测试DB内存，不涉及真实用户key。
-
-当前阶段仍未实现任意代码插件开发/运行沙箱和完整场景LLM_Wiki构建，不因测试链路贯通就把长期目标标完成。

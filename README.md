@@ -4,11 +4,11 @@
 
 当前已进入 **单实例自托管试运行建设阶段**：已接入 Better Auth 登录、多空间与页面版本恢复，尚不是公开部署的完整多用户 SaaS。仓库从一个可运行的小系统开始：先把页面、插件边界、资源隔离与组件审核规则做对，再逐步打开 AI 与外部生态。
 
-当前准确范围与未完成项见 [当前状态](<docs/current-status.md>)；历史阶段文档不代表最终完成。
+项目文档统一由 [LLM Wiki 入口](<docs/README.md>) 管理；当前准确范围与未完成项见 [当前状态](<docs/status/current-status.md>)；历史阶段文档不代表最终完成。
 
 ## 已有能力
 
-- React 中文知识空间：页面创建/编辑/保存、分屏 Markdown 安全预览、响应式侧栏。
+- React 中文知识空间：默认阅读、独立编辑与保存、父子目录/空间概览/插件配置、Markdown专注阅读与字号、版本恢复和JSON活页包。
 - 官方插件默认启用：Markdown、当前空间关键词检索、LLM Wiki 问答入口。
 - **诚实的 AI 状态**：未配置时明确本地摘录；宿主可配置模型broker生成带引用回答/待确认提议，但真实provider质量尚未实测，不冒充已验证模型效果。
 - 官方插件启停与依赖校验；插件初始化失败不会留下半注册能力。
@@ -17,7 +17,7 @@
 - 组件支持安全 Markdown、当前空间页面列表和搜索区块；发行版固定快照，不执行用户代码。
 - SQLite 持久化、owner/workspace 访问边界、输入大小约束、HTML 清洗、Origin/Host 校验。
 - 知识域独立成员/贡献审核、确定性资料汇编；MCP域范围只读/提交待审凭据及分页预算。
-- 受控声明式组件工坊：用户Provider密钥加密保存、部署端点允许集、虚拟文件和8轮工具循环、取消；非通用代码IDE或OS沙箱。
+- 受控声明式组件工坊：用户Provider加密配置、具体IP的HTTP/内网模型与公网HTTPS域名、多轮对话、虚拟文件和8轮工具循环、取消；非通用代码IDE或OS沙箱。
 - 受信代码插件示例在隔离iframe运行；尚不开放任意用户JavaScript。
 
 ## 快速开始
@@ -30,7 +30,7 @@ pnpm build
 pnpm start
 ```
 
-访问 **http://localhost:3000**，注册邮箱账号后自动创建个人知识花园；默认启用 session 登录，数据库写入 `.data/meow.sqlite`，不会纳入 Git。停止服务后可以备份整个 `.data` 目录；尚无在线备份工具。
+访问 **http://localhost:3000**，注册邮箱账号后自动创建个人知识花园；默认启用 session 登录，数据库写入 `.data/meow.sqlite`，不会纳入 Git。SQLite在线备份可运行 `pnpm exec tsx src/backup.ts <全新备份路径>`，认证secret与Provider主密钥另安全保管。恢复前先停止服务。
 
 开发时两个终端分别运行：
 
@@ -90,11 +90,11 @@ Markdown 会过滤脚本、危险 URL 和 iframe，远程图片也暂不渲染�
 
 ## 从愿景到平台
 
-先读 [产品愿景与架构决策](<docs/vision-and-architecture.md>)，包括知识花园、研究工作台、时间胶囊、AI 提议、市场治理，以及 M0→M4 的分阶段退出标准。
+先读 [产品愿景与架构决策](<docs/architecture/vision-and-architecture.md>)，包括知识花园、研究工作台、时间胶囊、AI 提议、市场治理，以及 M0→M4 的分阶段退出标准。
 
-[参考项目研究记录](<docs/reference-notes.md>) 列出 DeepSeek Harness 与 WeKnora 的实际源码依据、借鉴与不照搬事项。
+[参考项目研究记录](<docs/references/reference-notes.md>) 列出 DeepSeek Harness 与 WeKnora 的实际源码依据、借鉴与不照搬事项。
 
-优先下一步：页面 revision/CAS 与恢复 → 首页/组件组合 → 身份与多空间 → 市场审核治理 → 带来源的 AI 知识管线。**开放来自稳定的边界，而不是提前造一个庞大系统。**
+后续优先级见 [剩余里程碑](<docs/plans/remaining-milestones.md>)；页面版本、身份多空间与审核市场已交付首批，不能继续当作尚未开始。**开放来自稳定的边界，而不是提前造一个庞大系统。**
 
 ## License
 
