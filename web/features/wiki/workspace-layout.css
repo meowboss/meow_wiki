@@ -1,4 +1,25 @@
 /* Reading/writing takes precedence over dashboard chrome in the knowledge workspace. */
+.knowledge-space-layout {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.knowledge-space-document {
+  min-width: 0;
+}
+body:is(.wiki-focus-active, .wiki-reader-focus-active) .knowledge-space-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+body:is(.wiki-focus-active, .wiki-reader-focus-active) .space-navigator {
+  display: none;
+}
+@media (max-width: 1100px) {
+  .knowledge-space-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .wiki-view {
   max-width: 1680px;
   padding: 24px clamp(16px, 2.4vw, 38px) 28px;

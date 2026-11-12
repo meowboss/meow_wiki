@@ -42,7 +42,16 @@ export default function WikiReader({
   const [fontSize, setFontSize] = useState(18);
   const [focused, setFocused] = useState(false);
   const focusButtonRef = useRef<HTMLButtonElement>(null);
-  const parent = pages.find((candidate) => candidate.id === page.parentId);
+  const ancestors: WikiPage[] = [];
+  const visited = new Set([page.id]);
+  let parentId = page.parentId;
+  while (parentId && !visited.has(parentId)) {
+    const parent = pages.find((p) => p.id === parentId);
+    if (!parent) break;
+    ancestors.unshift(parent);
+    visited.add(parent.id);
+    parentId = parent.parentId;
+  }
 
   useEffect(() => {
     if (!focused) return;
@@ -113,16 +122,24 @@ export default function WikiReader({
       </div>
       <article className="wiki-reader-article">
         <header className="wiki-reader-heading">
-          {parent && (
-            <button
-              type="button"
-              className="text-btn wiki-reader-parent"
-              disabled={!!busy}
-              onClick={() => onOpen(parent.id)}
-            >
-              父页面：{parent.title}
-            </button>
-          )}
+          <nav aria-label="笔记路径" className="wiki-note-path">
+            <span>笔记</span>
+            {ancestors.map((parent) => (
+              <span key={parent.id}>
+                {' '}
+                /{' '}
+                <button
+                  type="button"
+                  className="text-btn"
+                  disabled={!!busy}
+                  onClick={() => onOpen(parent.id)}
+                >
+                  {parent.title}
+                </button>
+              </span>
+            ))}
+            <span aria-current="page"> / {page.title}</span>
+          </nav>
           <h1>{page.title}</h1>
           <div className="wiki-reader-meta">
             <Clock3 size={13} />

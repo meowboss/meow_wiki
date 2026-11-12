@@ -41,6 +41,7 @@ import PageTransfer from '../features/wiki/PageTransfer';
 import WikiEditor, { type WikiEditorMode } from '../features/wiki/WikiEditor';
 import WikiReader from '../features/wiki/WikiReader';
 import WikiWorkspaceView from '../features/wiki/WikiWorkspaceView';
+import SpaceNavigator from '../features/wiki/SpaceNavigator';
 import WorkspacePicker from '../features/workspaces/WorkspacePicker';
 import HomeView from '../features/home/HomeView';
 import ComponentCatalog from '../features/extensions/ComponentCatalog';
@@ -493,6 +494,20 @@ export default function App({
       setBusy('');
     }
   }
+  async function toggleSpacePlugin(id: string, value: boolean) {
+    if (busy) return;
+    if (dirty && !window.confirm('切换插件可能影响当前预览，未保存草稿会保留。继续吗？')) return;
+    setBusy('plugin-toggle');
+    setError('');
+    try {
+      await api(`/plugins/${encodeURIComponent(id)}`, { enabled: value });
+      await load();
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setBusy('');
+    }
+  }
   async function savePage() {
     if (busy || !selected || !title.trim() || baseRevision === null || conflict) return;
     const next = { title: title.trim(), markdown, parentId, expectedRevision: baseRevision };
@@ -764,16 +779,16 @@ export default function App({
                 <span>知识笔记</span>
                 <span>{data?.pages.length || 0}</span>
               </div>
-              {data?.pages.map((p) => (
-                <button
-                  key={p.id}
-                  className={`tree-page ${selected === p.id && view === 'wiki' ? 'selected' : ''}`}
-                  onClick={() => selectPage(p)}
-                >
-                  <FileText size={15} />
-                  <span>{p.title || '无标题页面'}</span>
-                </button>
-              ))}
+              {view === 'wiki' ? (
+                <p className="sidebar-empty">在右侧空间导航中查看笔记目录</p>
+              ) : (
+                data?.pages.map((p) => (
+                  <button key={p.id} className="tree-page" onClick={() => selectPage(p)}>
+                    <FileText size={15} />
+                    <span>{p.title || '无标题页面'}</span>
+                  </button>
+                ))
+              )}
               {!loading && !data?.pages.length && (
                 <p className="sidebar-empty">还没有页面，种下第一颗知识种子吧。</p>
               )}
@@ -1031,52 +1046,66 @@ export default function App({
                 onCreatePage={createPage}
                 onAsk={() => setAskOpen(true)}
               >
-                {page &&
-                  (documentMode === 'read' ? (
-                    <WikiReader
-                      page={page}
-                      pages={data.pages}
-                      html={html}
-                      rendering={rendering}
-                      renderError={renderError}
-                      markdownEnabled={enabled('official.markdown')}
-                      busy={busy}
-                      onEdit={() => setDocumentMode('edit')}
-                      onOpenHistory={() => setHistoryOpen(true)}
-                      onDelete={() => void deletePage()}
-                      onOpenMarket={() => nav('market')}
-                      onRetryPreview={() => setPreviewVersion((version) => version + 1)}
-                      onOpen={openSource}
-                    />
-                  ) : (
-                    <WikiEditor
-                      page={page}
-                      pages={data.pages}
-                      title={title}
-                      markdown={markdown}
-                      parentId={parentId}
-                      baseRevision={baseRevision}
-                      dirty={dirty}
-                      conflict={conflict}
-                      busy={busy}
-                      mode={mode}
-                      markdownEnabled={enabled('official.markdown')}
-                      html={html}
-                      rendering={rendering}
-                      renderError={renderError}
-                      onTitleChange={setTitle}
-                      onMarkdownChange={setMarkdown}
-                      onParentIdChange={setParentId}
-                      onModeChange={setMode}
-                      onOpenHistory={() => setHistoryOpen(true)}
-                      onLoadLatest={() => void loadLatest()}
-                      onDelete={() => void deletePage()}
-                      onSave={() => void savePage()}
-                      onCancel={cancelEdit}
-                      onOpenMarket={() => nav('market')}
-                      onRetryPreview={() => setPreviewVersion((version) => version + 1)}
-                    />
-                  ))}
+                <div className="knowledge-space-layout">
+                  <SpaceNavigator
+                    workspaceName={data.workspace.name}
+                    pages={data.pages}
+                    selectedId={selected}
+                    plugins={data.plugins}
+                    busy={!!busy}
+                    onOpen={openSource}
+                    onCreate={createPage}
+                    onTogglePlugin={(id, value) => void toggleSpacePlugin(id, value)}
+                  />
+                  <div className="knowledge-space-document">
+                    {page &&
+                      (documentMode === 'read' ? (
+                        <WikiReader
+                          page={page}
+                          pages={data.pages}
+                          html={html}
+                          rendering={rendering}
+                          renderError={renderError}
+                          markdownEnabled={enabled('official.markdown')}
+                          busy={busy}
+                          onEdit={() => setDocumentMode('edit')}
+                          onOpenHistory={() => setHistoryOpen(true)}
+                          onDelete={() => void deletePage()}
+                          onOpenMarket={() => nav('market')}
+                          onRetryPreview={() => setPreviewVersion((version) => version + 1)}
+                          onOpen={openSource}
+                        />
+                      ) : (
+                        <WikiEditor
+                          page={page}
+                          pages={data.pages}
+                          title={title}
+                          markdown={markdown}
+                          parentId={parentId}
+                          baseRevision={baseRevision}
+                          dirty={dirty}
+                          conflict={conflict}
+                          busy={busy}
+                          mode={mode}
+                          markdownEnabled={enabled('official.markdown')}
+                          html={html}
+                          rendering={rendering}
+                          renderError={renderError}
+                          onTitleChange={setTitle}
+                          onMarkdownChange={setMarkdown}
+                          onParentIdChange={setParentId}
+                          onModeChange={setMode}
+                          onOpenHistory={() => setHistoryOpen(true)}
+                          onLoadLatest={() => void loadLatest()}
+                          onDelete={() => void deletePage()}
+                          onSave={() => void savePage()}
+                          onCancel={cancelEdit}
+                          onOpenMarket={() => nav('market')}
+                          onRetryPreview={() => setPreviewVersion((version) => version + 1)}
+                        />
+                      ))}
+                  </div>
+                </div>
               </WikiWorkspaceView>
             )}
             {view === 'proposals' && (

@@ -63,6 +63,18 @@
   font-size: var(--wiki-reader-font-size, 18px);
 }
 
+.wiki-note-path {
+  font-size: 12px;
+  color: #738268;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 14px;
+  overflow-wrap: anywhere;
+}
+.wiki-note-path button {
+  font-size: 12px;
+}
 .wiki-reader-heading {
   margin-bottom: 28px;
 }

@@ -55,9 +55,8 @@ export default function WikiWorkspaceView({
           所有内容存储在本地工作空间
         </span>
       </div>
-      {hasPage ? (
-        children
-      ) : (
+      {children}
+      {!hasPage && (
         <div className="empty-state large">
           <div className="empty-icon">
             <Sprout size={32} />
