@@ -54,6 +54,9 @@ import WorkshopPageCanvas from './WorkshopPageCanvas';
 import ProfileView from '../features/profile/ProfileView';
 
 import PrimaryNavigation from './navigation/PrimaryNavigation';
+import CreatedPageNavigation from './navigation/CreatedPageNavigation';
+import CreatedPageView from './CreatedPageView';
+import useCreatedPages from './useCreatedPages';
 import type { AppView as View } from './navigation/types';
 import useSidebarCompact from './navigation/useSidebarCompact';
 import './navigation/compact-sidebar.css';
@@ -89,6 +92,8 @@ export default function App({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [view, setView] = useState<View>('wiki');
+  const [createdPageId, setCreatedPageId] = useState('');
+  const createdPages = useCreatedPages(workspace?.id ?? null);
   const [selected, setSelected] = useState('');
   const [editorPage, setEditorPage] = useState<WikiPage | null>(null);
   const [documentMode, setDocumentMode] = useState<'read' | 'edit'>('read');
@@ -734,6 +739,19 @@ export default function App({
           </button>
         )}
         <PrimaryNavigation view={view} role={user.role} onNavigate={nav} />
+        <CreatedPageNavigation
+          pages={createdPages.pages}
+          loading={createdPages.loading}
+          selectedId={view === 'created-page' ? createdPageId : undefined}
+          disabled={!!busy || logoutBusy}
+          onOpen={(id) => {
+            if (guardWorkspaceExit()) {
+              setCreatedPageId(id);
+              setView('created-page');
+              setSidebar(false);
+            }
+          }}
+        />
 
         <div className="sidebar-bottom">
           {!independentView && (
@@ -900,6 +918,14 @@ export default function App({
             onDirtyChange={setProfileDirty}
             onBusyChange={childBusy}
           />
+        ) : view === 'created-page' && workspace ? (
+          <CreatedPageView
+            key={`${workspace.id}:${createdPageId}`}
+            id={createdPageId}
+            workspaceId={workspace.id}
+            ownerId={user.id}
+            data={data ?? undefined}
+          />
         ) : view === 'workshop' ? (
           <WorkshopView
             key={workspace?.id ?? 'no-workspace'}
@@ -908,7 +934,10 @@ export default function App({
             onOpen={openSource}
             onDirtyChange={setWorkshopDirty}
             onBusyChange={childBusy}
-            onInstalled={load}
+            onInstalled={async () => {
+              await load();
+              await createdPages.reload();
+            }}
             renderPagePreview={(content) => (
               <WorkshopPageCanvas
                 content={content}

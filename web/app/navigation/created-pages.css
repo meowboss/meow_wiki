@@ -1,0 +1,32 @@
+.created-page-navigation {
+  margin-top: 5px;
+}
+
+.created-page-navigation .primary-navigation__item > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.main-nav.created-page-navigation .primary-navigation__item:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.created-page-navigation__status {
+  margin: 0;
+  padding: 10px 8px;
+  color: #727b69;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 781px) {
+  .sidebar-compact .created-page-navigation__status {
+    padding: 8px 0;
+    font-size: 10px;
+    text-align: center;
+  }
+}

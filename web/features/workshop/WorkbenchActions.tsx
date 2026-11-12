@@ -8,6 +8,7 @@ type Props = {
   onValidate: () => void;
   onInstall: () => void;
   onApply: () => void;
+  onCreatePage: () => void;
 };
 export default function WorkbenchActions({
   project,
@@ -17,6 +18,7 @@ export default function WorkbenchActions({
   onValidate,
   onInstall,
   onApply,
+  onCreatePage,
 }: Props) {
   const page = project.kind === 'page';
   return (
@@ -40,6 +42,15 @@ export default function WorkbenchActions({
         >
           {page ? '应用到页面' : '保存为私有组件'}
         </button>
+        {page && (
+          <button
+            className="secondary-btn"
+            disabled={working || fileDirty || !(project.state === 'ready' || validation?.valid)}
+            onClick={onCreatePage}
+          >
+            保存为新页面
+          </button>
+        )}
       </div>
       <p>
         {page

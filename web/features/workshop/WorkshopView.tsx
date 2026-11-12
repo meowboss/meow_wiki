@@ -363,6 +363,33 @@ export default function WorkshopView({
       await reload(project.id, signal);
     });
   }
+  function createPage() {
+    if (
+      !project ||
+      !isPage ||
+      fileDirty ||
+      running ||
+      !(project.state === 'ready' || validation?.valid)
+    )
+      return;
+    void action('create-page', async (signal) => {
+      const title = window.prompt('新页面标题', project.name)?.trim();
+      if (!title) return;
+      const page = await api<WikiPage>(
+        `/workshop/projects/${encodeURIComponent(project.id)}/create-page`,
+        { expectedProjectRevision: project.revision, title },
+        'POST',
+        signal,
+      );
+      if (signal.aborted) return;
+      setNotice(`${page.title}：已保存为新页面，可从左侧创作页面打开。`);
+      try {
+        await onInstalled();
+      } catch {
+        if (!signal.aborted) setError('页面已保存，但导航刷新失败，请手动刷新；不要重复创建。');
+      }
+    });
+  }
   function applyPage() {
     if (
       !project ||
@@ -529,6 +556,7 @@ export default function WorkshopView({
             onValidate={validate}
             onInstall={install}
             onApply={applyPage}
+            onCreatePage={createPage}
           />
         )}
         <ProviderSettings

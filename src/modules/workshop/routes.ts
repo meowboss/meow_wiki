@@ -4,9 +4,11 @@ import type { HttpContext } from '../../http/context.ts';
 import { ProviderVault } from './providers.ts';
 import { CompositionService } from '../compositions/service.ts';
 import { pageInput, revisionSchema } from './page-projects.ts';
-import { WorkshopProjects } from './projects.ts';
+import { WorkshopError, WorkshopProjects } from './projects.ts';
+import { parsePage } from './page-projects.ts';
 import { WorkshopEngine } from './engine.ts';
 import { ConversationStore } from './conversation.ts';
+import { WorkshopCreatedPages } from './created-pages.ts';
 import { ProviderOperations } from './provider-operations.ts';
 export type WorkshopOptions = {
   masterSecret: string;
@@ -36,6 +38,12 @@ export function registerWorkshop(
     context.store.get(owner, workspace);
   });
   const projects = new WorkshopProjects(context.store.db, context.components, compositions);
+  const createdPages = new WorkshopCreatedPages(
+    context.store.db,
+    (owner, workspace) => context.store.get(owner, workspace),
+    (owner, workspace, composition) =>
+      compositions.validateReferences(owner, workspace, composition),
+  );
   projects.recoverInterruptedRuns(); // Single-instance startup reconciliation, not a multi-replica lease.
   const conversation = new ConversationStore(context.store.db, projects);
   const engine = new WorkshopEngine(projects, vault, options.fetcher, conversation);
@@ -56,6 +64,56 @@ export function registerWorkshop(
   app.get('/api/workshop/projects', async (request) => ({
     projects: projects.list(context.caller(request), context.scope(request).id),
   }));
+  app.get('/api/workshop/pages', async (request) => {
+    const workspaceId = context.scope(request).id;
+    return { pages: createdPages.list(context.caller(request), workspaceId) };
+  });
+  app.get<{ Params: { id: string } }>('/api/workshop/pages/:id', async (request) => {
+    const workspaceId = context.scope(request).id;
+    const page = createdPages.get(context.caller(request), workspaceId, request.params.id);
+    return {
+      id: page.id,
+      title: page.title,
+      composition: page.composition,
+      revision: page.revision,
+      workspaceId: page.workspaceId,
+    };
+  });
+  app.post<{ Params: { id: string } }>(
+    '/api/workshop/projects/:id/create-page',
+    async (request, reply) => {
+      const input = z
+        .strictObject({
+          expectedProjectRevision: revisionSchema,
+          title: z.string().trim().min(1).max(160),
+        })
+        .parse(request.body);
+      const owner = context.caller(request);
+      const project = projects.get(owner, request.params.id);
+      if (
+        project.workspaceId !== context.scope(request).id ||
+        project.kind !== 'page' ||
+        project.state === 'running'
+      )
+        throw new WorkshopError('Invalid workshop page project', 400);
+      if (project.revision !== input.expectedProjectRevision)
+        throw new WorkshopError('Project revision conflict', 409);
+      const declaration = parsePage(project.files['/project/page.json']);
+      const page = createdPages.create(owner, project.workspaceId, {
+        title: input.title,
+        composition: declaration.composition,
+        sourceProject: project.id,
+        sourceProjectRevision: input.expectedProjectRevision,
+      });
+      return reply.code(201).send({
+        id: page.id,
+        title: page.title,
+        composition: page.composition,
+        revision: page.revision,
+        workspaceId: page.workspaceId,
+      });
+    },
+  );
   app.post('/api/workshop/projects', async (request, reply) => {
     const input = z
       .object({

@@ -9,6 +9,7 @@ import {
   surfaceSchema,
   type CanvasSurface,
   type Composition,
+  type CompositionDocument,
 } from '../../../packages/canvas-contract/index.ts';
 
 const legacyMigrationSchema = z.strictObject({
@@ -147,14 +148,8 @@ export class CompositionService {
     });
   }
 
-  update(owner: string, workspace: string, surface: CanvasSurface, input: unknown): Composition {
+  validateReferences(owner: string, workspace: string, composition: CompositionDocument): void {
     this.authorize(owner, workspace);
-    surfaceSchema.parse(surface);
-    const parsed = compositionUpdateSchema.safeParse(input);
-    if (!parsed.success) throw new CompositionError(400, '画布输入校验失败');
-    const { expectedRevision, composition } = parsed.data;
-    if (composition.surface !== surface)
-      throw new CompositionError(400, '画布 surface 与路径不一致');
     for (const instance of composition.instances) {
       if (instance.config.assetId) {
         const asset = this.db
@@ -180,6 +175,17 @@ export class CompositionService {
             .get(releaseId!, workspace);
       if (!allowed) throw new CompositionError(400, '空间组件不可访问或尚未安装');
     }
+  }
+
+  update(owner: string, workspace: string, surface: CanvasSurface, input: unknown): Composition {
+    this.authorize(owner, workspace);
+    surfaceSchema.parse(surface);
+    const parsed = compositionUpdateSchema.safeParse(input);
+    if (!parsed.success) throw new CompositionError(400, '画布输入校验失败');
+    const { expectedRevision, composition } = parsed.data;
+    if (composition.surface !== surface)
+      throw new CompositionError(400, '画布 surface 与路径不一致');
+    this.validateReferences(owner, workspace, composition);
     if (expectedRevision === Number.MAX_SAFE_INTEGER)
       throw new CompositionError(409, '画布版本已达上限');
     const json = JSON.stringify(composition);

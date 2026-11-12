@@ -156,6 +156,16 @@ export class AssetService {
     const rows = hasCompositions
       ? this.db.prepare('SELECT json FROM mw_compositions WHERE owner=?').all(owner)
       : [];
+    if (
+      this.db
+        .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='mw_workshop_pages'")
+        .get()
+    )
+      rows.push(
+        ...this.db
+          .prepare('SELECT composition_json AS json FROM mw_workshop_pages WHERE owner=?')
+          .all(owner),
+      );
     for (const row of rows) {
       let document: unknown;
       try {

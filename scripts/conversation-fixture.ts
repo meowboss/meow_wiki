@@ -11,7 +11,44 @@ provider.post('/v1/chat/completions', async (request) => {
   const hasAnswer = text.includes('读书笔记');
   const latestUser = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
   let action: unknown;
-  if (!hasAnswer) action = { tool: 'ask_user', message: '你希望组件用于什么场景？例如读书笔记。' };
+  if (text.includes('meow.page')) {
+    if (latestUser.includes('written')) action = { tool: 'validate_project' };
+    else if (latestUser.includes('valid'))
+      action = { tool: 'finish', message: '页面工作副本已通过校验，请预览后明确保存。' };
+    else
+      action = {
+        tool: 'write_file',
+        path: '/project/page.json',
+        content: JSON.stringify({
+          format: 'meow.page',
+          version: 1,
+          name: '对话创作页面',
+          composition: {
+            schemaVersion: 2,
+            surface: 'wiki',
+            layout: 'flow',
+            columns: 12,
+            gap: 16,
+            background: '#ffffff',
+            instances: [
+              {
+                id: 'agent-text',
+                viewId: 'builtin.text',
+                visible: true,
+                layer: 'content',
+                x: 0,
+                y: 0,
+                w: 12,
+                h: 1,
+                config: { text: '这是Agent对话生成的独立页面' },
+                style: {},
+              },
+            ],
+          },
+        }),
+      };
+  } else if (!hasAnswer)
+    action = { tool: 'ask_user', message: '你希望组件用于什么场景？例如读书笔记。' };
   else if (latestUser.includes('written') || latestUser.includes('写入'))
     action = { tool: 'validate_component' };
   else if (latestUser.includes('valid'))

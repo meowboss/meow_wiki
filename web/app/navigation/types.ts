@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 
 export type AppView =
+  | 'created-page'
   | 'profile'
   | 'home'
   | 'wiki'
