@@ -105,9 +105,10 @@ export function pageContent(
   current: ReturnType<typeof createDefaultComposition>,
   fromCurrent: boolean,
 ) {
-  const { revision: _, ...composition } = fromCurrent
+  const { revision: _, ...base } = fromCurrent
     ? current
     : createDefaultComposition(current.surface);
+  const composition = fromCurrent ? base : { ...base, instances: [] };
   const content = JSON.stringify({ format: 'meow.page', version: 1, name, composition }, null, 2);
   if (content.length > 30000)
     throw new WorkshopError('Page declaration exceeds 30000 characters', 400);

@@ -24,6 +24,19 @@ test('page project previews real canvas, edits source and applies only on explic
   await expect(page.getByRole('region', { name: '页面实时预览', exact: true })).toBeVisible();
   await expect(page.locator('.workshop-workspace')).toBeVisible();
   await page.getByRole('tab', { name: '源码', exact: true }).click();
+  let releaseRefresh!: () => void;
+  const refreshGate = new Promise<void>((resolve) => {
+    releaseRefresh = resolve;
+  });
+  await page.route(`**/api/workshop/projects/${project.id}?*`, async (route) => {
+    if (route.request().method() === 'GET') await refreshGate;
+    await route.continue();
+  });
+  await page.getByRole('button', { name: '刷新对话与项目', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: /page.json/ })).toBeDisabled();
+  releaseRefresh();
+  await expect(page.getByRole('textbox', { name: /page.json/ })).toBeEnabled();
+  await page.unroute(`**/api/workshop/projects/${project.id}?*`);
   const content = JSON.parse(project.files['/project/page.json']);
   content.composition.instances.push({
     ...content.composition.instances[0],
@@ -44,6 +57,15 @@ test('page project previews real canvas, edits source and applies only on explic
   await expect(page.getByText('页面已应用。项目文件保存与页面应用是独立操作。')).toBeVisible();
   const after = await (await page.request.get('/api/compositions/wiki')).json();
   expect(after.instances.some((i: { id: string }) => i.id === 'from-workshop')).toBe(true);
+  await page.getByRole('tab', { name: '源码', exact: true }).click();
+  await page.getByRole('textbox', { name: /page.json/ }).fill('{"incomplete":');
+  await page.getByRole('button', { name: '保存 JSON', exact: true }).click();
+  await page.getByRole('tab', { name: '预览', exact: true }).click();
+  await expect(
+    page.getByText('当前源码未通过校验；保留上一次有效预览，不代表当前源码。', { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText('工坊源码真实预览', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '应用到页面', exact: true })).toBeDisabled();
   await page.screenshot({ path: 'artifacts/visual/workshop-page-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'artifacts/visual/workshop-page-mobile.png', fullPage: true });

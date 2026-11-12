@@ -27,6 +27,8 @@ test('secondary explanations stay discoverable without dominating page content',
         .filter({ has: page.locator('summary', { hasText: '使用说明 / 权限说明' }) })
         .first();
       await expect(help).not.toHaveAttribute('open', '');
+      await expect(page.getByRole('button', { name: '编辑布局', exact: true })).toBeEnabled();
+      await expect(help.locator('summary')).not.toHaveJSProperty('inert', true);
       await help.locator('summary').focus();
       await page.keyboard.press('Enter');
       await expect(help).toHaveAttribute('open', '');

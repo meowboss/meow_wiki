@@ -367,13 +367,10 @@ export default function WorkshopView({
     });
   }
   async function refreshCurrent() {
-    const signal = lifecycle.current?.signal;
-    if (!project || !signal || signal.aborted || fileDirty) return;
-    try {
+    if (!project || fileDirty || working) return;
+    await action('refresh-current', async (signal) => {
       await reload(project.id, signal);
-    } catch (e) {
-      if (!signal.aborted) setPollingError(errorMessage(e));
-    }
+    });
   }
   async function cancelRun() {
     const signal = lifecycle.current?.signal;
@@ -547,17 +544,12 @@ export default function WorkshopView({
         }
         preview={
           isPage ? (
-            <section className="workshop-preview" aria-label="页面安全预览">
-              <h2>页面安全预览</h2>
-              {(running || fileDirty) && (
-                <p className="workshop-warning">当前展示最近保存的页面；未保存 JSON 不进入预览。</p>
-              )}
-              {renderPagePreview ? (
-                renderPagePreview(project?.files[file] ?? '')
-              ) : (
-                <p>页面预览渲染器尚未连接；可在源码中检查页面，项目不会自动应用。</p>
-              )}
-            </section>
+            <WorkshopPagePreview
+              projectId={project?.id ?? ''}
+              content={project?.files[file] ?? ''}
+              stale={running || fileDirty}
+              render={renderPagePreview}
+            />
           ) : (
             <WorkshopPreview
               content={project?.files[file] ?? ''}

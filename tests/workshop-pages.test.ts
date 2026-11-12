@@ -41,6 +41,7 @@ test('page declarations are owner/workspace scoped, virtual-only and share compo
         ['/sdk/README.md', '/sdk/page.schema.json', PAGE_FILE].sort(),
       );
       assert.equal(JSON.parse(p.files[PAGE_FILE]).composition.surface, surface);
+      assert.deepEqual(JSON.parse(p.files[PAGE_FILE]).composition.instances, []);
       assert.deepEqual(f.projects.validate('alice', p.id), { valid: true });
       for (const path of [
         '/etc/passwd',

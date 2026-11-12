@@ -16,7 +16,7 @@
 ## 两条模型链路
 
 1. **知识问答broker**：宿主配置 `MEOW_MODEL_ENDPOINT/NAME/KEY`，本机HTTP需 `MEOW_MODEL_ALLOW_LOCAL=1`；引用与输出预算由宿主管理。
-2. **声明式工坊**：[用户Provider](<../history/provider-settings-delivery.md>)加密保存、模型发现与独立推理测试、多轮对话/受限虚拟文件/8轮工具循环/显式取消和私有保存。当前[具体IP策略](<../architecture/provider-local-ip-policy.md>)允许明确IP的HTTP/HTTPS及内网/回环；域名仍HTTPS+全部DNS公网，拒metadata/link-local/mapped/特殊地址及redirect。前期“custom只能公网HTTPS”已被取代。
+2. **声明式工坊**：[用户Provider](<../history/provider-settings-delivery.md>)加密保存、模型发现与独立推理测试、多轮对话/受限虚拟文件/8轮工具循环/显式取消和私有保存。工坊新增页面项目：左对话右预览/源码、复制现有页面或空白起步、显式CAS应用或创建导航页、回工坊更新同一页面、项目修订历史与载入草稿；预览和正式页面共享画布布局运行逻辑。源码仍为声明式JSON，原生TSX包/隔离构建和可安装Agent另行推进，详见[工坊当前实现](<../features/workshop-execution-experience.md>)。当前[具体IP策略](<../architecture/provider-local-ip-policy.md>)允许明确IP的HTTP/HTTPS及内网/回环；域名仍HTTPS+全部DNS公网，拒metadata/link-local/mapped/特殊地址及redirect。前期“custom只能公网HTTPS”已被取代。
 
 两条配置互不自动联动；首批协议是OpenAI-compatible，不能推断支持原生Anthropic/Responses等。真实商业模型质量、费用和语义引用没有独立验收证据；可控HTTP fixture只证明协议链路。
 
